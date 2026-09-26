@@ -1,0 +1,629 @@
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js";
+import {
+  STORAGE_KEY,
+  calculateProgress,
+  createInitialState,
+  exportState,
+  formulaValue,
+  getCurrentDay,
+  importState,
+  INTERNAL_SIMULATION_COUNT,
+  learningCycleCount,
+  normalizeState,
+  runSimulation,
+  taskKey
+} from "./core.js";
+import { LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js";
+import { SyncProvider } from "./sync.js";
+
+let state = loadState();
+let activeSimulation = "budget";
+let activeTopic = KNOWLEDGE_TOPICS[0].id;
+let saveTimer;
+let syncInProgress = false;
+let installPrompt;
+const stateChannel = "BroadcastChannel" in window ? new BroadcastChannel("eulen-state-v2") : null;
+const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", detail: "20 interne Referenzläufe geladen.", working: false };
+
+const $ = selector => document.querySelector(selector);
+const $$ = selector => [...document.querySelectorAll(selector)];
+const dateTime = value => new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+
+function loadState() {
+  try { return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
+  catch { return createInitialState(); }
+}
+
+function saveState(touch = true) {
+  if (touch) state.updatedAt = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  stateChannel?.postMessage({ type: "state-updated", updatedAt: state.updatedAt });
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveState, 250);
+}
+
+function navigate(viewId) {
+  $$(".view").forEach(view => view.classList.toggle("active", view.id === viewId));
+  $$(".nav-item").forEach(button => button.classList.toggle("active", button.dataset.view === viewId));
+  history.replaceState(null, "", `#${viewId}`);
+  $(`#${viewId}`)?.focus({ preventScroll: true });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderAll() {
+  document.documentElement.classList.toggle("light", state.theme === "light");
+  renderDashboard();
+  renderPlan();
+  renderSimulationControls();
+  renderHistory();
+  renderResearch();
+  renderAgents();
+  renderChat();
+  $("#chatMode").value = state.chatMode;
+  $("#providerEndpoint").value = state.provider.endpoint;
+  $("#providerModel").value = state.provider.model;
+  $("#syncEndpoint").value = state.sync.endpoint;
+  $("#syncWorkspace").value = state.sync.workspace;
+  $("#syncAuto").checked = state.sync.auto;
+}
+
+function renderDashboard() {
+  const progress = calculateProgress(state);
+  const currentDay = getCurrentDay(state);
+  const day = PLAN[currentDay - 1];
+  $("#metricProgress").textContent = `${progress.percent} %`;
+  $("#metricBar").style.width = `${progress.percent}%`;
+  $("#metricDay").textContent = `Tag ${currentDay}`;
+  $("#metricTopic").textContent = day.title;
+  $("#metricNotes").textContent = Object.values(state.notes).filter(note => note.trim()).length;
+  $("#metricRuns").textContent = state.simulations.length;
+  const learningCycles = learningCycleCount(state);
+  $("#formulaValue").textContent = `N = ${learningCycles} · P = ${formulaValue(learningCycles).toLocaleString("de-DE", { maximumFractionDigits: 4 })}`;
+  $("#todayTitle").textContent = `Tag ${currentDay} · ${day.title}`;
+  $("#todayDescription").textContent = day.description;
+  $("#todayTasks").innerHTML = day.tasks.slice(0, 3).map((task, index) => taskMarkup(day.day, task, index)).join("");
+  $("#todayTasks").querySelectorAll("input").forEach(input => input.addEventListener("change", onTaskChange));
+  const nextTask = day.tasks.find((_, index) => !state.completed[taskKey(day.day, index)]) ?? "Tagesreflexion notieren.";
+  const guidance = [
+    ["Nächster Schritt", nextTask],
+    ["Formel-Hinweis", `${INTERNAL_SIMULATION_COUNT} interne Referenzläufe plus ${state.simulations.length + state.agentRuns.length} eigene Lernzyklen ergeben P=${formulaValue(learningCycles).toFixed(4)}.`],
+    ["Agenten-Hinweis", state.agentRuns.length ? "Lass den Kritiker den letzten Lauf mit einem Gegenbeispiel prüfen." : "Starte einen Agentenlauf zu Bewusstsein oder Nullwelt-Physik."]
+  ];
+  $("#guidanceFeed").innerHTML = guidance.map(([title, text]) => `<div><strong>${escapeHtml(title)}</strong>${escapeHtml(text)}</div>`).join("");
+}
+
+function taskMarkup(day, task, index) {
+  const key = taskKey(day, index);
+  const checked = state.completed[key] ? " checked" : "";
+  return `<label><input type="checkbox" data-day="${day}" data-task="${index}"${checked}><span>${escapeHtml(task)}</span></label>`;
+}
+
+function renderPlan() {
+  $("#dayList").innerHTML = PLAN.map(day => {
+    const done = day.tasks.filter((_, index) => state.completed[taskKey(day.day, index)]).length;
+    const active = day.day === state.selectedDay ? " active" : "";
+    return `<button class="day-button${active}" data-day="${day.day}"><b>${String(day.day).padStart(2, "0")}</b><span>${escapeHtml(day.title)}<small>${done}/${day.tasks.length} erledigt</small></span><i>${done === day.tasks.length ? "✓" : ""}</i></button>`;
+  }).join("");
+  $$("#dayList .day-button").forEach(button => button.addEventListener("click", () => {
+    state.selectedDay = Number(button.dataset.day);
+    saveState();
+    renderPlan();
+  }));
+  renderDayDetail();
+}
+
+function renderDayDetail() {
+  const day = PLAN[state.selectedDay - 1];
+  const learning = state.learning[day.day] ?? 0;
+  $("#dayDetail").innerHTML = `
+    <span class="day-number">TAG ${day.day} VON 30</span>
+    <h2>${escapeHtml(day.title)}</h2>
+    <p>${escapeHtml(day.description)}</p>
+    <div class="task-list">${day.tasks.map((task, index) => {
+      const done = state.completed[taskKey(day.day, index)] ? " done" : "";
+      return `<label class="${done}">${taskMarkup(day.day, task, index).replace(/^<label>|<\/label>$/g, "")}</label>`;
+    }).join("")}</div>
+    <label class="learning-level">Lernstand
+      <input id="learningRange" type="range" min="0" max="100" step="10" value="${learning}">
+      <output id="learningOutput">${learning} %</output>
+    </label>
+    <label class="notes-label">Notizen & Erkenntnisse
+      <textarea id="dayNotes" rows="7" maxlength="10000" placeholder="Was ist klarer geworden? Welche Annahme bleibt offen?">${escapeHtml(state.notes[day.day] ?? "")}</textarea>
+    </label>
+    <p class="form-status" id="noteStatus">Wird lokal gespeichert.</p>`;
+  $("#dayDetail").querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener("change", onTaskChange));
+  $("#learningRange").addEventListener("input", event => {
+    state.learning[day.day] = Number(event.target.value);
+    $("#learningOutput").textContent = `${event.target.value} %`;
+    scheduleSave();
+  });
+  $("#dayNotes").addEventListener("input", event => {
+    state.notes[day.day] = event.target.value;
+    $("#noteStatus").textContent = "Speichert …";
+    scheduleSave();
+    clearTimeout(event.target._statusTimer);
+    event.target._statusTimer = setTimeout(() => { $("#noteStatus").textContent = "Lokal gespeichert."; }, 400);
+  });
+}
+
+function onTaskChange(event) {
+  const key = taskKey(Number(event.target.dataset.day), Number(event.target.dataset.task));
+  state.completed[key] = event.target.checked;
+  saveState();
+  renderDashboard();
+  renderPlan();
+}
+
+function renderSimulationControls() {
+  const definition = SIMULATION_DEFINITIONS[activeSimulation];
+  $("#simulationControls").innerHTML = `<p class="eyebrow">${escapeHtml(definition.title)}</p>${definition.fields.map(fieldMarkup).join("")}`;
+  $$(".simulation-tabs button").forEach(button => button.setAttribute("aria-selected", String(button.dataset.sim === activeSimulation)));
+}
+
+function fieldMarkup([name, label, type, value, min, max, step]) {
+  if (type === "select") {
+    return `<label>${escapeHtml(label)}<select name="${name}">${min.map(([optionValue, optionLabel]) => `<option value="${optionValue}"${optionValue === value ? " selected" : ""}>${escapeHtml(optionLabel)}</option>`).join("")}</select></label>`;
+  }
+  return `<label>${escapeHtml(label)}<input name="${name}" type="${type}" value="${value}" min="${min}" max="${max}" step="${step}" required></label>`;
+}
+
+function renderSimulationResult(result) {
+  $("#simulationEmpty").hidden = true;
+  const target = $("#simulationResult");
+  target.hidden = false;
+  target.innerHTML = `
+    <div class="result-header"><div><p class="eyebrow">${escapeHtml(result.title)}</p><h2>${escapeHtml(result.verdict)}</h2></div><strong>${escapeHtml(result.score)}</strong></div>
+    <div class="result-stats">${result.stats.map(([label, value]) => `<div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>
+    <h3>Annahmen & Lernschleife</h3>
+    <ul class="assumptions">${result.assumptions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    <p class="result-warning">${escapeHtml(result.warning)}</p>`;
+}
+
+function renderHistory() {
+  const runs = state.simulations.slice(0, 10);
+  $("#runHistory").innerHTML = runs.length
+    ? runs.map(run => `<div class="run-item"><span>${dateTime(run.timestamp)}</span><strong>${escapeHtml(run.title)}</strong><span>${escapeHtml(run.verdict)} · ${escapeHtml(run.score)}</span></div>`).join("")
+    : '<p class="empty-state">Noch keine Simulation gespeichert.</p>';
+}
+
+function renderResearch(filter = "") {
+  const query = filter.toLocaleLowerCase("de").trim();
+  const topics = KNOWLEDGE_TOPICS.filter(topic => [topic.title, topic.summary, ...topic.insights.map(item => item.text)].join(" ").toLocaleLowerCase("de").includes(query));
+  if (!topics.some(topic => topic.id === activeTopic)) activeTopic = topics[0]?.id;
+  $("#topicList").innerHTML = topics.length ? topics.map(topic => `<button class="topic-button${topic.id === activeTopic ? " active" : ""}" data-topic="${topic.id}"><span>${escapeHtml(topic.title)}<small>${escapeHtml(topic.status)}</small></span><b>→</b></button>`).join("") : '<p class="empty-state">Keine passenden Inhalte.</p>';
+  $$("#topicList .topic-button").forEach(button => button.addEventListener("click", () => {
+    activeTopic = button.dataset.topic;
+    renderResearch($("#researchSearch").value);
+  }));
+  const topic = topics.find(item => item.id === activeTopic);
+  $("#topicDetail").innerHTML = topic ? `
+    <p class="eyebrow">LOKAL KURATIERT · ${escapeHtml(topic.status.toUpperCase())}</p>
+    <h2>${escapeHtml(topic.title)}</h2>
+    <p class="topic-meta">Stand: ${escapeHtml(topic.updatedAt)} · Kein Live-Abruf</p>
+    <p>${escapeHtml(topic.summary)}</p>
+    <div class="insight-list">${topic.insights.map(item => `<div class="insight"><span class="badge ${item.type}">${labelType(item.type)}</span>${escapeHtml(item.text)}</div>`).join("")}</div>
+    <h3>Quellen zum Nachlesen</h3>
+    <ul class="sources">${topic.sources.map(([title, url]) => `<li><a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a></li>`).join("")}</ul>
+    <p class="result-warning">Quellenlinks sind Ausgangspunkte. Prüfe Aktualität, Primärquelle, Jurisdiktion und Anwendbarkeit selbst.</p>` : '<p class="empty-state">Keine passenden Inhalte.</p>';
+}
+
+function labelType(type) {
+  return ({ fact: "FAKT", hypothesis: "HYPOTHESE", simulation: "SIMULATION", question: "OFFENE FRAGE" })[type] ?? type;
+}
+
+function renderAgents() {
+  $("#agentAuto").checked = state.agentAuto;
+  $("#agentInterval").value = String(state.agentInterval);
+  const runs = state.agentRuns;
+  $("#agentCycleCount").textContent = runs.length;
+  $("#agentFormula").textContent = formulaValue(INTERNAL_SIMULATION_COUNT + runs.length).toFixed(4);
+  $("#agentSourceCount").textContent = runs.reduce((sum, run) => sum + run.sources.length, 0);
+  $("#agentRuns").innerHTML = runs.length ? runs.map(run => `
+    <article class="agent-run">
+      <header><strong>${escapeHtml(run.goal)}</strong><span>${dateTime(run.timestamp)}${run.automatic ? " · automatisch" : ""}</span></header>
+      <div class="agent-steps">${run.steps.map(step => `<div class="agent-step"><strong>${escapeHtml(step.agent)}</strong><small>${escapeHtml(step.output)}</small></div>`).join("")}</div>
+      <details><summary>${run.sources.length} verwendete Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a></li>`).join("")}</ul></details>
+    </article>`).join("") : '<p class="empty-state">Noch kein Agentenauftrag ausgeführt.</p>';
+}
+
+async function executeAgentCycle(goal, automatic = false) {
+  const button = $("#runAgents");
+  button.disabled = true;
+  $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
+  try {
+    const { runAgentCycle } = await import("./core.js");
+    const run = { ...runAgentCycle(goal), automatic };
+    for (const step of run.steps) {
+      setNetworkActivity(step.agent, step.output.split(".")[0], `Agentenzyklus ${state.agentRuns.length + 1} · P(sim)=${formulaValue(INTERNAL_SIMULATION_COUNT + state.agentRuns.length).toFixed(4)}`, true);
+      const card = document.querySelector(`[data-agent-card="${step.agent}"]`);
+      card.classList.add("working");
+      card.querySelector("small").textContent = `Arbeitet · ${step.output.split(".")[0]}`;
+      await new Promise(resolve => setTimeout(resolve, 320));
+      card.classList.remove("working");
+      card.classList.add("done");
+      card.querySelector("small").textContent = `Fertig · ${step.output.split(".")[0]}`;
+    }
+    state.agentRuns.unshift(run);
+    state.agentRuns = state.agentRuns.slice(0, 30);
+    saveState();
+    renderAgents();
+    renderDashboard();
+    setNetworkActivity("Synthese", "Lernzyklus gespeichert", `${run.sources.length} Quellen verarbeitet · N=${learningCycleCount(state)}`, false);
+    $("#agentStatus").textContent = `Abgeschlossen: ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte gespeichert.`;
+  } catch (error) {
+    $("#agentStatus").textContent = `Agentenlauf fehlgeschlagen: ${error.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderChat() {
+  const messages = state.chat.length ? state.chat : [{
+    role: "assistant",
+    text: "Willkommen. Ich unterstütze dich beim Lernen, Strukturieren und sicheren Simulieren. Ich bin ein Softwaresystem und behaupte kein Bewusstsein.\n\nWas möchtest du heute klarer verstehen?"
+  }];
+  $("#chatMessages").innerHTML = messages.map(message => `<div class="message ${message.role}">${escapeHtml(message.text)}<small>${message.role === "assistant" ? "EULEN · unterstützende Antwort" : "Du"}</small></div>`).join("");
+  $("#chatMessages").scrollTop = $("#chatMessages").scrollHeight;
+  $("#chatModeNotice").textContent = state.chatMode === "critical"
+    ? "Prüfmodus: P(sim) wird mit Gegenmodellen verglichen und nicht vorausgesetzt."
+    : "Hypothesenmodus: Innerhalb des Gedankenuniversums gilt P(sim) als Axiom. EULEN bleibt ein Softwaresystem und behauptet kein Bewusstsein.";
+}
+
+async function sendChat(text) {
+  const clean = text.trim().slice(0, 2000);
+  if (!clean) return;
+  state.chat.push({ role: "user", text: clean });
+  saveState();
+  renderChat();
+  const submit = $("#chatForm button");
+  submit.disabled = true;
+  submit.textContent = "Denkt …";
+  setNetworkActivity("Assistent", "Antwort wird strukturiert", `${state.chatMode === "hypothesis" ? "P(sim)-Hypothesenmodus" : "Kritischer Prüfmodus"} · N=${learningCycleCount(state)}`, true);
+  let provider = new LocalProvider();
+  const endpoint = state.provider.endpoint;
+  const model = state.provider.model;
+  const key = sessionStorage.getItem("eulen-provider-key") ?? "";
+  if (endpoint && model && key) provider = new OpenAICompatibleProvider({ endpoint, model, key });
+  try {
+    const reply = await provider.reply(clean, state);
+    state.chat.push({ role: "assistant", text: reply });
+  } catch (error) {
+    const fallback = await new LocalProvider().reply(clean, state);
+    state.chat.push({ role: "assistant", text: `Der externe Provider war nicht erreichbar (${error.message}). Ich wechsle transparent in den lokalen Modus.\n\n${fallback}` });
+  } finally {
+    state.chat = state.chat.slice(-60);
+    saveState();
+    renderChat();
+    setNetworkActivity("Assistent", "Antwort abgeschlossen", `${state.chat.length} Nachrichten lokal gespeichert`, false);
+    submit.disabled = false;
+    submit.textContent = "Senden";
+  }
+}
+
+async function synchronizeState({ silent = false } = {}) {
+    if (syncInProgress) return;
+    const status = $("#syncStatus");
+    const token = sessionStorage.getItem("eulen-sync-token") ?? $("#syncToken").value.trim();
+    syncInProgress = true;
+    if (!silent) status.textContent = "Synchronisierung läuft …";
+    setNetworkActivity("Sync", "Gerätestand wird abgeglichen", state.sync.workspace || "Kein Arbeitsraum", true);
+    try {
+      const provider = new SyncProvider({ endpoint: state.sync.endpoint, workspace: state.sync.workspace, token });
+      const result = await provider.synchronize(state, AbortSignal.timeout(15000));
+      if (result.direction === "download") {
+        const localSync = state.sync;
+        state = normalizeState(result.state);
+        state.sync = localSync;
+        saveState(false);
+        renderAll();
+      }
+      status.textContent = result.direction === "download"
+        ? "Neuerer Stand von einem anderen Gerät geladen."
+        : result.direction === "upload" ? "Lokaler Stand sicher in die Cloud übertragen." : "Alle Geräte sind auf demselben Stand.";
+      setNetworkActivity("Sync", "Synchronisierung abgeschlossen", status.textContent, false);
+    } catch (error) {
+      status.textContent = `Nicht synchronisiert: ${error.message}`;
+      setNetworkActivity("Sync", "Synchronisierung fehlgeschlagen", error.message, false);
+      if (!silent) toast("Cloud-Synchronisierung fehlgeschlagen.");
+    } finally {
+      syncInProgress = false;
+    }
+}
+
+function setNetworkActivity(agent, task, detail, working) {
+    Object.assign(networkActivity, { agent, task, detail, working });
+    $("#networkTask").textContent = task;
+    $("#networkDetail").textContent = detail;
+    $("#networkStatus").classList.toggle("working", working);
+    $("#networkStatus").lastChild.textContent = working ? ` ${agent} arbeitet` : " Bereit";
+}
+
+function startNetworkVisualization() {
+    const canvas = $("#neuralCanvas");
+    const context = canvas.getContext("2d");
+    const nodes = [
+      { id: "Input", x: .08, y: .5 },
+      { id: "Planer", x: .28, y: .2 },
+      { id: "Rechercheur", x: .28, y: .8 },
+      { id: "Kritiker", x: .55, y: .2 },
+      { id: "Synthese", x: .55, y: .8 },
+      { id: "Assistent", x: .78, y: .35 },
+      { id: "Sync", x: .92, y: .65 }
+    ];
+    const edges = [[0,1],[0,2],[1,3],[2,3],[2,4],[3,4],[3,5],[4,5],[5,6],[6,0]];
+    let phase = 0;
+    function draw() {
+      const ratio = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(300, rect.width);
+      const height = Math.max(230, rect.height);
+      if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+      }
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
+      const styles = getComputedStyle(document.documentElement);
+      const accent = styles.getPropertyValue("--accent").trim();
+      const muted = styles.getPropertyValue("--muted").trim();
+      const surface = styles.getPropertyValue("--surface").trim();
+      phase += networkActivity.working ? .025 : .006;
+      for (const [from, to] of edges) {
+        const a = nodes[from], b = nodes[to];
+        context.strokeStyle = muted;
+        context.globalAlpha = .22;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(a.x * width, a.y * height);
+        context.lineTo(b.x * width, b.y * height);
+        context.stroke();
+        const p = (phase + from * .13) % 1;
+        context.globalAlpha = networkActivity.working ? .9 : .35;
+        context.fillStyle = accent;
+        context.beginPath();
+        context.arc((a.x + (b.x - a.x) * p) * width, (a.y + (b.y - a.y) * p) * height, networkActivity.working ? 3 : 2, 0, Math.PI * 2);
+        context.fill();
+      }
+      for (const node of nodes) {
+        const active = node.id === networkActivity.agent || (networkActivity.agent === "Assistent" && node.id === "Synthese");
+        context.globalAlpha = 1;
+        context.fillStyle = active ? accent : surface;
+        context.strokeStyle = active ? accent : muted;
+        context.lineWidth = active ? 3 : 1;
+        context.beginPath();
+        context.arc(node.x * width, node.y * height, active ? 25 : 20, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+        context.fillStyle = active ? "#15120b" : muted;
+        context.font = "11px system-ui";
+        context.textAlign = "center";
+        context.fillText(node.id, node.x * width, node.y * height + 4);
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+}
+
+function toast(message) {
+  const element = $("#toast");
+  element.textContent = message;
+  element.classList.add("show");
+  clearTimeout(element._timer);
+  element._timer = setTimeout(() => element.classList.remove("show"), 2600);
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
+}
+
+$$(".nav-item").forEach(button => button.addEventListener("click", () => navigate(button.dataset.view)));
+$$("[data-go]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.go)));
+$("#themeToggle").addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  saveState();
+  renderAll();
+});
+$("#simulationForm").addEventListener("submit", event => {
+  event.preventDefault();
+  const result = runSimulation(activeSimulation, Object.fromEntries(new FormData(event.currentTarget)));
+  setNetworkActivity("Synthese", `${result.title} wird ausgewertet`, `P(sim)-Zyklus ${learningCycleCount(state) + 1}`, true);
+  state.simulations.unshift(result);
+  state.simulations = state.simulations.slice(0, 50);
+  saveState();
+  renderSimulationResult(result);
+  renderHistory();
+  renderDashboard();
+  setNetworkActivity("Synthese", `${result.title} gespeichert`, result.verdict, false);
+});
+$$(".simulation-tabs button").forEach(button => button.addEventListener("click", () => {
+  activeSimulation = button.dataset.sim;
+  renderSimulationControls();
+  $("#simulationEmpty").hidden = false;
+  $("#simulationResult").hidden = true;
+}));
+$("#clearRuns").addEventListener("click", () => {
+  state.simulations = [];
+  saveState();
+  renderHistory();
+  renderDashboard();
+  $("#simulationEmpty").hidden = false;
+  $("#simulationResult").hidden = true;
+  toast("Simulationsverlauf geleert.");
+});
+$("#researchSearch").addEventListener("input", event => renderResearch(event.target.value));
+$("#chatForm").addEventListener("submit", event => {
+  event.preventDefault();
+  const input = $("#chatInput");
+  const value = input.value;
+  input.value = "";
+  sendChat(value);
+});
+$$(".prompt-chips button").forEach(button => button.addEventListener("click", () => sendChat(button.textContent)));
+$("#clearChat").addEventListener("click", () => {
+  state.chat = [];
+  saveState();
+  renderChat();
+  toast("Gespräch lokal geleert.");
+});
+$("#chatMode").addEventListener("change", event => {
+  state.chatMode = event.target.value;
+  saveState();
+  renderChat();
+  toast(state.chatMode === "hypothesis" ? "Hypothesenmodus aktiv." : "Kritischer Prüfmodus aktiv.");
+});
+$("#agentForm").addEventListener("submit", event => {
+  event.preventDefault();
+  executeAgentCycle($("#agentGoal").value);
+});
+$("#agentAuto").addEventListener("change", event => {
+  state.agentAuto = event.target.checked;
+  saveState();
+  $("#agentStatus").textContent = state.agentAuto ? `Automatik aktiv: nächster Lauf nach ${state.agentInterval} Minuten bei geöffnetem Tab.` : "Automatik deaktiviert.";
+});
+$("#agentInterval").addEventListener("change", event => {
+  state.agentInterval = Number(event.target.value);
+  saveState();
+  $("#agentStatus").textContent = `Intervall auf ${state.agentInterval} Minuten gesetzt.`;
+});
+$$("[data-agent-goal]").forEach(button => button.addEventListener("click", () => {
+  $("#agentGoal").value = button.dataset.agentGoal;
+  executeAgentCycle(button.dataset.agentGoal);
+}));
+$("#clearAgentRuns").addEventListener("click", () => {
+  state.agentRuns = [];
+  saveState();
+  renderAgents();
+});
+$("#resetPlan").addEventListener("click", () => {
+  if (!confirm("Aufgaben, Lernstände und Tagesnotizen wirklich zurücksetzen?")) return;
+  state.completed = {};
+  state.notes = {};
+  state.learning = {};
+  state.selectedDay = 1;
+  saveState();
+  renderAll();
+  toast("30-Tage-Plan zurückgesetzt.");
+});
+$("#syncForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  state.sync = {
+    endpoint: $("#syncEndpoint").value.trim(),
+    workspace: $("#syncWorkspace").value.trim(),
+    auto: $("#syncAuto").checked
+  };
+  sessionStorage.setItem("eulen-sync-token", $("#syncToken").value.trim());
+  saveState();
+  await synchronizeState();
+});
+$("#syncNow").addEventListener("click", () => synchronizeState());
+$("#syncAuto").addEventListener("change", event => {
+  state.sync.auto = event.target.checked;
+  saveState();
+});
+$("#providerForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector("button");
+  const status = $("#providerStatus");
+  const config = {
+    endpoint: $("#providerEndpoint").value.trim(),
+    model: $("#providerModel").value.trim(),
+    key: $("#providerKey").value.trim()
+  };
+  button.disabled = true;
+  status.textContent = "Verbindung wird geprüft …";
+  try {
+    await testProvider(config, AbortSignal.timeout(15000));
+    state.provider = { endpoint: config.endpoint, model: config.model };
+    sessionStorage.setItem("eulen-provider-key", config.key);
+    saveState();
+    status.textContent = "Verbindung erfolgreich. Schlüssel nur für diesen Tab gespeichert.";
+  } catch (error) {
+    status.textContent = `Nicht verbunden: ${error.message}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+$("#exportData").addEventListener("click", () => {
+  const blob = new Blob([exportState(state)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `eulen-export-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  $("#dataStatus").textContent = "Export erstellt.";
+});
+$("#importData").addEventListener("change", async event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    state = importState(await file.text());
+    saveState();
+    renderAll();
+    $("#dataStatus").textContent = "Daten erfolgreich importiert.";
+  } catch (error) {
+    $("#dataStatus").textContent = `Import fehlgeschlagen: ${error.message}`;
+  } finally {
+    event.target.value = "";
+  }
+});
+$("#deleteData").addEventListener("click", () => {
+  if (!confirm("Alle lokalen EULEN-Daten unwiderruflich löschen?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem("eulen-provider-key");
+  state = createInitialState();
+  renderAll();
+  $("#dataStatus").textContent = "Alle lokalen Daten wurden gelöscht.";
+});
+
+stateChannel?.addEventListener("message", event => {
+  if (event.data?.type !== "state-updated" || Date.parse(event.data.updatedAt) <= Date.parse(state.updatedAt)) return;
+  state = loadState();
+  renderAll();
+  toast("Änderung aus einem anderen Tab übernommen.");
+});
+window.addEventListener("storage", event => {
+  if (event.key !== STORAGE_KEY || !event.newValue) return;
+  const incoming = normalizeState(JSON.parse(event.newValue));
+  if (Date.parse(incoming.updatedAt) <= Date.parse(state.updatedAt)) return;
+  state = incoming;
+  renderAll();
+});
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  installPrompt = event;
+  $("#installApp").hidden = false;
+  $("#pwaStatus").textContent = "Installation verfügbar";
+});
+$("#installApp").addEventListener("click", async () => {
+  if (!installPrompt) return;
+  await installPrompt.prompt();
+  installPrompt = null;
+  $("#installApp").hidden = true;
+});
+
+const initialView = location.hash.slice(1);
+const hasInitialView = initialView && document.getElementById(initialView)?.classList.contains("view");
+navigate(hasInitialView ? initialView : "dashboard");
+renderAll();
+startNetworkVisualization();
+
+setInterval(() => {
+  if (!state.agentAuto || document.hidden) return;
+  const lastRun = state.agentRuns[0] ? Date.parse(state.agentRuns[0].timestamp) : 0;
+  if (Date.now() - lastRun >= state.agentInterval * 60 * 1000) executeAgentCycle($("#agentGoal").value, true);
+}, 60 * 1000);
+
+setInterval(() => {
+  if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });
+}, 30 * 1000);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").then(() => {
+    $("#pwaStatus").textContent = "Offline-Web-App aktiv";
+  }).catch(error => {
+    $("#pwaStatus").textContent = `Offline-Modus nicht aktiv: ${error.message}`;
+  });
+}

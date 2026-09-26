@@ -1,0 +1,19 @@
+{
+  "name": "EULEN Werkstatt",
+  "short_name": "EULEN",
+  "description": "Lern-, Forschungs- und Simulationswerkstatt",
+  "start_url": "./#dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090b0f",
+  "theme_color": "#090b0f",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

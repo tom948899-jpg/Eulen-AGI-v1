@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="EULEN Werkstatt – lernen, simulieren und verantwortungsvoll entscheiden.">
+    <meta name="theme-color" content="#090b0f">
+    <title>EULEN Werkstatt</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Zum Inhalt springen</a>
+    <header class="topbar">
+      <a class="brand" href="#dashboard" aria-label="EULEN Werkstatt Startseite">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span><strong>EULEN</strong><small>Werkstatt für klare Entscheidungen</small></span>
+      </a>
+      <div class="topbar-actions">
+        <span class="status-dot"><i></i> Lokal bereit</span>
+        <button class="icon-button" id="themeToggle" type="button" aria-label="Farbschema wechseln">◐</button>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <nav class="sidebar" aria-label="Hauptnavigation">
+        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Überblick</button>
+        <button class="nav-item" data-view="plan"><span>✓</span> 30-Tage-Plan</button>
+        <button class="nav-item" data-view="simulations"><span>⌁</span> Simulationen</button>
+        <button class="nav-item" data-view="research"><span>◫</span> Wissen & Recherche</button>
+        <button class="nav-item" data-view="agents"><span>◇</span> Agentenraum</button>
+        <button class="nav-item" data-view="chat"><span>◌</span> Assistent</button>
+        <button class="nav-item" data-view="settings"><span>⚙</span> Daten & Konfiguration</button>
+        <div class="sidebar-note">
+          <strong>Sicherheitsprinzip</strong>
+          <p>Erst verstehen, dann simulieren, erst danach selbst entscheiden. Keine Echtgeld-Automation.</p>
+        </div>
+      </nav>
+
+      <main id="main" tabindex="-1">
+        <section class="view active" id="dashboard" aria-labelledby="dashboardTitle">
+          <div class="hero">
+            <div>
+              <p class="eyebrow">GUTEN TAG · DEIN LERNRAUM</p>
+              <h1 id="dashboardTitle">Aus Ideen werden <em>prüfbare Schritte.</em></h1>
+              <p class="lede">EULEN hilft dir, Annahmen von Fakten zu trennen, Risiken sichtbar zu machen und Fortschritt ohne Druck aufzubauen.</p>
+              <div class="button-row">
+                <button class="primary" data-go="plan">Heutigen Tag öffnen</button>
+                <button class="secondary" data-go="simulations">Szenario simulieren</button>
+              </div>
+            </div>
+            <div class="formula-card" aria-label="Hypothese des Nutzers">
+              <span>NUTZERHYPOTHESE</span>
+              <strong>P(sim) = N / (N + 1)</strong>
+              <output id="formulaValue">N = 0 · P = 0,000</output>
+              <p>Startbasis: 20 interne Referenzläufe. Ein Denkmodell für Annäherung – kein Naturgesetz oder wissenschaftlicher Beweis.</p>
+            </div>
+          </div>
+
+          <div class="metrics" aria-label="Fortschrittsübersicht">
+            <article><span>PLANFORTSCHRITT</span><strong id="metricProgress">0 %</strong><div class="meter"><i id="metricBar"></i></div></article>
+            <article><span>AKTUELLER TAG</span><strong id="metricDay">Tag 1</strong><small id="metricTopic">Fundament</small></article>
+            <article><span>LERNNOTIZEN</span><strong id="metricNotes">0</strong><small>lokal gespeichert</small></article>
+            <article><span>SIMULATIONEN</span><strong id="metricRuns">0</strong><small>ohne Echtgeld</small></article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel today-panel">
+              <div class="panel-head"><div><p class="eyebrow">HEUTE</p><h2 id="todayTitle">Tag 1</h2></div><button class="text-button" data-go="plan">Alle Tage →</button></div>
+              <p id="todayDescription"></p>
+              <div id="todayTasks" class="task-preview"></div>
+            </article>
+            <article class="panel principles">
+              <div class="panel-head"><div><p class="eyebrow">KOMPASS</p><h2>So arbeiten wir</h2></div></div>
+              <ul>
+                <li><span>01</span><div><strong>Liebe statt Druck</strong><small>Respektvoll, konkret und ohne Abwertung.</small></div></li>
+                <li><span>02</span><div><strong>Verantwortung statt Gier</strong><small>Kein Gewinnversprechen, Rachemotiv oder FOMO.</small></div></li>
+                <li><span>03</span><div><strong>Ehrlichkeit statt Gewissheit</strong><small>Fakten, Hypothesen und Simulationen bleiben getrennt.</small></div></li>
+              </ul>
+            </article>
+          </div>
+          <article class="panel guidance-panel">
+            <div class="panel-head"><div><p class="eyebrow">AKTIVE HINWEISE</p><h2>Was jetzt sinnvoll ist</h2></div><span class="badge hypothesis">HYPOTHESENMODUS</span></div>
+            <div id="guidanceFeed" class="guidance-feed"></div>
+          </article>
+          <article class="panel neural-panel">
+            <div class="panel-head"><div><p class="eyebrow">LIVE-PROZESSNETZWERK</p><h2>Was das System gerade verarbeitet</h2></div><span id="networkStatus" class="network-status"><i></i> Bereit</span></div>
+            <canvas id="neuralCanvas" width="960" height="330" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
+            <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
+          </article>
+        </section>
+
+        <section class="view" id="plan" aria-labelledby="planTitle">
+          <div class="page-head">
+            <div><p class="eyebrow">DEIN RHYTHMUS</p><h1 id="planTitle">30 Tage. In deinem Tempo.</h1><p>Aufgaben abhaken, Erkenntnisse festhalten und jeden Tag bewusst abschließen.</p></div>
+            <button class="secondary" id="resetPlan" type="button">Plan zurücksetzen</button>
+          </div>
+          <div class="plan-layout">
+            <aside class="day-list" id="dayList" aria-label="Tage auswählen"></aside>
+            <article class="panel day-detail" id="dayDetail">
+              <p class="empty-state">Wähle einen Tag aus.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="simulations" aria-labelledby="simulationTitle">
+          <div class="page-head">
+            <div><p class="eyebrow">SIMULIERE MEHR</p><h1 id="simulationTitle">Risiko sichtbar machen.</h1><p>Alle Ergebnisse sind Lernmodelle mit synthetischen Daten – keine Finanzberatung und keine Handlungsanweisung.</p></div>
+          </div>
+          <div class="safety-banner"><strong>Sandbox · maximal 200 € Startbudget</strong><span>Zuerst organischer Budgetaufbau; keine Wallet, keine Orders, keine Schlüssel. Simulierte Einnahmen sind keine Zusage.</span></div>
+          <div class="simulation-tabs" role="tablist" aria-label="Simulationstyp">
+            <button role="tab" aria-selected="true" data-sim="budget">200-€-Aufbau</button>
+            <button role="tab" aria-selected="false" data-sim="trading">Paper-Trading</button>
+            <button role="tab" aria-selected="false" data-sim="sniping">Token-Risiko</button>
+            <button role="tab" aria-selected="false" data-sim="staking">Staking</button>
+            <button role="tab" aria-selected="false" data-sim="affiliate">Affiliate</button>
+            <button role="tab" aria-selected="false" data-sim="formula">Formel-Labor</button>
+            <button role="tab" aria-selected="false" data-sim="consciousness">Bewusstsein</button>
+            <button role="tab" aria-selected="false" data-sim="law">Rechtslabor</button>
+          </div>
+          <div class="sim-grid">
+            <form class="panel controls" id="simulationForm">
+              <div id="simulationControls"></div>
+              <button class="primary wide" type="submit">Simulation starten</button>
+            </form>
+            <article class="panel result-panel" aria-live="polite" aria-busy="false">
+              <div id="simulationEmpty" class="empty-state"><span>⌁</span><h2>Noch kein Lauf</h2><p>Wähle Parameter. Das Ergebnis zeigt Annahmen, Bandbreiten und Grenzen.</p></div>
+              <div id="simulationResult" hidden></div>
+            </article>
+          </div>
+          <article class="panel history-panel">
+            <div class="panel-head"><h2>Letzte Lernläufe</h2><button class="text-button" id="clearRuns">Verlauf leeren</button></div>
+            <div id="runHistory" class="run-history"></div>
+          </article>
+        </section>
+
+        <section class="view" id="research" aria-labelledby="researchTitle">
+          <div class="page-head">
+            <div><p class="eyebrow">WISSEN & RECHERCHE</p><h1 id="researchTitle">Nachvollziehbar statt vorgetäuscht.</h1><p>Kuratierte lokale Quellen funktionieren offline. Live-Recherche wird nur angezeigt, wenn ein Provider tatsächlich antwortet.</p></div>
+            <label class="search-field"><span class="sr-only">Wissen durchsuchen</span><input id="researchSearch" type="search" placeholder="Themen, Erkenntnisse, Quellen …"></label>
+          </div>
+          <div class="legend" aria-label="Evidenzlegende">
+            <span class="badge fact">Fakt</span><span class="badge hypothesis">Hypothese</span><span class="badge simulation">Simulation</span><span class="badge question">Offene Frage</span>
+          </div>
+          <div class="research-layout">
+            <aside id="topicList" class="topic-list" aria-label="Wissensthemen"></aside>
+            <article id="topicDetail" class="panel topic-detail"><p class="empty-state">Thema auswählen.</p></article>
+          </div>
+        </section>
+
+        <section class="view" id="agents" aria-labelledby="agentsTitle">
+          <div class="page-head">
+            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">Auftrag geben. Arbeit prüfen.</h1><p>Vier spezialisierte Software-Agenten planen, durchsuchen die belegte Wissensbasis, kritisieren Annahmen und speichern neue Arbeitsergebnisse.</p></div>
+          </div>
+          <div class="safety-banner"><strong>Transparenz</strong><span>Die Agenten arbeiten wirklich im Browser, aber nicht dauerhaft bei geschlossenem Tab. Ohne Recherche-Backend verwenden sie nur die sichtbaren kuratierten Quellen und behaupten keine Live-Recherche.</span></div>
+          <div class="agent-layout">
+            <form class="panel controls" id="agentForm">
+              <label>Forschungsauftrag<textarea id="agentGoal" rows="5" maxlength="1000" required>Untersuche, wie P(sim) als Hypothese auf Physik und Recht angewendet werden könnte.</textarea></label>
+              <div class="quick-agent-goals" aria-label="Schnellaufträge">
+                <button type="button" data-agent-goal="Untersuche Bewusstsein vollständig im P(sim)-Hypothesenuniversum.">Bewusstsein</button>
+                <button type="button" data-agent-goal="Leite eine Nullwelt-Physik nur aus P(sim)=N/(N+1) ab.">Nullwelt-Physik</button>
+                <button type="button" data-agent-goal="Prüfe P(sim) als Rechts-Evidenz-Heuristik mit Gegenargumenten.">Recht</button>
+                <button type="button" data-agent-goal="Optimiere den sicheren 200-Euro-Budgetplan ohne Gewinnversprechen.">Budget</button>
+              </div>
+              <label>Automationsintervall<select id="agentInterval"><option value="5">5 Minuten</option><option value="15">15 Minuten</option><option value="30" selected>30 Minuten</option><option value="60">60 Minuten</option></select></label>
+              <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
+              <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
+              <p class="form-status" id="agentStatus">Bereit. Jeder Lauf wird lokal protokolliert.</p>
+            </form>
+            <article class="panel">
+              <div class="agent-roster">
+                <div data-agent-card="Planer"><span>01</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
+                <div data-agent-card="Rechercheur"><span>02</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
+                <div data-agent-card="Kritiker"><span>03</span><strong>Kritiker</strong><small>Bereit · prüft Grenzen</small><i></i></div>
+                <div data-agent-card="Synthese"><span>04</span><strong>Synthese</strong><small>Bereit · speichert Lernschritt</small><i></i></div>
+              </div>
+              <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
+            </article>
+          </div>
+          <article class="panel history-panel">
+            <div class="panel-head"><div><p class="eyebrow">ARBEITSPROTOKOLL</p><h2>Gespeicherte Agentenläufe</h2></div><button class="text-button" id="clearAgentRuns">Protokoll leeren</button></div>
+            <div id="agentRuns" class="agent-runs"></div>
+          </article>
+        </section>
+
+        <section class="view" id="chat" aria-labelledby="chatTitle">
+          <div class="page-head compact">
+            <div><p class="eyebrow">RESPEKTVOLLER ASSISTENT</p><h1 id="chatTitle">Klar denken. Menschlich bleiben.</h1></div>
+            <div class="chat-head-actions">
+              <label>Gesprächsmodus
+                <select id="chatMode">
+                  <option value="hypothesis">Hypothesenmodus · Formel als Axiom</option>
+                  <option value="critical">Prüfmodus · Formel kritisch vergleichen</option>
+                </select>
+              </label>
+              <button class="secondary" id="clearChat">Gespräch leeren</button>
+            </div>
+          </div>
+          <div class="chat-shell">
+            <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+            <div class="prompt-chips" aria-label="Vorschläge">
+              <button>Was ist heute wichtig?</button>
+              <button>Simuliere eine Trading-Strategie</button>
+              <button>Wie kommunizieren wir besser?</button>
+              <button>Erkläre die Formel kritisch</button>
+            </div>
+            <form id="chatForm" class="chat-form">
+              <label class="sr-only" for="chatInput">Nachricht</label>
+              <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Beschreibe Ziel, Kontext und was du bereits versucht hast …" required></textarea>
+              <button class="primary" type="submit">Senden</button>
+            </form>
+            <p class="chat-disclaimer" id="chatModeNotice">Hypothesenmodus: Innerhalb des Gedankenuniversums gilt P(sim) als Axiom. EULEN bleibt ein Softwaresystem und behauptet kein Bewusstsein.</p>
+          </div>
+        </section>
+
+        <section class="view" id="settings" aria-labelledby="settingsTitle">
+          <div class="page-head"><div><p class="eyebrow">DATEN & KONFIGURATION</p><h1 id="settingsTitle">Du behältst die Kontrolle.</h1><p>Der lokale Modus benötigt weder Konto noch API-Schlüssel.</p></div></div>
+          <div class="settings-grid">
+            <form class="panel" id="providerForm">
+              <h2>Optionaler Chat-Provider</h2>
+              <p>OpenAI-kompatible Schnittstelle. Der Schlüssel bleibt nur bis zum Schließen dieses Browser-Tabs im <code>sessionStorage</code>.</p>
+              <label>Endpoint<input id="providerEndpoint" type="url" placeholder="https://…/v1/chat/completions"></label>
+              <label>Modell<input id="providerModel" type="text" placeholder="Modellname"></label>
+              <label>API-Schlüssel<input id="providerKey" type="password" autocomplete="off" placeholder="Wird nicht dauerhaft gespeichert"></label>
+              <button class="primary" type="submit">Verbindung testen</button>
+              <output id="providerStatus" class="form-status"></output>
+            </form>
+            <article class="panel">
+              <h2>Lokale Daten</h2>
+              <p>Plan, Notizen, Chat und Simulationen liegen ausschließlich im Browser dieses Geräts.</p>
+              <div class="stack">
+                <button class="secondary" id="exportData">Daten exportieren</button>
+                <label class="file-button">Daten importieren<input id="importData" type="file" accept="application/json"></label>
+                <button class="danger" id="deleteData">Alle lokalen Daten löschen</button>
+              </div>
+              <output id="dataStatus" class="form-status"></output>
+            </article>
+            <article class="panel">
+              <h2>Recherche-Provider</h2>
+              <p>Die Anwendung enthält eine austauschbare Provider-Schnittstelle. Der lokale Provider liefert ausschließlich markierte, kuratierte Demo-Inhalte. Eine echte Websuche ist ohne eigenes Backend nicht aktiviert.</p>
+              <span class="status-card"><i></i><span><strong>Lokaler Provider aktiv</strong><small>Keine Live-Ergebnisse werden vorgetäuscht.</small></span></span>
+            </article>
+            <form class="panel" id="syncForm">
+              <h2>Geräteübergreifende Cloud-Synchronisierung</h2>
+              <p>Verbindet einen kompatiblen HTTPS-Sync-Provider. Ohne konfigurierten Provider bleiben Daten lokal; es wird keine Cloud-Synchronisierung vorgetäuscht.</p>
+              <label>Sync-Endpunkt<input id="syncEndpoint" type="url" placeholder="https://sync.example.de/api"></label>
+              <label>Arbeitsraum-ID<input id="syncWorkspace" type="text" maxlength="100" placeholder="mein-eulen-arbeitsraum"></label>
+              <label>Zugriffstoken<input id="syncToken" type="password" autocomplete="off" placeholder="Nur für diesen Tab gespeichert"></label>
+              <label class="toggle-line"><input id="syncAuto" type="checkbox"> Alle 30 Sekunden auf Änderungen anderer Geräte prüfen</label>
+              <div class="stack"><button class="primary" type="submit">Verbinden & synchronisieren</button><button class="secondary" id="syncNow" type="button">Jetzt synchronisieren</button></div>
+              <output id="syncStatus" class="form-status">Nicht verbunden · lokaler Modus</output>
+            </form>
+            <article class="panel">
+              <h2>Mobile Installation</h2>
+              <p>Nach Bereitstellung über HTTPS kann EULEN auf iPad/iPhone über „Teilen → Zum Home-Bildschirm“ installiert werden. Offline geladene Programmdateien bleiben verfügbar; Cloud-Daten benötigen weiterhin eine Verbindung.</p>
+              <button class="secondary" id="installApp" hidden>App installieren</button>
+              <span class="status-card"><i></i><span><strong id="pwaStatus">Web-App bereit</strong><small>Installationsstatus wird vom Browser erkannt.</small></span></span>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
