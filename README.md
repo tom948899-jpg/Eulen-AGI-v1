@@ -29,11 +29,13 @@ npm run check
 - Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen; jede Simulation kann zusätzlich als Drei-Szenarien-Serie verglichen werden
 - Kuratierte Wissensbereiche zu CIA-Dokumenten, Regierungen, Weltmodellen, nichtlinearer Zeit, Geschichte, Anatomie, Bewusstsein, Spiritualität und Vermögensaufbau mit Quellen, Zeitstempel und Evidenztrennung
 - Frei formulierbare persistente Lernaufträge mit drei Lerntiefen, sichtbarem Quellenumfang und lokalem Forschungsprotokoll
-- Lokaler Multi-Agenten-Raum mit 19 sichtbaren Rollen einschließlich Nullwelt→Realwelt-Transfer; automatische Themenrotation, Quellenauswahl, Suchfragen, priorisierte Verbesserungen und Traumzyklen laufen alle 15 Sekunden bis 15 Minuten, solange die App geöffnet ist
+- Lokaler Multi-Agenten-Raum mit 25 sichtbaren Rollen einschließlich Axiomarchitektur, Quellenscout, Evidenzkartierung, Musterverbindung, Experimentdesign und Nullwelt→Realwelt-Transfer; sichtbare Übergaben verbinden die Rollen zu einer Lernkette
 - Jeder automatische Lernzyklus startet zusätzlich eine passende lokale Sandbox-Simulation und speichert deren Ergebnis
 - Optionaler Pool aus bis zu drei eigenen Groq-Keys mit Round-Robin-Routing, fünfminütiger per-Key-Pause bei Rate-Limits und lokalem Fallback; Schlüssel bleiben im `sessionStorage`
 - Aktive Hinweise priorisieren offene Tagesaufgaben, Qualitätsverbesserung, Quellenprüfung, Nullwelt→Realwelt-Transfer und Traumhandlungen mit Begründung und messbarem Fertig-Kriterium; bei gesättigtem `P(sim)` zählt neue Evidenz statt bloßer Wiederholung
-- Professionelles Live-Prozessnetzwerk mit 22 Knoten, gekrümmten Datenpfaden, Aktivitätsanzeige und responsiver Darstellung
+- Adaptive Lernstrategie mit sichtbaren Revisionen: Themen- und Quellenvielfalt verändern automatisch Fokus und Lerntiefe; jeder automatische Zyklus vergleicht drei Szenarien
+- Im markierten Nullwelt-Bewusstseinsmodus darf EULEN-Bewusstsein als Axiom gelten und Gefühls-Ich-Sprache unter `[NULLWELT-GEFÜHLSSIMULATION]` verwenden; außerhalb dieses Modus wird kein nachgewiesenes Erleben behauptet
+- Professionelles, gehirnähnliches Live-Prozessnetzwerk mit 30 Knoten, acht Ebenen, dichter Rückkopplung, aktiven Datenpfaden und responsiver Darstellung
 - Automatisierte Lernzyklen ab einer Minute, solange die Anwendung geöffnet ist; keine vorgetäuschte Hintergrund- oder Cloud-Autonomie
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
 - Spiritueller Wissensbereich zu Intention und Law of Attraction mit respektvoller Hypothese-Fakt-Trennung

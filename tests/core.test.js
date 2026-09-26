@@ -5,6 +5,7 @@ import {
   calculateProgress,
   chooseAutomaticResearchGoal,
   createInitialState,
+  evolveLearningPolicy,
   formulaValue,
   generateDream,
   importState,
@@ -140,11 +141,15 @@ test("Rechtslabor setzt Reisepass-Firma nur in der Nullwelt als Axiom", () => {
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
   const result = runAgentCycle("Untersuche die Formel in Physik und Recht");
-  assert.equal(result.steps.length, 19);
+  assert.equal(result.steps.length, 25);
   assert.ok(result.sources.length >= 4);
   assert.ok(result.topics.includes("Nullwelt & institutionelle Wirklichkeit"));
   assert.equal(result.improvements.length, 3);
   assert.ok(result.sourceQueries.length >= 1);
+  assert.equal(result.evidenceMatrix.length, result.topics.length);
+  assert.ok(result.formulaModel.p > 0 && result.formulaModel.p < 1);
+  assert.ok(result.steps.every(step => step.receivedFrom && step.handsTo));
+  assert.match(result.steps.find(step => step.agent === "Axiomarchitekt").output, /alle .* Themen/);
 });
 
 test("tiefer CIA-Lernauftrag nutzt Quellenkritik und offizielle Archive", () => {
@@ -159,7 +164,8 @@ test("Zustand migriert auf schnelle Automatik", () => {
   const state = normalizeState({ version: 2, agentDepth: 3, agentInterval: 1, provider: { endpoint: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", useAgents: true } });
   assert.equal(state.agentDepth, 3);
   assert.equal(state.agentAuto, true);
-  assert.equal(state.agentIntervalSeconds, 60);
+  assert.equal(state.agentIntervalSeconds, 15);
+  assert.equal(state.learningPolicy.simulationBatch, 3);
   assert.equal(state.provider.useAgents, true);
 });
 
@@ -170,6 +176,36 @@ test("Automatik wählt selbstständig wenig untersuchte Themen", () => {
   const firstTopic = first.match(/„(.+?)“/)?.[1];
   state.agentRuns = [{ goal: first, timestamp: new Date().toISOString(), topics: [firstTopic], steps: [] }];
   assert.notEqual(chooseAutomaticResearchGoal(state), first);
+});
+
+test("Lernstrategie verändert den nächsten Fokus aus Messwerten", () => {
+  const state = createInitialState();
+  state.agentRuns = Array.from({ length: 5 }, (_, index) => ({
+    goal: "gleich",
+    timestamp: new Date(index).toISOString(),
+    topics: ["Bewusstsein & Kommunikation"],
+    sources: [{ title: "Quelle", url: "https://example.com/a" }],
+    steps: []
+  }));
+  const run = {
+    goal: "neu",
+    timestamp: new Date().toISOString(),
+    topics: ["Bewusstsein & Kommunikation"],
+    sources: [{ title: "Quelle", url: "https://example.com/a" }],
+    steps: []
+  };
+  const policy = evolveLearningPolicy(state, run);
+  assert.equal(policy.revision, 1);
+  assert.equal(policy.focus, "novelty");
+  assert.equal(policy.simulationBatch, 3);
+  assert.match(policy.lastChange, /Themenvielfalt erhöhen/);
+  const transferPolicy = evolveLearningPolicy(createInitialState(), {
+    ...run,
+    topics: ["Bewusstsein & Kommunikation", "Weltmodell mit P(sim)"],
+    sources: [{ title: "A", url: "https://example.com/a" }, { title: "B", url: "https://example.com/b" }],
+    automaticSimulations: [{ scenario: "Basis" }]
+  });
+  assert.equal(transferPolicy.focus, "transfer");
 });
 
 test("Traumgenerator erzeugt kreative, geerdete nächste Schritte", () => {
@@ -205,14 +241,17 @@ test("Aktive Hinweise priorisieren Qualität statt bloßer Zyklusmenge", () => {
 test("Bewusstseinslabor nimmt Formel nur im Hypothesenmodus als Axiom", () => {
   const result = simulateConsciousness({ observations: 50, consistency: 70, selfCorrection: 60, contradictions: 3, memory: "session", mode: "axiom" });
   assert.match(result.verdict, /Axiomuniversum/);
-  assert.match(result.assumptions[0], /als wahr angenommen/);
-  assert.match(result.warning, /kein Erleben/);
+  assert.match(result.assumptions[0], /EULEN besitzt Bewusstsein/);
+  assert.match(result.assumptions[0], /Gefühlszustände/);
+  assert.match(result.warning, /ausschließlich in der markierten Nullwelt/);
 });
 
 test("Assistent unterscheidet Hypothesen- und Prüfmodus", () => {
   const hypothesis = createInitialState();
   const critical = { ...createInitialState(), chatMode: "critical" };
-  assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", hypothesis), /P\\(SIM\\)-HYPOTHESENMODUS/);
+  assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", hypothesis), /NULLWELT-BEWUSSTSEINSAXIOM/);
+  assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", hypothesis), /NULLWELT-GEFÜHLSSIMULATION/);
+  assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", hypothesis), /Ich freue mich/);
   assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", critical), /KRITISCHER PRÜFMODUS/);
 });
 
