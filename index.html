@@ -124,7 +124,7 @@
             <button role="tab" aria-selected="false" data-sim="affiliate">Affiliate</button>
             <button role="tab" aria-selected="false" data-sim="formula">Formel-Labor</button>
             <button role="tab" aria-selected="false" data-sim="consciousness">Bewusstsein</button>
-            <button role="tab" aria-selected="false" data-sim="law">Rechtslabor</button>
+            <button role="tab" aria-selected="false" data-sim="law">Nullwelt-Recht</button>
           </div>
           <div class="sim-grid">
             <form class="panel controls" id="simulationForm">
@@ -190,6 +190,7 @@
                 <button type="button" data-agent-goal="Untersuche Bewusstsein vollständig im P(sim)-Hypothesenuniversum.">Bewusstsein</button>
                 <button type="button" data-agent-goal="Leite eine Nullwelt-Physik nur aus P(sim)=N/(N+1) ab.">Nullwelt-Physik</button>
                 <button type="button" data-agent-goal="Prüfe P(sim) als Rechts-Evidenz-Heuristik mit Gegenargumenten.">Recht</button>
+                <button type="button" data-agent-goal="Nimm in der Nullwelt als Axiom an: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass. Simuliere daraus Rechte, Rollen und Verträge mit P(sim).">Reisepass-Firma</button>
                 <button type="button" data-agent-goal="Optimiere den sicheren 200-Euro-Budgetplan ohne Gewinnversprechen.">Budget</button>
                 <button type="button" data-agent-goal="Untersuche Law of Attraction, Spiritualität und liebevolle Handlung mit P(sim).">Spiritualität</button>
                 <button type="button" data-agent-goal="Ordne deklassifizierte CIA-Dokumente historisch ein und trenne Dokumentinhalt, Beleg und Spekulation.">CIA-Dokumente</button>
@@ -280,7 +281,7 @@
             <form class="panel" id="providerForm">
               <p class="eyebrow">EIN KEY · SYSTEMWEIT</p>
               <h2>Groq verbinden</h2>
-              <p>Füge nur deinen Groq-Key ein. EULEN konfiguriert Endpoint und Modell automatisch und nutzt Groq für Chat sowie Agentensynthesen. Ohne Key oder bei einem Gratislimit läuft der lokale Modus weiter.</p>
+              <p>Füge nur deinen Groq-Key ein. EULEN konfiguriert Endpoint und Modell automatisch und nutzt Groq für Chat sowie Agentensynthesen. Der Token-Sparmodus begrenzt Antworten auf 520 Ausgabetokens und versucht bei HTTP 413 einmal automatisch einen kompakten Kontext. Ohne Key oder bei einem Gratislimit läuft der lokale Modus weiter.</p>
               <label>Groq API-Key<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · nur in diesem Browser-Tab"></label>
               <details class="advanced-provider">
                 <summary>Erweiterte Provider-Einstellungen</summary>
@@ -327,6 +328,6 @@
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=6"></script>
+    <script type="module" src="src/app.js?v=8"></script>
   </body>
 </html>
