@@ -18,6 +18,15 @@ $contentTypes = @{
 
 try {
   $listener.Start()
+} catch [System.Net.HttpListenerException] {
+  $listener.Close()
+  Write-Error "Port $Port ist bereits belegt. EULEN läuft möglicherweise schon unter http://127.0.0.1:$Port/."
+  Write-Host "Öffne zuerst diese Adresse oder starte eine zweite Instanz mit:"
+  Write-Host "powershell -NoProfile -ExecutionPolicy Bypass -File `".\serve.ps1`" -Port 8081"
+  exit 1
+}
+
+try {
   Write-Host "EULEN Werkstatt läuft auf http://127.0.0.1:$Port/"
   Write-Host "Mit Strg+C beenden."
 
