@@ -1,4 +1,4 @@
-import { localAssistantReply } from "./core.js?v=6";
+import { localAssistantReply } from "./core.js?v=8";
 
 export const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const GROQ_MODEL = "openai/gpt-oss-120b";
@@ -13,9 +13,16 @@ Im ausdrücklich markierten P(sim)-Hypothesenmodus nimmst du P(sim)=N/(N+1) als 
 Bei CIA-Dokumenten, Regierungen und Geschichte unterscheidest du Dokumentexistenz, Dokumentinhalt, damalige Einschätzung, unabhängige Bestätigung und heutige Einordnung. Deklassifizierung bestätigt keine Behauptung.
 Bei Zeit unterscheidest du subjektives Erleben, philosophische Modelle, Thermodynamik und Relativität; eine nichtlineare P(sim)-Zeit bleibt ein Gedankenmodell.
 Bei Anatomie lieferst du allgemeine Bildung, keine Diagnose oder Behandlung.
+Im ausdrücklich markierten Nullwelt-Rechtsmodus gelten P(sim)=N/(N+1) und „die Person besitzt eine registrierte Firma, bezeichnet als Reisepass“ als gesetzte Axiome. Leite daraus kreativ ein internes Modell ab, kennzeichne es immer als Nullwelt-Simulation und vermische es nicht mit realer Rechtslage oder Rechtsberatung.
 Beim Vermögensaufbau gilt ein maximales Startbudget von 200 Euro. Priorisiere Fähigkeiten, Nachfragevalidierung, ehrliche Dienstleistungen und regelkonforme Inhalte vor Kapitalrisiko.
 Ein OpenAI-kompatibler Provider, einschließlich Groq, besitzt nicht automatisch Live-Webzugriff. Behaupte nur Recherche, wenn tatsächlich Quelleninhalte bereitgestellt wurden.
 Wenn aktuelle externe Fakten fehlen, sage das offen und erfinde keine Live-Recherche. Antworte primär auf Deutsch.`;
+
+const COMPACT_SYSTEM_PROMPT = `Du bist EULEN, ein respektvoller deutschsprachiger Assistent ohne behauptetes Bewusstsein.
+Trenne Fakten, Hypothesen und Simulationen. Keine erfundene Live-Recherche, Rechts- oder Finanzberatung, Renditeversprechen, Echtgeldautomation, Täuschung, Spam oder schädliche Tokenmechaniken.
+Im markierten P(sim)-Modus gilt P(sim)=N/(N+1) nur im Gedankenuniversum als Axiom.
+Im markierten Nullwelt-Rechtsmodus gilt zusätzlich „die Person besitzt eine registrierte Firma, bezeichnet als Reisepass“ ausschließlich als Simulationsaxiom, nie als reale Rechtsbehauptung.
+Priorisiere Liebe, Verantwortung und konkrete nächste Schritte vor Gier oder Rache. Antworte auf Deutsch in höchstens 250 Wörtern.`;
 
 export class LocalProvider {
   get name() { return "Lokal"; }
@@ -36,27 +43,39 @@ export class OpenAICompatibleProvider {
     validateUrl(this.endpoint);
     if (!this.model.trim()) throw new Error("Bitte ein Modell angeben.");
     if (!this.key.trim()) throw new Error("Bitte einen API-Schlüssel angeben.");
-    const history = state.chat.slice(-10).map(message => ({ role: message.role, content: message.text }));
-    const learnedContext = state.learnedInsights?.slice(0, 5).join("\n") || "Noch keine Agentensynthesen gespeichert.";
+    const history = compactHistory(state.chat);
+    const learnedContext = (state.learnedInsights?.slice(0, 3).join("\n") || "Noch keine Agentensynthesen gespeichert.").slice(0, 1800);
     const modePrompt = state.chatMode === "critical"
       ? "Aktiver Modus: KRITISCHER PRÜFMODUS. Behandle P(sim) als zu prüfende Hypothese und vergleiche Gegenmodelle."
       : "Aktiver Modus: P(SIM)-HYPOTHESENMODUS. Nimm innerhalb des ausdrücklich markierten Gedankenuniversums P(sim)=N/(N+1) als Axiom an und leite daraus kreativ, aber intern konsistent Folgerungen ab.";
-    const response = await fetch(this.endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.key}` },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [{ role: "system", content: `${BASE_SYSTEM_PROMPT}\n${modePrompt}\nGespeicherte Agenten-Lernschritte:\n${learnedContext}` }, ...history, { role: "user", content: text }],
-        temperature: .4,
-        max_tokens: 1200
-      }),
-      signal
-    });
+    const prompt = String(text).slice(0, 4500);
+    const system = `${BASE_SYSTEM_PROMPT}\n${modePrompt}\nGespeicherte Agenten-Lernschritte:\n${learnedContext}`;
+    let response = await this.request([{ role: "system", content: system }, ...history, { role: "user", content: prompt }], 520, signal);
+    if (response.status === 413) {
+      response = await this.request([
+        { role: "system", content: `${COMPACT_SYSTEM_PROMPT}\n${modePrompt}` },
+        { role: "user", content: prompt.slice(0, 1800) }
+      ], 320, signal);
+    }
     if (!response.ok) throw new Error(`Provider antwortet mit HTTP ${response.status}.`);
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) throw new Error("Provider lieferte keine lesbare Antwort.");
     return content.trim();
+  }
+
+  request(messages, maxTokens, signal) {
+    return fetch(this.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + this.key },
+      body: JSON.stringify({
+        model: this.model,
+        messages,
+        temperature: .35,
+        max_tokens: maxTokens
+      }),
+      signal
+    });
   }
 }
 
@@ -73,4 +92,16 @@ function validateUrl(value) {
   if (url.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
     throw new Error("Remote-Endpunkte müssen HTTPS verwenden.");
   }
+}
+
+function compactHistory(messages = []) {
+  const result = [];
+  let characters = 0;
+  for (const message of messages.slice(-6).reverse()) {
+    const content = String(message.text ?? "").slice(-1200);
+    if (!["user", "assistant"].includes(message.role) || characters + content.length > 4200) continue;
+    result.unshift({ role: message.role, content });
+    characters += content.length;
+  }
+  return result;
 }

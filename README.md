@@ -35,7 +35,7 @@ npm run check
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
 - Spiritueller Wissensbereich zu Intention und Law of Attraction mit respektvoller Hypothese-Fakt-Trennung
 - Bewusstseins-Hypothesenlabor mit P(sim)-Axiommodus, Konsistenz, Selbstkorrektur, Widersprüchen und Gedächtniskontinuität
-- Rechts-Evidenz-Sandbox ohne Rechtsberatungs- oder Fallprognoseanspruch
+- Nullwelt-Rechtslabor, das `P(sim)` und „die Person besitzt eine registrierte Firma, bezeichnet als Reisepass“ ausdrücklich nur im hypothetischen Modus als Axiome setzt; reale Rechtswirkung und Rechtsberatung bleiben ausgeschlossen
 - Physikalischer „Nullwelt“-Modus, der hypothetisch nur `P(sim)=N/(N+1)` als Startaxiom verwendet
 - Transparente Startbasis von 20 internen Referenzläufen (`P=0,9524`); eigene Simulationen und Agentenläufe erhöhen N zusätzlich
 - Lokale Persistenz sowie JSON-Export und validierter Import
@@ -56,6 +56,8 @@ Für Groq unter **Daten & Konfiguration** nur den eigenen API-Schlüssel einfüg
 Ein Groq-Key ist kein Speichermedium: Er authentifiziert Modellanfragen, stellt aber keinen privaten, geräteübergreifenden Datenspeicher für Plan, Chat und Lernstand bereit. Ohne Sync-Provider bleiben diese Daten im jeweiligen Browser. Export und Import funktionieren weiterhin ohne Cloud-Dienst.
 
 Groq kann ein kostenloses Kontingent anbieten, aber EULEN kann weder dessen dauerhafte Verfügbarkeit noch unbegrenzte kostenlose Nutzung garantieren. Bei Rate-Limits, fehlendem Schlüssel oder Providerfehler bleibt der lokale Modus funktionsfähig und meldet den Fallback sichtbar.
+
+Zur Tokenökonomie sendet der Provider höchstens sechs gekürzte Nachrichten und drei gekürzte Lerninsights, begrenzt Antworten standardmäßig auf 520 Tokens und wiederholt einen mit HTTP 413 abgelehnten Aufruf genau einmal mit stark reduziertem Kontext und höchstens 320 Tokens.
 
 Die Wissens-/Rechercheansicht nutzt derzeit kuratierte lokale Daten aus `src/data.js`. Sie kennzeichnet diese ausdrücklich als lokal und zeigt keine vorgetäuschten Live-Ergebnisse. Für echte Live-Recherche sollte ein serverseitiger Provider ergänzt werden, der:
 

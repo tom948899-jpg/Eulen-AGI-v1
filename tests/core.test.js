@@ -114,10 +114,13 @@ test("Nullwelt-Physik verwendet nur das Formelaxiom", () => {
   assert.match(result.assumptions.join(" "), /nicht als Axiome/);
 });
 
-test("Rechtslabor liefert keine Fallprognose", () => {
-  const result = simulateLaw({ sources: 8, conflicts: 2, outdated: 1, jurisdiction: "unclear", facts: 70 });
-  assert.match(result.verdict, /keine Fallprognose/);
-  assert.match(result.warning, /Keine Rechtsberatung/);
+test("Rechtslabor setzt Reisepass-Firma nur in der Nullwelt als Axiom", () => {
+  const result = simulateLaw({ mode: "nullworld", sources: 20, relations: 8, conflicts: 2, autonomy: 70 });
+  assert.match(result.verdict, /Reisepass-Firma.*Nullwelt-Axiom/);
+  assert.match(result.assumptions[0], /NULLWELT-AXIOM/);
+  assert.match(result.warning, /keine Rechtsberatung/i);
+  const comparison = simulateLaw({ mode: "comparison", sources: 20, relations: 8, conflicts: 2, autonomy: 70 });
+  assert.match(comparison.verdict, /Realweltvergleich/);
 });
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
@@ -174,6 +177,16 @@ test("Assistent unterscheidet Regierungen vom eigenständigen Begriff Gier", () 
   const state = createInitialState();
   assert.match(localAssistantReply("Was bedeuten Regierungen mit meiner Formel?", state), /QUELLENKRITIK/);
   assert.match(localAssistantReply("Wie vermeide ich Gier beim Geldverdienen?", state), /Wertekompass/);
+});
+
+test("Assistent verwendet das Reisepass-Firma-Axiom nur im Hypothesenmodus", () => {
+  const hypothesis = createInitialState();
+  const critical = { ...createInitialState(), chatMode: "critical" };
+  assert.match(localAssistantReply("Was bedeutet die Reisepass Firma im Recht?", hypothesis), /NULLWELT-RECHTSAXIOM/);
+  assert.match(localAssistantReply("Was bedeutet die Reisepass Firma im Recht?", critical), /KRITISCHER REALWELTVERGLEICH/);
+  const run = runAgentCycle("Simuliere Reisepass-Firma und Recht in der Nullwelt", 3);
+  assert.ok(run.topics.includes("Nullwelt-Recht & Reisepass-Firma"));
+  assert.match(run.steps.find(step => step.agent === "Synthese").output, /Nullwelt-Rechtsmodus/);
 });
 
 test("runSimulation erzeugt persistierbaren Lauf", () => {

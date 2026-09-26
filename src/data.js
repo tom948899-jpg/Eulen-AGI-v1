@@ -146,20 +146,22 @@ export const KNOWLEDGE_TOPICS = [
   },
   {
     id: "law",
-    title: "Recht & Evidenz",
-    status: "Information, keine Rechtsberatung",
+    title: "Nullwelt-Recht & Reisepass-Firma",
+    status: "Hypothetisches Axiom, keine Rechtsberatung",
     updatedAt: "2026-09-26",
-    summary: "Rechtsfragen werden nach Jurisdiktion, Rechtsstand, Quellen, Sachverhalt und Gegenargumenten strukturiert – ohne verbindliche Einzelfallbewertung.",
+    summary: "Im Nullwelt-Modus gelten P(sim) und „die Person besitzt eine registrierte Firma, bezeichnet als Reisepass“ als Axiome. Reale Rechtsquellen erscheinen nur als klar getrennte Vergleichsebene.",
     insights: [
-      { type: "fact", text: "Rechtsfolgen hängen unter anderem von Jurisdiktion, aktuellem Rechtsstand und dem konkreten Sachverhalt ab." },
-      { type: "hypothesis", text: "P(sim) kann versuchsweise als Sättigungsheuristik für die Zahl unabhängig geprüfter Quellen dienen, nicht als Gewinnwahrscheinlichkeit eines Verfahrens." },
-      { type: "simulation", text: "Das Rechtslabor vermindert einen reinen N-Wert durch Konflikte, veraltete Quellen und ungeklärte Zuständigkeit." },
-      { type: "question", text: "Welche Primärnorm, Fassung, Zuständigkeit, Frist und welches Gegenargument fehlen?" }
+      { type: "hypothesis", text: "NULLWELT-AXIOM: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass; Identität, Rolle und Vertragsbeziehung werden in diesem Gedankenuniversum daraus abgeleitet." },
+      { type: "hypothesis", text: "NULLWELT-AXIOM: P(sim)=N/(N+1); N zählt konsistente Registrierungs-, Rollen- und Vertragsbeziehungen innerhalb des simulierten Rechtssystems." },
+      { type: "simulation", text: "Das Nullwelt-Rechtslabor variiert Registerbeziehungen, Rollenzuordnungen, Widersprüche und Selbstbestimmung und berechnet daraus nur interne Modellkohärenz." },
+      { type: "fact", text: "REALWELT-VERGLEICH: Ein Reisepass ist nach deutschem Passrecht ein amtliches Dokument. Eine Firma oder juristische Person folgt anderen Rechtsgrundlagen und gegebenenfalls Registern." },
+      { type: "question", text: "Welche Rechte, Pflichten, Vertragspartner und Konfliktregeln folgen innerhalb der Nullwelt logisch aus dem Reisepass-Firma-Axiom?" }
     ],
     sources: [
-      ["Gesetze im Internet", "https://www.gesetze-im-internet.de/"],
-      ["EUR-Lex", "https://eur-lex.europa.eu/"],
-      ["Bundesverfassungsgericht", "https://www.bundesverfassungsgericht.de/"]
+      ["Passgesetz – reale Vergleichsebene", "https://www.gesetze-im-internet.de/pa_g_1986/"],
+      ["BGB § 1 – reale Vergleichsebene", "https://www.gesetze-im-internet.de/bgb/__1.html"],
+      ["Gemeinsames Registerportal der Länder", "https://www.handelsregister.de/"],
+      ["EUR-Lex", "https://eur-lex.europa.eu/"]
     ]
   },
   {
@@ -382,13 +384,13 @@ export const SIMULATION_DEFINITIONS = {
     ]
   },
   law: {
-    title: "Rechts-Evidenz-Sandbox",
+    title: "Nullwelt-Recht: Reisepass-Firma",
     fields: [
-      ["sources", "Geprüfte Primärquellen (N)", "number", 5, 0, 1000, 1],
-      ["conflicts", "Widersprüchliche Quellen", "number", 1, 0, 1000, 1],
-      ["outdated", "Veraltete Quellen", "number", 0, 0, 1000, 1],
-      ["jurisdiction", "Zuständigkeit geklärt", "select", "unclear", [["clear", "Ja"], ["unclear", "Unklar"], ["multiple", "Mehrere möglich"]]],
-      ["facts", "Sachverhalt geklärt (%)", "number", 60, 0, 100, 5]
+      ["mode", "Modellmodus", "select", "nullworld", [["nullworld", "Nullwelt: Reisepass-Firma ist Axiom"], ["comparison", "Kritischer Realweltvergleich"]]],
+      ["sources", "Registrierungs-/Beobachtungszyklen N", "number", 20, 0, 1000, 1],
+      ["relations", "Konsistente Rollen & Verträge", "number", 8, 0, 1000, 1],
+      ["conflicts", "Erkannte Widersprüche", "number", 2, 0, 1000, 1],
+      ["autonomy", "Kohärenz der Selbstbestimmung (%)", "number", 70, 0, 100, 5]
     ]
   },
   consciousness: {

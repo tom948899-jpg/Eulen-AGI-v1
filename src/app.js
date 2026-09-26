@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=6";
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=8";
 import {
   STORAGE_KEY,
   calculateProgress,
@@ -14,9 +14,9 @@ import {
   runScenarioSeries,
   runSimulation,
   taskKey
-} from "./core.js?v=6";
-import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=6";
-import { SyncProvider } from "./sync.js?v=6";
+} from "./core.js?v=8";
+import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=8";
+import { SyncProvider } from "./sync.js?v=8";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -303,7 +303,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
   researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
-    const { runAgentCycle } = await import("./core.js?v=6");
+    const { runAgentCycle } = await import("./core.js?v=8");
     const run = { ...runAgentCycle(goal, depth), automatic };
     if (useExternal) {
       const endpoint = state.provider.endpoint;

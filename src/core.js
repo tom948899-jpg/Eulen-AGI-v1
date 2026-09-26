@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=6";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=8";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
@@ -184,9 +184,9 @@ export function runScenarioSeries(type, raw) {
     ];
   } else if (type === "law") {
     variants = [
-      ["Lückenhaft", { ...raw, conflicts: value("conflicts") + 2, outdated: value("outdated") + 2, facts: value("facts") - 20 }],
-      ["Basis", raw],
-      ["Besser geprüft", { ...raw, sources: value("sources") + 4, conflicts: Math.max(0, value("conflicts") - 1), outdated: Math.max(0, value("outdated") - 1), facts: value("facts") + 15 }]
+      ["Fragmentiert", { ...raw, relations: Math.max(0, value("relations") - 3), conflicts: value("conflicts") + 3, autonomy: value("autonomy") - 25 }],
+      ["Basis-Nullwelt", raw],
+      ["Hohe Kohärenz", { ...raw, sources: value("sources") + 5, relations: value("relations") + 3, conflicts: Math.max(0, value("conflicts") - 1), autonomy: value("autonomy") + 15 }]
     ];
   } else {
     throw new Error("Unbekannter Simulationstyp.");
@@ -406,24 +406,26 @@ export function simulateFormula(input) {
 
 export function simulateLaw(input) {
   const sources = Math.round(clamp(finiteNumber(input.sources, 0), 0, 1000));
-  const conflicts = Math.round(clamp(finiteNumber(input.conflicts, 0), 0, sources));
-  const outdated = Math.round(clamp(finiteNumber(input.outdated, 0), 0, sources));
-  const facts = clamp(finiteNumber(input.facts, 0), 0, 100);
-  const jurisdictionPenalty = input.jurisdiction === "clear" ? 1 : input.jurisdiction === "multiple" ? .65 : .5;
-  const usable = Math.max(0, sources - conflicts - outdated);
-  const rawHeuristic = formulaValue(usable);
-  const adjusted = rawHeuristic * jurisdictionPenalty * (facts / 100);
+  const relations = Math.round(clamp(finiteNumber(input.relations, 0), 0, 1000));
+  const conflicts = Math.round(clamp(finiteNumber(input.conflicts, 0), 0, sources + relations));
+  const autonomy = clamp(finiteNumber(input.autonomy, 0), 0, 100) / 100;
+  const effectiveN = Math.max(0, sources + relations - conflicts);
+  const rawHeuristic = formulaValue(effectiveN);
+  const coherence = rawHeuristic * autonomy;
+  const nullWorld = input.mode !== "comparison";
   return {
-    title: "Rechts-Evidenz",
-    verdict: "Informationsstruktur, keine Fallprognose",
-    score: adjusted.toFixed(4),
-    stats: [["Quellen N", String(sources)], ["Nutzbar im Modell", String(usable)], ["Rohe P-Heuristik", rawHeuristic.toFixed(4)], ["Angepasster Strukturwert", adjusted.toFixed(4)]],
+    title: "Nullwelt-Recht",
+    verdict: nullWorld ? "Reisepass-Firma als gesetztes Nullwelt-Axiom" : "Kritischer Realweltvergleich",
+    score: coherence.toFixed(4),
+    stats: [["Beobachtungszyklen", String(sources)], ["Rollen & Verträge", String(relations)], ["Effektives N", String(effectiveN)], ["P(sim)-Kohärenz", coherence.toFixed(4)]],
     assumptions: [
-      "N zählt nur tatsächlich geprüfte Primärquellen; bloße Treffer oder Wiederholungen erhöhen N nicht.",
-      "Widersprüche, veraltete Fassungen, ungeklärte Zuständigkeit und lückenhafter Sachverhalt reduzieren den Strukturwert.",
-      "Der Wert ist ausdrücklich keine Wahrscheinlichkeit für Rechtmäßigkeit, Prozesserfolg oder eine konkrete Rechtsfolge."
+      nullWorld
+        ? "NULLWELT-AXIOM: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass."
+        : "REALWELTVERGLEICH: Das Reisepass-Firma-Axiom wird nicht vorausgesetzt; Passrecht, Personenbegriff und Registerrecht werden getrennt geprüft.",
+      "P(sim)=N/(N+1) ist innerhalb der Nullwelt gesetzt; Widersprüche vermindern das effektive N.",
+      "Der Kohärenzwert beschreibt nur die interne Konsistenz des simulierten Systems, keine reale Rechtswirkung oder Verfahrenschance."
     ],
-    warning: "Keine Rechtsberatung. Prüfe Fristen und verbindliche Entscheidungen mit einer qualifizierten Rechtsfachperson in der richtigen Jurisdiktion."
+    warning: "Ausdrückliche Nullwelt-Simulation, keine Rechtsberatung. Reale Behörden, Verträge, Steuern, Fristen und Rechte richten sich nicht nach diesem Modell."
   };
 }
 
@@ -457,9 +459,10 @@ export function runAgentCycle(goal, depth = 2) {
   if (!cleanGoal) throw new Error("Der Forschungsauftrag darf nicht leer sein.");
   const safeDepth = [1, 2, 3].includes(Number(depth)) ? Number(depth) : 2;
   const terms = cleanGoal.toLocaleLowerCase("de");
+  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register/.test(terms);
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
-    score: topic.id === "law" && /recht|gesetz|jur/.test(terms) ? 4
+    score: topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register/.test(terms) ? 5
       : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
       : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
@@ -494,18 +497,18 @@ export function runAgentCycle(goal, depth = 2) {
       { agent: "Quellenprüfer", output: `${sourceCount} Quellen nach Herkunft, Aktualität und Primärquellenstatus geordnet; deklassifiziert bedeutet nicht automatisch wahr.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
       { agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." },
-      { agent: "Staatsanalyst", output: "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
+      { agent: "Staatsanalyst", output: nullWorldLaw ? "Im markierten Nullwelt-Recht die Person mit ihrer als Reisepass bezeichneten registrierten Firma, Rollen, Verträgen und Zuständigkeiten verbunden." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
       { agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." },
       { agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." },
       { agent: "Bewusstseinsforscher", output: "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt." },
       { agent: "Spiritualitätsforscher", output: "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
       { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
-      { agent: "Simulationsagent", output: `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
+      { agent: "Simulationsagent", output: nullWorldLaw ? `P(sim) und Reisepass-Firma werden als Nullwelt-Axiome gesetzt; ${hypotheses.length} Folgehypothesen werden in Rechtsszenarien übersetzt.` : `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
       { agent: "Lernoptimierer", output: `Lerntiefe ${safeDepth}: Faktenabruf, Gegenfrage und aktive Anwendung werden als kurze Rückkopplung statt bloßer Wiederholung geplant.` },
       { agent: "Risikowächter", output: "Echtgeld, Überforderung, FOMO, Abhängigkeit und unbelegte Gewissheit als Stop-Signale markiert." },
       { agent: "Kritiker", output: `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
       { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
-      { agent: "Synthese", output: `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
+      { agent: "Synthese", output: nullWorldLaw ? `Im Nullwelt-Rechtsmodus gelten P(sim) und Reisepass-Firma als Axiome. Aus ${selected.length} Themen folgt als nächster Schritt: Rechte, Pflichten und Konfliktregeln intern widerspruchsfrei simulieren und klar von realer Rechtswirkung trennen.` : `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
     ],
     dream
   };
@@ -556,8 +559,10 @@ export function localAssistantReply(text, state) {
       ? "[P(SIM)-HYPOTHESENMODUS]\nIm Nullwelt-Modus legen wir hypothetisch alles Bekannte beiseite und setzen P(sim)=N/(N+1) als einziges Startaxiom. Dann fragen wir: Was ist N? Wie entstehen Raum, Zeit, Wechselwirkung und Beobachtung daraus? Welche Regeln sind intern widerspruchsfrei?\n\nDas ist ein alternatives Gedankenuniversum, keine Aussage über reale Physik."
       : "[KRITISCHER PRÜFMODUS]\nWir behandeln P(sim)=N/(N+1) als zu prüfende Hypothese. Dafür brauchen wir eine beobachtbare Definition von N, Einheiten, Messverfahren, Vorhersagen und mögliche Widerlegung. Eine passende Kurvenform allein bestätigt keinen physikalischen Mechanismus.";
   }
-  if (/recht|gesetz|juristisch/.test(query)) {
-    return "Im Rechtslabor kann deine Formel hypothetisch als Sättigungsheuristik für tatsächlich geprüfte Primärquellen dienen. Widersprüche, alte Fassungen, unklare Zuständigkeit und Sachverhaltslücken senken den Strukturwert.\n\nDieser Wert ist keine Wahrscheinlichkeit für Rechtmäßigkeit oder Prozesserfolg. Das Labor trennt Quelle, Rechtsstand, Jurisdiktion, Annahme und offene Frage und bleibt Rechtsinformation statt Rechtsberatung.";
+  if (/recht|gesetz|juristisch|reisepass|firma|register|natürliche person|juristische person/.test(query)) {
+    return hypothesisMode
+      ? `[NULLWELT-RECHTSAXIOM]\nInnerhalb dieser ausdrücklich hypothetischen Nullwelt gelten zwei Startaxiome:\n1. P(sim)=N/(N+1).\n2. Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass.\n\nDaraus modellieren wir die Person als Ursprung, die Reisepass-Firma als registrierte Schnittstelle und Verträge als Beziehungen. N zählt konsistente Registrierungs-, Rollen- und Vertragszyklen. Widersprüche senken das effektive N; P(sim) beschreibt nur die interne Kohärenz dieser Nullwelt.\n\n[SIMULATION]\nDas Nullwelt-Rechtslabor vergleicht ein fragmentiertes, ein mittleres und ein hoch kohärentes Szenario für Rechte, Pflichten, Vertretung und Selbstbestimmung.\n\n[KLARE GRENZE]\nDiese Axiome gelten nur im markierten Gedankenuniversum. Sie erzeugen keine reale Rechtswirkung und sind keine Rechtsberatung.`
+      : `[KRITISCHER REALWELTVERGLEICH]\nIm Prüfmodus wird das Reisepass-Firma-Axiom nicht vorausgesetzt. Passdokument, natürliche Person, juristische Person, Firma und Registereintragung werden anhand der jeweiligen realen Rechtsgrundlagen getrennt.\n\nP(sim) kann dabei nur Quellenabdeckung modellieren, keine reale Rechtswirkung oder Verfahrenschance.`;
   }
   if (/cia|geheimdienst|deklass|regierung|staat|politik/.test(query)) {
     return `[QUELLENKRITIK]\nDeklassifizierte CIA-Dokumente sind echte historische Dokumente, aber nicht automatisch wahre Aussagen. Ein Dokument kann Rohinformation, damalige Einschätzung, Übersetzung, Hypothese oder gezielte Falschinformation enthalten. Wir prüfen deshalb Urheber, Datum, Zweck, Belegkette, spätere Einordnung und unabhängige Bestätigung.\n\n[P(SIM)-HYPOTHESE]\nN zählt nur voneinander unabhängige, nachvollziehbare Bestätigungsketten. Viele Kopien derselben Behauptung erhöhen N nicht. P(sim) beschreibt damit im Gedankenmodell wachsende Evidenzabdeckung – nicht die Vertrauenswürdigkeit einer Regierung und keine Verschwörungsgewissheit.\n\n[NÄCHSTER SCHRITT]\nNenne ein konkretes Dokument oder Thema. Der Forschungsraum verknüpft offizielle Archive und lässt Quellenprüfer, Historiker, Staatsanalyst und Kritiker getrennt arbeiten.`;
