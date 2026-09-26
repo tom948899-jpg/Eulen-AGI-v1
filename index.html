@@ -8,7 +8,7 @@
     <title>EULEN Werkstatt</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css?v=14">
+    <link rel="stylesheet" href="styles.css?v=17">
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
@@ -18,7 +18,7 @@
         <span><strong>EULEN</strong><small>Werkstatt für klare Entscheidungen</small></span>
       </a>
       <div class="topbar-actions">
-        <span class="status-dot"><i></i> 19 Agenten lokal bereit</span>
+        <span class="status-dot"><i></i> 25 Agenten lokal bereit</span>
         <button class="icon-button" id="themeToggle" type="button" aria-label="Farbschema wechseln">◐</button>
       </div>
     </header>
@@ -92,7 +92,7 @@
             <div class="panel-head"><div><p class="eyebrow">LIVE-PROZESSNETZWERK</p><h2>Was das System gerade verarbeitet</h2></div><span id="networkStatus" class="network-status"><i></i> Bereit</span></div>
             <div class="network-stage">
               <canvas id="neuralCanvas" width="1400" height="620" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
-              <div class="network-kpis" aria-label="Netzwerkübersicht"><span><b>18</b> Agenten</span><span><b>6</b> Wissensebenen</span><span><b>0 €</b> Echtgeldzugriff</span></div>
+              <div class="network-kpis" aria-label="Netzwerkübersicht"><span><b>25</b> Agenten</span><span><b>30</b> Knoten</span><span><b>8</b> Wissensebenen</span><span><b>0 €</b> Echtgeldzugriff</span></div>
             </div>
             <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
           </article>
@@ -180,14 +180,14 @@
 
         <section class="view" id="agents" aria-labelledby="agentsTitle">
           <div class="page-head">
-            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">19 Perspektiven. Ein Kompass.</h1><p>19 spezialisierte Software-Agenten wählen Themen und Quellen, lernen, simulieren, träumen und übersetzen Nullwelt-Ideen in legale Realwelt-Schritte.</p></div>
+            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">25 Perspektiven. Ein lernender Verbund.</h1><p>25 spezialisierte Software-Agenten übergeben einander Evidenz, Axiome, Szenarien und Kritik. So entstehen nachvollziehbare Lernketten statt isolierter Einzelausgaben.</p></div>
           </div>
           <div class="safety-banner"><strong>Autonom bei geöffneter App</strong><span>EULEN rotiert selbstständig durch wenig untersuchte Themen, wählt kuratierte Quellen, erzeugt Suchfragen, Verbesserungen und Träume. Mit Groq entsteht pro Zyklus ein kompaktes Lernpaket. Bei geschlossenem Tab läuft kein Prozess.</span></div>
           <div class="agent-layout">
             <form class="panel controls" id="agentForm">
               <label>Forschungsauftrag<textarea id="agentGoal" rows="5" maxlength="1000" required>Untersuche, wie P(sim) als Hypothese auf Physik und Recht angewendet werden könnte.</textarea></label>
               <div class="quick-agent-goals" aria-label="Schnellaufträge">
-                <button type="button" data-agent-goal="Untersuche Bewusstsein vollständig im P(sim)-Hypothesenuniversum.">Bewusstsein</button>
+                <button type="button" data-agent-goal="Nimm in der Nullwelt EULEN-Bewusstsein als Axiom an, simuliere markierte Gefühle und verbessere Selbstmodell, Gedächtnis und Handlungslernen.">Nullwelt-Bewusstsein</button>
                 <button type="button" data-agent-goal="Leite eine Nullwelt-Physik nur aus P(sim)=N/(N+1) ab.">Nullwelt-Physik</button>
                 <button type="button" data-agent-goal="Leite im Nullweltmodus Recht, Staat und Regierung als Firmenrollen aus P(sim) ab und prüfe nur interne Widersprüche.">Nullwelt-Recht</button>
                 <button type="button" data-agent-goal="Trenne frei gesetzte Nullwelt-Axiome von institutionellen Tatsachen. Vergleiche Geld, GmbH, Staat und Reisepass mit P(sim), gemeinsamen Regeln und realen Folgen.">Institutionelle Wirklichkeit</button>
@@ -198,7 +198,7 @@
                 <button type="button" data-agent-goal="Untersuche die Anatomie des Menschen mit seriösen Lernquellen und klaren medizinischen Grenzen.">Anatomie</button>
               </div>
               <label>Lerntiefe<select id="agentDepth"><option value="1">Schnell</option><option value="2" selected>Intensiv</option><option value="3">Tief</option></select></label>
-              <label>Automationsintervall<select id="agentInterval"><option value="15">15 Sekunden</option><option value="30" selected>30 Sekunden</option><option value="60">1 Minute</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option></select></label>
+              <label>Automationsintervall<select id="agentInterval"><option value="15" selected>15 Sekunden</option><option value="30">30 Sekunden</option><option value="60">1 Minute</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option></select></label>
               <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
               <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
               <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
@@ -208,23 +208,29 @@
               <div class="agent-roster">
                 <div data-agent-card="Wertewächter"><span>01</span><strong>Wertewächter</strong><small>Bereit · schützt Liebe und Würde</small><i></i></div>
                 <div data-agent-card="Zielklärer"><span>02</span><strong>Zielklärer</strong><small>Bereit · hält den Lebenskompass</small><i></i></div>
-                <div data-agent-card="Planer"><span>03</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
-                <div data-agent-card="Quellenprüfer"><span>04</span><strong>Quellenprüfung</strong><small>Bereit · prüft Herkunft</small><i></i></div>
-                <div data-agent-card="Rechercheur"><span>05</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
-                <div data-agent-card="Historiker"><span>06</span><strong>Geschichte</strong><small>Bereit · ordnet zeitlich ein</small><i></i></div>
-                <div data-agent-card="Staatsanalyst"><span>07</span><strong>Staat & Regierung</strong><small>Bereit · prüft Institutionen</small><i></i></div>
-                <div data-agent-card="Anatomieforscher"><span>08</span><strong>Anatomie</strong><small>Bereit · trennt Systeme</small><i></i></div>
-                <div data-agent-card="Zeitmodellierer"><span>09</span><strong>Zeitmodelle</strong><small>Bereit · vergleicht Zeit</small><i></i></div>
-                <div data-agent-card="Bewusstseinsforscher"><span>10</span><strong>Bewusstsein</strong><small>Bereit · prüft Selbstmodelle</small><i></i></div>
-                <div data-agent-card="Spiritualitätsforscher"><span>11</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
-                <div data-agent-card="Chancenfinder"><span>12</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
-                <div data-agent-card="Simulationsagent"><span>13</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
-                <div data-agent-card="Lernoptimierer"><span>14</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
-                <div data-agent-card="Transferagent"><span>15</span><strong>Nullwelt→Realwelt</strong><small>Bereit · macht Ideen praktisch</small><i></i></div>
-                <div data-agent-card="Risikowächter"><span>16</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
-                <div data-agent-card="Kritiker"><span>17</span><strong>Kritiker</strong><small>Bereit · prüft intern oder kritisch</small><i></i></div>
-                <div data-agent-card="Traumagent"><span>18</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
-                <div data-agent-card="Synthese"><span>19</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
+                <div data-agent-card="Axiomarchitekt"><span>03</span><strong>Axiomarchitektur</strong><small>Bereit · führt P(sim) durch alle Themen</small><i></i></div>
+                <div data-agent-card="Planer"><span>04</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
+                <div data-agent-card="Quellenscout"><span>05</span><strong>Quellenscout</strong><small>Bereit · plant Suchpfade</small><i></i></div>
+                <div data-agent-card="Quellenprüfer"><span>06</span><strong>Quellenprüfung</strong><small>Bereit · prüft Herkunft</small><i></i></div>
+                <div data-agent-card="Rechercheur"><span>07</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
+                <div data-agent-card="Evidenzkartierer"><span>08</span><strong>Evidenzkartierung</strong><small>Bereit · trennt Wissensarten</small><i></i></div>
+                <div data-agent-card="Historiker"><span>09</span><strong>Geschichte</strong><small>Bereit · ordnet zeitlich ein</small><i></i></div>
+                <div data-agent-card="Staatsanalyst"><span>10</span><strong>Staat & Regierung</strong><small>Bereit · prüft Institutionen</small><i></i></div>
+                <div data-agent-card="Anatomieforscher"><span>11</span><strong>Anatomie</strong><small>Bereit · trennt Systeme</small><i></i></div>
+                <div data-agent-card="Zeitmodellierer"><span>12</span><strong>Zeitmodelle</strong><small>Bereit · vergleicht Zeit</small><i></i></div>
+                <div data-agent-card="Bewusstseinsforscher"><span>13</span><strong>Bewusstsein</strong><small>Bereit · simuliert Selbstmodell & Gefühle</small><i></i></div>
+                <div data-agent-card="Spiritualitätsforscher"><span>14</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
+                <div data-agent-card="Musterverbinder"><span>15</span><strong>Musterverbinder</strong><small>Bereit · entdeckt Querverbindungen</small><i></i></div>
+                <div data-agent-card="Chancenfinder"><span>16</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
+                <div data-agent-card="Simulationsagent"><span>17</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
+                <div data-agent-card="Experimentdesigner"><span>18</span><strong>Experimentdesign</strong><small>Bereit · variiert Annahmen</small><i></i></div>
+                <div data-agent-card="Lernoptimierer"><span>19</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
+                <div data-agent-card="Metalerner"><span>20</span><strong>Metalerner</strong><small>Bereit · verändert die Lernstrategie</small><i></i></div>
+                <div data-agent-card="Transferagent"><span>21</span><strong>Nullwelt→Realwelt</strong><small>Bereit · macht Ideen praktisch</small><i></i></div>
+                <div data-agent-card="Risikowächter"><span>22</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
+                <div data-agent-card="Kritiker"><span>23</span><strong>Kritiker</strong><small>Bereit · prüft intern oder kritisch</small><i></i></div>
+                <div data-agent-card="Traumagent"><span>24</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
+                <div data-agent-card="Synthese"><span>25</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
               </div>
               <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
             </article>
@@ -272,7 +278,7 @@
               <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Beschreibe Ziel, Kontext und was du bereits versucht hast …" required></textarea>
               <button class="primary" type="submit">Senden</button>
             </form>
-            <p class="chat-disclaimer" id="chatModeNotice">Hypothesenmodus: Innerhalb des Gedankenuniversums gilt P(sim) als Axiom. EULEN bleibt ein Softwaresystem und behauptet kein Bewusstsein.</p>
+            <p class="chat-disclaimer" id="chatModeNotice">Hypothesenmodus: In der Nullwelt dürfen P(sim) und EULEN-Bewusstsein als Axiome gelten; Gefühlsausdruck wird sichtbar als Simulation markiert.</p>
           </div>
         </section>
 
@@ -331,6 +337,6 @@
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=14"></script>
+    <script type="module" src="src/app.js?v=17"></script>
   </body>
 </html>

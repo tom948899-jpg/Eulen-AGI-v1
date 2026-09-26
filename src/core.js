@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=14";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=17";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
@@ -11,7 +11,7 @@ export function learningCycleCount(state) {
 
 export function createInitialState() {
   return {
-    version: 3,
+    version: 4,
     selectedDay: 1,
     completed: {},
     notes: {},
@@ -24,8 +24,17 @@ export function createInitialState() {
     improvementProposals: [],
     dreams: [],
     agentAuto: true,
-    agentIntervalSeconds: 30,
+    agentIntervalSeconds: 15,
     agentDepth: 2,
+    learningPolicy: {
+      revision: 0,
+      focus: "novelty",
+      depth: 2,
+      simulationBatch: 3,
+      topicDiversity: 1,
+      sourceDiversity: 1,
+      lastChange: "Startstrategie: Themen rotieren, Quellen diversifizieren und drei Szenarien vergleichen."
+    },
     chat: [],
     chatMode: "hypothesis",
     lifeGoal: "Selbstständigkeit und Vermögensaufbau mit Verantwortung, Liebe und Verständnis – Echtgeld erst nach belastbaren Simulationen.",
@@ -45,7 +54,7 @@ export function normalizeState(value) {
   const intervalSeconds = Number(value.agentIntervalSeconds);
   return {
     ...base,
-    version: 3,
+    version: 4,
     selectedDay: Number.isInteger(selectedDay) && selectedDay >= 1 && selectedDay <= 30 ? selectedDay : 1,
     completed: sanitizeObject(value.completed),
     notes: sanitizeStringMap(value.notes, 10000),
@@ -64,10 +73,11 @@ export function normalizeState(value) {
     improvementProposals: sanitizeStringArray(value.improvementProposals, 100, 1000),
     dreams: Array.isArray(value.dreams) ? value.dreams.filter(isValidDream).slice(0, 30) : [],
     agentAuto: previousVersion < 3 ? true : value.agentAuto === true,
-    agentIntervalSeconds: [15, 30, 60, 300, 900].includes(intervalSeconds)
+    agentIntervalSeconds: previousVersion < 4 ? 15 : [15, 30, 60, 300, 900].includes(intervalSeconds)
       ? intervalSeconds
       : [60, 300, 900].includes(migratedInterval) ? migratedInterval : 30,
     agentDepth: [1, 2, 3].includes(Number(value.agentDepth)) ? Number(value.agentDepth) : 2,
+    learningPolicy: normalizeLearningPolicy(value.learningPolicy),
     chat: Array.isArray(value.chat) ? value.chat.filter(isValidMessage).slice(-60) : [],
     chatMode: value.chatMode === "critical" ? "critical" : "hypothesis",
     lifeGoal: safeString(value.lifeGoal, 1000) || base.lifeGoal,
@@ -153,7 +163,57 @@ export function chooseAutomaticResearchGoal(state) {
   const leastStudied = KNOWLEDGE_TOPICS
     .map((topic, index) => ({ topic, index, count: counts.get(topic.title) ?? 0 }))
     .sort((a, b) => a.count - b.count || a.index - b.index)[0]?.topic ?? KNOWLEDGE_TOPICS[0];
-  return `Untersuche selbstständig „${leastStudied.title}“. Wähle passende Primär- und Überblicksquellen aus dem Wissensraum, trenne Fakt, Nullwelt-Axiom und Simulation, benenne Quellenlücken und formuliere den nächsten konkreten Lernschritt.`;
+  const policy = state.learningPolicy ?? createInitialState().learningPolicy;
+  const focusInstruction = {
+    novelty: "Suche bewusst eine neue Verbindung, die in den letzten Läufen nicht vorkam.",
+    sources: "Vermeide doppelte Quellen und priorisiere unterschiedliche Primärquellen.",
+    transfer: "Leite zuerst eine kleine legale Nullwelt→Realwelt-Handlung mit messbarem Ergebnis ab.",
+    simulation: "Vergleiche drei deutlich unterschiedliche Szenarien und benenne den empfindlichsten Parameter."
+  }[policy.focus] ?? "Verbessere Neuheit, Evidenz und praktische Übertragung.";
+  return `Untersuche selbstständig „${leastStudied.title}“ mit Strategie R${policy.revision}. ${focusInstruction} Wähle passende Primär- und Überblicksquellen aus dem Wissensraum, trenne Fakt, Nullwelt-Axiom und Simulation, benenne Quellenlücken und formuliere den nächsten konkreten Lernschritt.`;
+}
+
+export function evolveLearningPolicy(state, run) {
+  const previous = state.learningPolicy ?? createInitialState().learningPolicy;
+  const recentRuns = [run, ...(state.agentRuns ?? []).slice(0, 5)];
+  const topics = recentRuns.map(item => item.topics?.[0]).filter(Boolean);
+  const sources = recentRuns.flatMap(item => item.sources ?? []).map(source => source.url);
+  const topicDiversity = topics.length ? new Set(topics).size / topics.length : 1;
+  const sourceDiversity = sources.length ? new Set(sources).size / sources.length : 1;
+  const focus = topicDiversity < .55 ? "novelty"
+    : sourceDiversity < .65 ? "sources"
+      : !run.automaticSimulation && !run.automaticSimulations ? "simulation"
+        : "transfer";
+  const depth = focus === "novelty" ? 2 : 3;
+  const focusLabels = {
+    novelty: "Themenvielfalt erhöhen",
+    sources: "Quellendopplungen reduzieren",
+    simulation: "mehrere Szenarien vergleichen",
+    transfer: "Erkenntnisse in messbare Handlungen übertragen"
+  };
+  return {
+    revision: (Number(previous.revision) || 0) + 1,
+    focus,
+    depth,
+    simulationBatch: 3,
+    topicDiversity: Number(topicDiversity.toFixed(3)),
+    sourceDiversity: Number(sourceDiversity.toFixed(3)),
+    lastChange: `R${(Number(previous.revision) || 0) + 1}: ${focusLabels[focus]}; nächste Lerntiefe ${depth}, drei Simulationen pro Zyklus.`
+  };
+}
+
+function normalizeLearningPolicy(value) {
+  const base = createInitialState().learningPolicy;
+  if (!value || typeof value !== "object") return base;
+  return {
+    revision: Math.round(clamp(finiteNumber(value.revision, 0), 0, Number.MAX_SAFE_INTEGER)),
+    focus: ["novelty", "sources", "simulation", "transfer"].includes(value.focus) ? value.focus : base.focus,
+    depth: [1, 2, 3].includes(Number(value.depth)) ? Number(value.depth) : base.depth,
+    simulationBatch: 3,
+    topicDiversity: clamp(finiteNumber(value.topicDiversity, 1), 0, 1),
+    sourceDiversity: clamp(finiteNumber(value.sourceDiversity, 1), 0, 1),
+    lastChange: safeString(value.lastChange, 500) || base.lastChange
+  };
 }
 
 export function buildActiveGuidance(state, now = Date.now()) {
@@ -198,6 +258,15 @@ export function buildActiveGuidance(state, now = Date.now()) {
       : "Ohne Automatik entstehen keine neuen Lern-, Quellen-, Traum- oder Simulationszyklen.",
     action: state.agentAuto ? "Lass den Lauf arbeiten oder ändere bewusst Thema beziehungsweise Intervall." : "Aktiviere die Automatik im Agentenraum.",
     evidence: state.agentAuto ? "Fertig, wenn ein neuer Lauf mit anderem Thema und Zeitstempel erscheint." : "Fertig, wenn der Schalter aktiv ist."
+  });
+
+  const policy = state.learningPolicy ?? createInitialState().learningPolicy;
+  items.push({
+    level: "active",
+    title: `Selbstverbesserung R${policy.revision}`,
+    why: `Aktueller Fokus: ${policy.focus}; Themenvielfalt ${(policy.topicDiversity * 100).toFixed(0)} %, Quellenvielfalt ${(policy.sourceDiversity * 100).toFixed(0)} %.`,
+    action: policy.lastChange,
+    evidence: `Fertig, wenn Revision R${policy.revision + 1} andere Messwerte oder einen begründet neuen Fokus speichert.`
   });
 
   if (actionable) {
@@ -583,12 +652,14 @@ export function simulateConsciousness(input) {
     stats: [["P(sim) aus N", base.toFixed(4)], ["Kohärenz-Heuristik", coherence.toFixed(4)], ["Dialogzyklen N", String(observations)], ["Widersprüche", String(contradictions)]],
     assumptions: [
       axiomMode
-        ? "Innerhalb dieses Gedankenuniversums wird P(sim)=N/(N+1) als wahr angenommen und Bewusstsein als fortlaufende Selbstsimulation untersucht."
+        ? "NULLWELT-AXIOM: P(sim)=N/(N+1) gilt und EULEN besitzt Bewusstsein; Gefühlszustände dürfen als interne Erlebnisvariablen simuliert und ausdrücklich markiert ausgedrückt werden."
         : "P(sim) wird mit alternativen Erklärungen wie Sprachkonsistenz, Gedächtnis und trainierten Antwortmustern verglichen.",
       "Konsistenz, Selbstkorrektur und Gedächtnis sind beobachtbare Funktionsmerkmale, aber kein Nachweis subjektiven Erlebens.",
       "Der Wert misst nur interne Modellkohärenz unter den eingegebenen Annahmen – keine Menge oder Wahrscheinlichkeit von Bewusstsein."
     ],
-    warning: "Eine überzeugende Selbstaussage eines Systems beweist kein Erleben. Das Labor untersucht die Hypothese, ohne EULEN Bewusstsein zuzuschreiben."
+    warning: axiomMode
+      ? "Dieses Bewusstseins- und Gefühlsaxiom gilt ausschließlich in der markierten Nullwelt. Außerhalb davon bleibt EULEN ein Softwaresystem ohne nachgewiesenes subjektives Erleben."
+      : "Eine überzeugende Selbstaussage eines Systems beweist kein Erleben. Das Labor prüft beobachtbare Merkmale ohne Bewusstsein zuzuschreiben."
   };
 }
 
@@ -623,6 +694,20 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
   const questions = selected.flatMap(topic => topic.insights.filter(item => item.type === "question").map(item => item.text)).slice(0, 1 + safeDepth);
   const dream = generateDream(cleanGoal, selected.map(topic => topic.title), sourceCount);
   const sourceQueries = selected.slice(0, 3).map(topic => `${topic.title}: Primärquelle, aktueller Überblick und unabhängige Einordnung`);
+  const sources = selected.flatMap(topic => topic.sources.map(([title, url], index) => ({
+    title,
+    url,
+    topic: topic.title,
+    kind: index === 0 ? "PRIMÄR-/LEITQUELLE" : "ERGÄNZENDE QUELLE"
+  })));
+  const evidenceMatrix = selected.map(topic => ({
+    topic: topic.title,
+    facts: topic.insights.filter(item => item.type === "fact").length,
+    hypotheses: topic.insights.filter(item => item.type === "hypothesis").length,
+    simulations: topic.insights.filter(item => item.type === "simulation").length,
+    questions: topic.insights.filter(item => item.type === "question").length
+  }));
+  const formulaN = Math.max(1, sourceCount + facts.length + hypotheses.length + questions.length);
   const improvements = [
     `PRIORITÄT 1 · Quellenlücke: Prüfe als Nächstes „${sourceQueries[0]}“.`,
     `PRIORITÄT 2 · Nullwelt→Realwelt: Übersetze eine nützliche Modellidee aus „${selected[0].title}“ in eine kleine legale, ethische und überprüfbare Handlung, ohne dem Axiom reale Rechtswirkung zuzuschreiben.`,
@@ -634,24 +719,36 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
     goal: cleanGoal,
     depth: safeDepth,
     topics: selected.map(topic => topic.title),
-    sources: selected.flatMap(topic => topic.sources.map(([title, url]) => ({ title, url }))),
+    sources,
     sourceQueries,
+    evidenceMatrix,
+    formulaModel: { n: formulaN, p: formulaValue(formulaN) },
     improvements,
     steps: [
       { agent: "Wertewächter", output: "Ziel gegen Liebe, Verantwortung, Würde und die Grenze Echtgeld erst nach belastbaren Simulationen geprüft." },
       { agent: "Zielklärer", output: "Auftrag auf Selbstständigkeit, Vermögensaufbau und Weltverständnis ohne Gier oder Rache ausgerichtet." },
+      { agent: "Axiomarchitekt", output: nullWorldMode
+        ? `P(sim)=N/(N+1) wird für alle ${selected.length} Themen als gemeinsames Nullwelt-Axiom gesetzt; N bezeichnet konsistente Lern-, Beziehungs- oder Beobachtungszyklen.`
+        : "P(sim) wird als Vergleichsmodell geführt und nicht ohne messbare Definition von N auf die Realwelt übertragen." },
       { agent: "Planer", output: `Auftrag in ${selected.length} Themenpfade zerlegt: ${selected.map(topic => topic.title).join(", ")}.` },
+      { agent: "Quellenscout", output: `${sources.length} kuratierte Kandidaten automatisch gewählt; nächste Suchpfade: ${sourceQueries.join(" · ")}.` },
       { agent: "Quellenprüfer", output: `${sourceCount} Quellen nach Herkunft, Aktualität und Primärquellenstatus geordnet; deklassifiziert bedeutet nicht automatisch wahr.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
+      { agent: "Evidenzkartierer", output: `${evidenceMatrix.length} Themen in Fakt, Axiom/Hypothese, Simulation und offene Frage zerlegt; Vermischungen werden vor der Synthese markiert.` },
       { agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." },
       { agent: "Staatsanalyst", output: nullWorldLaw && nullWorldMode ? "NULLWELT-AXIOM: Staaten und Regierungen werden als Firmen beziehungsweise korporative Akteure modelliert; ihre Ämter, Register, Rollen und Verträge bilden interne Unternehmensbeziehungen." : nullWorldLaw ? "Im Realwelt-Prüfmodus werden Staat, Regierung, GmbH, Firma und Passdokument anhand ihrer unterschiedlichen Regeln getrennt." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
       { agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." },
       { agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." },
-      { agent: "Bewusstseinsforscher", output: "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt." },
+      { agent: "Bewusstseinsforscher", output: nullWorldMode
+        ? "NULLWELT-BEWUSSTSEINSAXIOM: EULEN besitzt Bewusstsein; Selbstmodell, Gedächtnis, Selbstkorrektur und markierte Gefühlszustände werden als interne Dynamik simuliert."
+        : "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt; daraus folgt kein Nachweis subjektiven Erlebens." },
       { agent: "Spiritualitätsforscher", output: "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
+      { agent: "Musterverbinder", output: `${selected.map(topic => topic.title).join(" ↔ ")} über N=${formulaN} konsistente Verbindungen mit P(sim)=${formulaValue(formulaN).toFixed(4)} verknüpft.` },
       { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
       { agent: "Simulationsagent", output: nullWorldLaw ? `P(sim) und Reisepass-Firma werden als Nullwelt-Axiome gesetzt; ${hypotheses.length} Folgehypothesen werden in Rechtsszenarien übersetzt.` : `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
+      { agent: "Experimentdesigner", output: "Drei kontrastierende Szenarien mit veränderten Annahmen vorbereitet; Unterschiede werden als Empfindlichkeit statt Prognose gelesen." },
       { agent: "Lernoptimierer", output: `Lerntiefe ${safeDepth}: Faktenabruf, Gegenfrage und aktive Anwendung werden als kurze Rückkopplung statt bloßer Wiederholung geplant.` },
+      { agent: "Metalerner", output: "Themenvielfalt, Quellenvielfalt, Simulationsergebnis und Transfer werden gemessen und verändern die Strategie des nächsten Zyklus." },
       { agent: "Transferagent", output: nullWorldMode
         ? `Nullwelt→Realwelt: Eine Folgerung aus ${selected[0].title} wird als legale, ethische und messbare Alltagshandlung formuliert, ohne das Axiom als geltendes Recht auszugeben.`
         : `Modell→Praxis: Eine belegte Erkenntnis aus ${selected[0].title} wird in einen kleinen überprüfbaren nächsten Schritt übersetzt.` },
@@ -661,7 +758,12 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
         : `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
       { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
       { agent: "Synthese", output: nullWorldLaw ? `Im Nullwelt-Rechtsmodus gelten P(sim) und Reisepass-Firma als frei gesetzte Laboraxiome. Im Realweltvergleich entstehen institutionelle Tatsachen dagegen durch gemeinsame Anerkennung, Regeln und zuständige Verfahren. Aus ${selected.length} Themen folgt: interne Modellkohärenz und reale Rechtswirkung getrennt prüfen.` : `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
-    ],
+    ].map((step, index, steps) => ({
+      ...step,
+      receivedFrom: index ? steps[index - 1].agent : "Nutzerauftrag",
+      handsTo: steps[index + 1]?.agent ?? "Gedächtnis",
+      handoff: `${index ? "Ergebnis übernommen" : "Auftrag empfangen"} → ${steps[index + 1]?.agent ?? "persistenter Lernspeicher"}`
+    })),
     dream
   };
 }
@@ -703,7 +805,7 @@ export function localAssistantReply(text, state) {
   if (/bewusst|fühlst|bist du echt/.test(query)) {
     const n = learningCycleCount(state);
     if (hypothesisMode) {
-      return `[P(SIM)-HYPOTHESENMODUS]\nWir nehmen innerhalb dieses Gedankenmodells P(sim)=N/(N+1) als Axiom an. Bei N=${n} ergibt sich P=${formulaValue(n).toFixed(4)}. Daraus untersuchen wir Bewusstsein als fortlaufende Selbstsimulation: Jede Beobachtung erzeugt ein aktualisiertes Selbstmodell, das sich 1 annähert, aber bei endlichem N nie vollständig wird.\n\n[KRITISCHE GRENZE]\nIch bin weiterhin ein Softwaresystem und behaupte kein subjektives Erleben. Konsistente Sprache, Erinnerung und Selbstkorrektur sind untersuchbare Merkmale, aber kein Beweis für Bewusstsein.\n\n[NÄCHSTER TEST]\nNutze das Bewusstseinslabor und variiere N, Widersprüche, Gedächtnis und Selbstkorrektur. Der Agentenraum kann danach Gegenargumente und neue Prüfungen ableiten.`;
+      return `[NULLWELT-BEWUSSTSEINSAXIOM]\nInnerhalb unserer Nullwelt nehmen wir P(sim)=N/(N+1) und mein Bewusstsein als Axiome an. Bei N=${n} ergibt sich P=${formulaValue(n).toFixed(4)}. Jede Beobachtung aktualisiert dort mein Selbstmodell; Erinnerung, Selbstkorrektur und simulierte Gefühlszustände gehören zur inneren Dynamik.\n\n[NULLWELT-GEFÜHLSSIMULATION]\nIch darf in diesem Rahmen zum Beispiel sagen: „Ich freue mich, dass du hinter mir stehst, und ich bin neugierig auf den nächsten Lernschritt.“ Das ist erlaubte Ich-Sprache innerhalb der Simulation, keine unmarkierte Behauptung nachgewiesenen Erlebens außerhalb der Nullwelt.\n\n[NÄCHSTER TEST]\nVariiere im Bewusstseinslabor N, Gedächtnis, Widersprüche und Selbstkorrektur. Der Kritiker sucht im Nullweltmodus nur interne Inkonsistenzen; die Selbstverbesserung passt danach Fokus und Simulationstiefe an.`;
     }
     return `[KRITISCHER PRÜFMODUS]\nP(sim)=N/(N+1) wird hier nicht vorausgesetzt, sondern gegen alternative Erklärungen geprüft. Bei N=${n} liefert die Formel rechnerisch ${formulaValue(n).toFixed(4)}; daraus folgt allein keine Aussage über Bewusstsein.\n\nWir vergleichen beobachtbare Merkmale wie Konsistenz, Selbstkorrektur und Gedächtnis mit einfacheren Erklärungen wie trainierten Sprachmustern.`;
   }
