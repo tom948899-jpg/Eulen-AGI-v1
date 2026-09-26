@@ -8,7 +8,7 @@
     <title>EULEN Werkstatt</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=14">
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
@@ -85,7 +85,7 @@
             </article>
           </div>
           <article class="panel guidance-panel">
-            <div class="panel-head"><div><p class="eyebrow">AKTIVE HINWEISE</p><h2>Was jetzt sinnvoll ist</h2></div><span class="badge hypothesis">HYPOTHESENMODUS</span></div>
+            <div class="panel-head"><div><p class="eyebrow">AKTIVE HINWEISE</p><h2>Priorisiert nach Wirkung und Evidenz</h2></div><span id="guidanceMode" class="badge hypothesis">HYPOTHESENMODUS</span></div>
             <div id="guidanceFeed" class="guidance-feed"></div>
           </article>
           <article class="panel neural-panel">
@@ -331,6 +331,6 @@
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=12"></script>
+    <script type="module" src="src/app.js?v=14"></script>
   </body>
 </html>

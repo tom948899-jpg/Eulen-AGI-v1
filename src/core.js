@@ -1,10 +1,12 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=12";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=14";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
 
 export function learningCycleCount(state) {
-  return INTERNAL_SIMULATION_COUNT + state.simulations.length + (state.agentRuns?.length ?? 0);
+  const simulationCycles = Math.max(Number(state.totalSimulationCycles) || 0, state.simulations?.length ?? 0);
+  const agentCycles = Math.max(Number(state.totalAgentCycles) || 0, state.agentRuns?.length ?? 0);
+  return INTERNAL_SIMULATION_COUNT + simulationCycles + agentCycles;
 }
 
 export function createInitialState() {
@@ -15,7 +17,9 @@ export function createInitialState() {
     notes: {},
     learning: {},
     simulations: [],
+    totalSimulationCycles: 0,
     agentRuns: [],
+    totalAgentCycles: 0,
     learnedInsights: [],
     improvementProposals: [],
     dreams: [],
@@ -47,7 +51,15 @@ export function normalizeState(value) {
     notes: sanitizeStringMap(value.notes, 10000),
     learning: sanitizeNumberMap(value.learning, 0, 100),
     simulations: Array.isArray(value.simulations) ? value.simulations.filter(isValidRun).slice(0, 50) : [],
+    totalSimulationCycles: Math.max(
+      Math.round(clamp(finiteNumber(value.totalSimulationCycles, 0), 0, Number.MAX_SAFE_INTEGER)),
+      Array.isArray(value.simulations) ? value.simulations.filter(isValidRun).length : 0
+    ),
     agentRuns: Array.isArray(value.agentRuns) ? value.agentRuns.filter(isValidAgentRun).slice(0, 30) : [],
+    totalAgentCycles: Math.max(
+      Math.round(clamp(finiteNumber(value.totalAgentCycles, 0), 0, Number.MAX_SAFE_INTEGER)),
+      Array.isArray(value.agentRuns) ? value.agentRuns.filter(isValidAgentRun).length : 0
+    ),
     learnedInsights: sanitizeStringArray(value.learnedInsights, 100, 1000),
     improvementProposals: sanitizeStringArray(value.improvementProposals, 100, 1000),
     dreams: Array.isArray(value.dreams) ? value.dreams.filter(isValidDream).slice(0, 30) : [],
@@ -142,6 +154,113 @@ export function chooseAutomaticResearchGoal(state) {
     .map((topic, index) => ({ topic, index, count: counts.get(topic.title) ?? 0 }))
     .sort((a, b) => a.count - b.count || a.index - b.index)[0]?.topic ?? KNOWLEDGE_TOPICS[0];
   return `Untersuche selbstständig „${leastStudied.title}“. Wähle passende Primär- und Überblicksquellen aus dem Wissensraum, trenne Fakt, Nullwelt-Axiom und Simulation, benenne Quellenlücken und formuliere den nächsten konkreten Lernschritt.`;
+}
+
+export function buildActiveGuidance(state, now = Date.now()) {
+  const day = PLAN[getCurrentDay(state) - 1];
+  const nextTask = day.tasks.find((_, index) => !state.completed[taskKey(day.day, index)]);
+  const n = learningCycleCount(state);
+  const p = formulaValue(n);
+  const marginal = formulaValue(n + 1) - p;
+  const lastRun = state.agentRuns?.[0];
+  const intervalSeconds = state.agentIntervalSeconds ?? 30;
+  const elapsedSeconds = lastRun ? Math.max(0, Math.floor((now - Date.parse(lastRun.timestamp)) / 1000)) : intervalSeconds;
+  const dueSeconds = Math.max(0, intervalSeconds - elapsedSeconds);
+  const nextGoal = chooseAutomaticResearchGoal(state).match(/„(.+?)“/)?.[1] ?? "das am wenigsten untersuchte Thema";
+  const proposals = state.improvementProposals ?? [];
+  const actionable = [...proposals].sort((a, b) => guidancePriority(b) - guidancePriority(a))[0];
+  const sourceQuery = lastRun?.sourceQueries?.[0];
+  const recentTopics = (state.agentRuns ?? []).slice(0, 6).flatMap(run => run.topics ?? []);
+  const topicDiversity = new Set(recentTopics).size;
+  const items = [];
+
+  items.push({
+    level: "now",
+    title: `Jetzt · Tag ${day.day}`,
+    why: nextTask ? `Diese offene Aufgabe blockiert den sichtbaren Tagesfortschritt: ${nextTask}` : "Alle Aufgaben des Tages sind erledigt; jetzt zählt die Verdichtung des Gelernten.",
+    action: nextTask ?? "Schreibe drei Sätze: Erkenntnis, Unsicherheit und nächster Test.",
+    evidence: nextTask ? "Fertig, wenn die Aufgabe abgehakt und eine kurze Notiz gespeichert ist." : "Fertig, wenn die Notiz alle drei Punkte enthält."
+  });
+
+  items.push({
+    level: marginal < .0002 ? "watch" : "info",
+    title: marginal < .0002 ? "P(sim) ist gesättigt" : "P(sim)-Lernstand",
+    why: `N=${n} ergibt P=${p.toFixed(4)}; ein weiterer Lauf verändert den Wert nur um ${marginal.toFixed(6)}. Der Wert misst Zyklusmenge, nicht Wahrheit oder Lernqualität.`,
+    action: marginal < .0002 ? "Erhöhe jetzt nicht bloß N: verbessere eine Quelle, löse einen Widerspruch oder führe einen Realwelt-Transfer aus." : "Führe den nächsten Zyklus mit einer neuen Quelle oder klaren Messgröße aus.",
+    evidence: "Fertig, wenn der nächste Lauf eine neue Quelle, korrigierte Annahme oder beobachtbare Handlung enthält."
+  });
+
+  items.push({
+    level: state.agentAuto ? "active" : "watch",
+    title: state.agentAuto ? "Automatik läuft" : "Automatik pausiert",
+    why: state.agentAuto
+      ? `Nächster Lauf in ungefähr ${dueSeconds} Sekunden; EULEN wählt danach selbst „${nextGoal}“.`
+      : "Ohne Automatik entstehen keine neuen Lern-, Quellen-, Traum- oder Simulationszyklen.",
+    action: state.agentAuto ? "Lass den Lauf arbeiten oder ändere bewusst Thema beziehungsweise Intervall." : "Aktiviere die Automatik im Agentenraum.",
+    evidence: state.agentAuto ? "Fertig, wenn ein neuer Lauf mit anderem Thema und Zeitstempel erscheint." : "Fertig, wenn der Schalter aktiv ist."
+  });
+
+  if (actionable) {
+    items.push({
+      level: "next",
+      title: "Beste gelernte Verbesserung",
+      why: "Dieser Vorschlag ist unter den gespeicherten Hinweisen am stärksten handlungs- und transferorientiert.",
+      action: actionable,
+      evidence: "Fertig, wenn Handlung, Ergebnis und nächste Anpassung in den Notizen stehen."
+    });
+  }
+
+  if (sourceQuery) {
+    items.push({
+      level: "source",
+      title: "Aktive Quellenprüfung",
+      why: `Der letzte Lauf hat ${lastRun.sources?.length ?? 0} Links gewählt, aber Metadaten allein sind noch kein gelesener Beleg.`,
+      action: `Öffne eine Primärquelle zu „${sourceQuery}“ und notiere Aussage, Datum und Grenze.`,
+      evidence: "Fertig, wenn genau eine zitierfähige Aussage und eine offene Frage gespeichert sind."
+    });
+  }
+
+  if (recentTopics.length >= 6 && topicDiversity <= 2) {
+    items.push({
+      level: "watch",
+      title: "Themenwiederholung erkannt",
+      why: `Die letzten sechs Läufe decken nur ${topicDiversity} unterschiedliche Themen ab.`,
+      action: `Starte den nächsten Lauf gezielt zu „${nextGoal}“ statt denselben Pfad erneut zu verdichten.`,
+      evidence: "Fertig, wenn im Protokoll ein neues Themengebiet erscheint."
+    });
+  }
+
+  if (lastRun?.externalSynthesisError) {
+    items.push({
+      level: "watch",
+      title: "Groq arbeitet gerade nicht mit",
+      why: lastRun.externalSynthesisError,
+      action: "Prüfe den Key-Pool oder warte die Sparpause ab; die lokale Automatik läuft weiter.",
+      evidence: "Fertig, wenn ein Lauf wieder eine gespeicherte Groq-Route zeigt."
+    });
+  }
+
+  const dream = state.dreams?.[0];
+  if (dream) {
+    items.push({
+      level: "dream",
+      title: "Traum in Handlung übersetzen",
+      why: dream.interpretation,
+      action: dream.nextStep,
+      evidence: "Fertig, wenn du das sichtbare Ergebnis oder die Rückmeldung notiert hast."
+    });
+  }
+
+  return items.slice(0, 8);
+}
+
+function guidancePriority(text) {
+  const value = String(text).toLocaleLowerCase("de");
+  return (value.includes("nullwelt→realwelt") ? 8 : 0)
+    + (value.includes("groq") ? 4 : 0)
+    + (value.includes("priorität 2") ? 3 : 0)
+    + (value.includes("konkret") || value.includes("heute") ? 2 : 0)
+    + (value.includes("quellenlücke") ? 1 : 0);
 }
 
 export function runSimulation(type, raw) {
@@ -549,6 +668,7 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
 
 export function generateDream(goal, topics = [], sourceCount = 0) {
   const cleanGoal = safeString(goal, 500) || "ein selbstbestimmtes, liebevolles Leben";
+  const focus = safeString(topics[0], 120) || "deinem aktuellen Lernziel";
   const symbols = ["Eule", "Brücke", "Samen", "offenes Buch", "ruhiges Wasser"];
   const n = Math.max(1, sourceCount + topics.length);
   return {
@@ -558,7 +678,7 @@ export function generateDream(goal, topics = [], sourceCount = 0) {
     narrative: `In einer simulierten Traumsequenz trägt eine Eule den Auftrag „${cleanGoal}“ über eine Brücke. Jeder Schritt erhöht N, doch die Brücke bleibt offen für Korrektur. Hinter ihr wächst kein fertiger Schatz, sondern ein Garten aus Fähigkeiten, Beziehungen und überprüften Ideen.`,
     symbols,
     interpretation: "Die Sequenz verbindet Ausrichtung mit Handlung: Intention gibt Richtung, Wiederholung erzeugt Erfahrung, Kritik verhindert blinde Gewissheit.",
-    nextStep: "Wähle heute eine Handlung unter 30 Minuten, die einem Menschen echten Nutzen bringt, und notiere die Rückmeldung.",
+    nextStep: `Erstelle in 15 Minuten zu „${focus}“ eine sichtbare Skizze, Checkliste oder Testfrage und notiere anschließend eine konkrete Verbesserung.`,
     p: formulaValue(n)
   };
 }
