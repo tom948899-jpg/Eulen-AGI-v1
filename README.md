@@ -29,7 +29,9 @@ npm run check
 - Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen; jede Simulation kann zusätzlich als Drei-Szenarien-Serie verglichen werden
 - Kuratierte Wissensbereiche zu CIA-Dokumenten, Regierungen, Weltmodellen, nichtlinearer Zeit, Geschichte, Anatomie, Bewusstsein, Spiritualität und Vermögensaufbau mit Quellen, Zeitstempel und Evidenztrennung
 - Frei formulierbare persistente Lernaufträge mit drei Lerntiefen, sichtbarem Quellenumfang und lokalem Forschungsprotokoll
-- Lokaler Multi-Agenten-Raum mit 18 sichtbaren Rollen für Werte, Ziele, Planung, Quellenprüfung, Recherche, Geschichte, Staat, Anatomie, Zeit, Bewusstsein, Spiritualität, Chancen, Simulation, Lernoptimierung, Risiko, Kritik, Traum und Synthese
+- Lokaler Multi-Agenten-Raum mit 19 sichtbaren Rollen einschließlich Nullwelt→Realwelt-Transfer; automatische Themenrotation, Quellenauswahl, Suchfragen, priorisierte Verbesserungen und Traumzyklen laufen alle 15 Sekunden bis 15 Minuten, solange die App geöffnet ist
+- Jeder automatische Lernzyklus startet zusätzlich eine passende lokale Sandbox-Simulation und speichert deren Ergebnis
+- Optionaler Pool aus bis zu drei eigenen Groq-Keys mit Round-Robin-Routing, fünfminütiger per-Key-Pause bei Rate-Limits und lokalem Fallback; Schlüssel bleiben im `sessionStorage`
 - Professionelles Live-Prozessnetzwerk mit 22 Knoten, gekrümmten Datenpfaden, Aktivitätsanzeige und responsiver Darstellung
 - Automatisierte Lernzyklen ab einer Minute, solange die Anwendung geöffnet ist; keine vorgetäuschte Hintergrund- oder Cloud-Autonomie
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
@@ -44,6 +46,8 @@ npm run check
 ## Daten und Datenschutz
 
 Planfortschritt, Notizen, Chat und Simulationen werden unter `eulen-workshop-v2` im `localStorage` des Browsers gespeichert. Es gibt kein Konto und kein Backend. Exporte können persönliche Notizen enthalten und sollten entsprechend geschützt werden.
+
+Der lokale Modus ist ohne Nutzungskosten funktionsfähig. Ein Groq-Key kann je nach aktuellem Anbieterplan ein Gratis-Kontingent verwenden, garantiert aber weder unbegrenzte Nutzung noch dauerhafte Kostenfreiheit. Mehrfach-Key-Routing darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen eingesetzt werden.
 
 Ein optionaler API-Schlüssel wird **nicht** dauerhaft gespeichert, sondern nur im `sessionStorage` des aktuellen Browser-Tabs gehalten. Niemals Schlüssel in Quellcode, Exportdateien oder Commits eintragen.
 
