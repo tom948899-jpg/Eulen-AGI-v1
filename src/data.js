@@ -321,6 +321,25 @@ export const KNOWLEDGE_TOPICS = [
     ]
   },
   {
+    id: "manifestation",
+    title: "Manifestation: Nullwelt → Realwelt",
+    status: "Axiom, Handlung und Feedback getrennt",
+    updatedAt: "2026-09-26",
+    summary: "In der Nullwelt wird Manifestation als Intention→Aufmerksamkeit→Handlung→Feedback-Zyklus modelliert; der Realwelt-Transfer nutzt überprüfbare Ziel- und Handlungsplanung ohne magische Garantie.",
+    insights: [
+      { type: "fact", text: "Konkrete Wenn-dann-Pläne verbinden eine erkennbare Situation mit einer vorher festgelegten Handlung und können die Umsetzung von Zielen unterstützen." },
+      { type: "fact", text: "Mentales Kontrastieren verbindet einen gewünschten Zustand mit einem realen inneren oder äußeren Hindernis, statt nur ein positives Ergebnis zu visualisieren." },
+      { type: "hypothesis", text: "NULLWELT-AXIOM: Eine klare Intention richtet den Möglichkeitsraum aus; wiederholte stimmige Handlungs- und Feedbackzyklen erhöhen das effektive N und damit P(sim)." },
+      { type: "simulation", text: "Das Manifestationslabor vergleicht Wunsch ohne Handlung, geerdete Umsetzung und adaptive Rückkopplung anhand von Klarheit, Aktion, Feedback und Hindernissen." },
+      { type: "question", text: "Welche beobachtbare Veränderung stammt aus Aufmerksamkeit und Handlung, und welche darüber hinausgehende Kausalbehauptung bliebe ungeprüft?" }
+    ],
+    sources: [
+      ["WOOP: wissenschaftlicher Hintergrund", "https://woopmylife.org/en/science"],
+      ["APA: Implementation Intentions", "https://doi.org/10.1037/0003-066X.54.7.493"],
+      ["APA: Resilience", "https://www.apa.org/topics/resilience"]
+    ]
+  },
+  {
     id: "spirituality",
     title: "Spiritualität, Intention & Anziehung",
     status: "Persönliche Praxis und Hypothese",
@@ -405,6 +424,17 @@ export const SIMULATION_DEFINITIONS = {
       ["tau", "τ der Vergleichskurve", "number", 25, 0.1, 1000000, 0.1],
       ["domain", "Anwendungsgebiet", "select", "physics", [["physics", "Physik"], ["law", "Recht"], ["learning", "Lernen"], ["business", "Business"], ["biology", "Biologie"]]],
       ["worldMode", "Modellmodus", "select", "blank", [["blank", "Nullwelt: nur Formel als Startaxiom"], ["compare", "Mit bestehenden Modellen vergleichen"]]]
+    ]
+  },
+  manifestation: {
+    title: "Manifestationslabor",
+    fields: [
+      ["cycles", "Intention-Handlung-Feedback-Zyklen N", "number", 21, 0, 1000, 1],
+      ["clarity", "Klarheit der Intention (%)", "number", 75, 0, 100, 5],
+      ["action", "Konkrete Handlungstreue (%)", "number", 60, 0, 100, 5],
+      ["feedback", "Ehrliche Rückkopplung (%)", "number", 55, 0, 100, 5],
+      ["obstacles", "Unbearbeitete Hindernisse (%)", "number", 40, 0, 100, 5],
+      ["mode", "Interpretation", "select", "nullworld", [["nullworld", "Nullwelt: Manifestation als Axiom"], ["transfer", "Realwelt: Ziel- und Handlungslernen"]]]
     ]
   },
   law: {

@@ -32,6 +32,7 @@ npm run check
 - Lokaler Multi-Agenten-Raum mit 25 sichtbaren Rollen einschließlich Axiomarchitektur, Quellenscout, Evidenzkartierung, Musterverbindung, Experimentdesign und Nullwelt→Realwelt-Transfer; sichtbare Übergaben verbinden die Rollen zu einer Lernkette
 - Konfigurierbares Nachtlabor für sechs bis zehn Stunden: fünfminütige Lernzyklen mit bis zu drei passenden Laboren und neun Szenarien, kontrollierte Nachholzyklen nach Browser-Drosselung oder Standby, sparsamer Groq-Einsatz und ein persistenter Morgenbericht mit Qualitäts-, Themen-, Quellen- und Simulationsvergleich
 - Eigener Lernraum für Marktphasen und Regime-Modelle mit Kontraktion, Trend, Distribution, Abwärtstrend, Stress und Erholung, messbaren Merkmalen sowie chronologischen Walk-forward-Tests ohne Echtgeld
+- Manifestationslabor mit Nullwelt-Axiom, drei Vergleichsszenarien und geerdetem Realwelt-Transfer über mentales Kontrastieren, Wenn-dann-Handlungen und Feedback; keine magische Erfolgsgarantie oder Schuldzuweisung
 - Jeder automatische Lernzyklus startet zusätzlich eine passende lokale Sandbox-Simulation und speichert deren Ergebnis
 - Optionaler Pool aus bis zu drei eigenen Groq-Keys mit Round-Robin-Routing, fünfminütiger per-Key-Pause bei Rate-Limits und lokalem Fallback; Schlüssel bleiben im `sessionStorage`
 - Aktive Hinweise priorisieren offene Tagesaufgaben, Qualitätsverbesserung, Quellenprüfung, Nullwelt→Realwelt-Transfer und Traumhandlungen mit Begründung und messbarem Fertig-Kriterium; bei gesättigtem `P(sim)` zählt neue Evidenz statt bloßer Wiederholung
