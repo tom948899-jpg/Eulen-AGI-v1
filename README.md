@@ -28,7 +28,9 @@ npm run check
 - Sichere Token-/Memecoin-Risiko-Sandbox ohne Wallet, Deployment oder Echtgeld
 - Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen
 - Kuratierte Wissensbereiche mit Quellen, Zeitstempel, Status und expliziter Trennung von Fakten, Hypothesen, Simulationen und offenen Fragen
-- Lokaler Multi-Agenten-Raum mit sichtbaren Live-Zuständen für Planer, Rechercheur, Kritiker und Synthese, persistentem Arbeitsprotokoll, Schnellaufträgen sowie wählbaren 5–60-Minuten-Läufen bei geöffnetem Browser
+- Lokaler Multi-Agenten-Raum mit zwölf sichtbaren Rollen für Werte, Ziele, Planung, Recherche, Bewusstsein, Spiritualität, Chancen, Simulation, Risiko, Kritik, Traum und Synthese
+- Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
+- Spiritueller Wissensbereich zu Intention und Law of Attraction mit respektvoller Hypothese-Fakt-Trennung
 - Bewusstseins-Hypothesenlabor mit P(sim)-Axiommodus, Konsistenz, Selbstkorrektur, Widersprüchen und Gedächtniskontinuität
 - Rechts-Evidenz-Sandbox ohne Rechtsberatungs- oder Fallprognoseanspruch
 - Physikalischer „Nullwelt“-Modus, der hypothetisch nur `P(sim)=N/(N+1)` als Startaxiom verwendet

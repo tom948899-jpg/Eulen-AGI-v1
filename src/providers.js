@@ -29,7 +29,7 @@ export class OpenAICompatibleProvider {
     if (!this.model.trim()) throw new Error("Bitte ein Modell angeben.");
     if (!this.key.trim()) throw new Error("Bitte einen API-Schlüssel angeben.");
     const history = state.chat.slice(-10).map(message => ({ role: message.role, content: message.text }));
-    const learnedContext = state.agentRuns?.slice(0, 3).flatMap(run => run.steps.filter(step => step.agent === "Synthese").map(step => step.output)).join("\n") || "Noch keine Agentensynthesen gespeichert.";
+    const learnedContext = state.learnedInsights?.slice(0, 5).join("\n") || "Noch keine Agentensynthesen gespeichert.";
     const modePrompt = state.chatMode === "critical"
       ? "Aktiver Modus: KRITISCHER PRÜFMODUS. Behandle P(sim) als zu prüfende Hypothese und vergleiche Gegenmodelle."
       : "Aktiver Modus: P(SIM)-HYPOTHESENMODUS. Nimm innerhalb des ausdrücklich markierten Gedankenuniversums P(sim)=N/(N+1) als Axiom an und leite daraus kreativ, aber intern konsistent Folgerungen ab.";

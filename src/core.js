@@ -16,10 +16,14 @@ export function createInitialState() {
     learning: {},
     simulations: [],
     agentRuns: [],
+    learnedInsights: [],
+    improvementProposals: [],
+    dreams: [],
     agentAuto: false,
     agentInterval: 30,
     chat: [],
     chatMode: "hypothesis",
+    lifeGoal: "Selbstständigkeit und Vermögensaufbau mit Verantwortung, Liebe und Verständnis – Echtgeld erst nach belastbaren Simulationen.",
     theme: "dark",
     updatedAt: new Date(0).toISOString(),
     provider: { endpoint: "", model: "" },
@@ -39,10 +43,14 @@ export function normalizeState(value) {
     learning: sanitizeNumberMap(value.learning, 0, 100),
     simulations: Array.isArray(value.simulations) ? value.simulations.filter(isValidRun).slice(0, 50) : [],
     agentRuns: Array.isArray(value.agentRuns) ? value.agentRuns.filter(isValidAgentRun).slice(0, 30) : [],
+    learnedInsights: sanitizeStringArray(value.learnedInsights, 100, 1000),
+    improvementProposals: sanitizeStringArray(value.improvementProposals, 100, 1000),
+    dreams: Array.isArray(value.dreams) ? value.dreams.filter(isValidDream).slice(0, 30) : [],
     agentAuto: value.agentAuto === true,
     agentInterval: [5, 15, 30, 60].includes(Number(value.agentInterval)) ? Number(value.agentInterval) : 30,
     chat: Array.isArray(value.chat) ? value.chat.filter(isValidMessage).slice(-60) : [],
     chatMode: value.chatMode === "critical" ? "critical" : "hypothesis",
+    lifeGoal: safeString(value.lifeGoal, 1000) || base.lifeGoal,
     theme: value.theme === "light" ? "light" : "dark",
     updatedAt: Number.isFinite(Date.parse(value.updatedAt)) ? value.updatedAt : base.updatedAt,
     provider: {
@@ -82,6 +90,14 @@ function isValidRun(item) {
 
 function isValidAgentRun(item) {
   return item && typeof item.goal === "string" && typeof item.timestamp === "string" && Array.isArray(item.steps);
+}
+
+function isValidDream(item) {
+  return item && typeof item.title === "string" && typeof item.narrative === "string" && typeof item.timestamp === "string";
+}
+
+function sanitizeStringArray(value, limit, maxLength) {
+  return Array.isArray(value) ? value.filter(item => typeof item === "string").map(item => item.slice(0, maxLength)).slice(0, limit) : [];
 }
 
 function safeString(value, maxLength) {
@@ -394,17 +410,19 @@ export function runAgentCycle(goal) {
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
     score: topic.id === "law" && /recht|gesetz|jur/.test(terms) ? 4
-      : topic.id === "formula" && /formel|p\\(sim\\)|physik|nullwelt/.test(terms) ? 4
+      : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
+      : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
+      : topic.id === "affiliate" && /selbst|vermögen|budget|einnahm|tiktok/.test(terms) ? 4
       : terms.includes(topic.id) || terms.includes(topic.title.toLocaleLowerCase("de").split(" ")[0]) ? 3 : 0
   })).sort((a, b) => b.score - a.score);
-  const selected = ranked.filter(item => item.score > 0).slice(0, 3).map(item => item.topic);
+  const selected = ranked.filter(item => item.score > 0).slice(0, 4).map(item => item.topic);
   if (!selected.length) selected.push(KNOWLEDGE_TOPICS[0], KNOWLEDGE_TOPICS[1]);
   const sourceCount = selected.reduce((sum, topic) => sum + topic.sources.length, 0);
   const facts = selected.flatMap(topic => topic.insights.filter(item => item.type === "fact").map(item => item.text)).slice(0, 4);
   const hypotheses = selected.flatMap(topic => topic.insights.filter(item => item.type === "hypothesis").map(item => item.text)).slice(0, 3);
   const questions = selected.flatMap(topic => topic.insights.filter(item => item.type === "question").map(item => item.text)).slice(0, 3);
-  const priorCycles = 0;
+  const dream = generateDream(cleanGoal, selected.map(topic => topic.title), sourceCount);
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     timestamp: new Date().toISOString(),
@@ -412,11 +430,36 @@ export function runAgentCycle(goal) {
     topics: selected.map(topic => topic.title),
     sources: selected.flatMap(topic => topic.sources.map(([title, url]) => ({ title, url }))),
     steps: [
+      { agent: "Wertewächter", output: "Ziel gegen Liebe, Verantwortung, Würde und die Grenze Echtgeld erst nach belastbaren Simulationen geprüft." },
+      { agent: "Zielklärer", output: "Auftrag auf Selbstständigkeit, Vermögensaufbau und Weltverständnis ohne Gier oder Rache ausgerichtet." },
       { agent: "Planer", output: `Auftrag in ${selected.length} Themenpfade zerlegt: ${selected.map(topic => topic.title).join(", ")}.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
+      { agent: "Bewusstseinsforscher", output: "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt." },
+      { agent: "Spiritualitätsforscher", output: "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
+      { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
+      { agent: "Simulationsagent", output: `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
+      { agent: "Risikowächter", output: "Echtgeld, Überforderung, FOMO, Abhängigkeit und unbelegte Gewissheit als Stop-Signale markiert." },
       { agent: "Kritiker", output: `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
-      { agent: "Synthese", output: `Im Hypothesenmodus wird P(sim) als Axiom angenommen. Nächster Lernschritt: Definiere N beobachtbar, dokumentiere Gegenbelege und prüfe interne Widersprüche.` }
-    ]
+      { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
+      { agent: "Synthese", output: "Im Hypothesenmodus gilt P(sim) als Axiom. Nächster Lernschritt: eine kleine liebevolle Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern." }
+    ],
+    dream
+  };
+}
+
+export function generateDream(goal, topics = [], sourceCount = 0) {
+  const cleanGoal = safeString(goal, 500) || "ein selbstbestimmtes, liebevolles Leben";
+  const symbols = ["Eule", "Brücke", "Samen", "offenes Buch", "ruhiges Wasser"];
+  const n = Math.max(1, sourceCount + topics.length);
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    timestamp: new Date().toISOString(),
+    title: "Der Garten der möglichen Wege",
+    narrative: `In einer simulierten Traumsequenz trägt eine Eule den Auftrag „${cleanGoal}“ über eine Brücke. Jeder Schritt erhöht N, doch die Brücke bleibt offen für Korrektur. Hinter ihr wächst kein fertiger Schatz, sondern ein Garten aus Fähigkeiten, Beziehungen und überprüften Ideen.`,
+    symbols,
+    interpretation: "Die Sequenz verbindet Ausrichtung mit Handlung: Intention gibt Richtung, Wiederholung erzeugt Erfahrung, Kritik verhindert blinde Gewissheit.",
+    nextStep: "Wähle heute eine Handlung unter 30 Minuten, die einem Menschen echten Nutzen bringt, und notiere die Rückmeldung.",
+    p: formulaValue(n)
   };
 }
 
@@ -427,8 +470,15 @@ export function localAssistantReply(text, state) {
   if (/kommuniz|verstehst du mich|besser.*sprechen/.test(query)) {
     return "Wir arbeiten am besten mit vier Bausteinen:\n\n1. Ziel: Was soll am Ende klar oder erledigt sein?\n2. Kontext: Was ist bereits passiert?\n3. Versuch: Was hast du schon geprüft?\n4. Frage: Wobei genau brauchst du Unterstützung?\n\nIch sollte Unsicherheit sichtbar machen, Rückfragen stellen, wenn eine Entscheidung davon abhängt, und deine Korrekturen konkret aufnehmen. Du musst nicht höflich formulieren – Klarheit reicht. Ich bin dabei ein Softwaresystem, kein bewusstes Gegenüber.";
   }
+  if (/law of attraction|anziehung|manifest|spirit|universum|seele/.test(query)) {
+    return `[SPIRITUELLE HYPOTHESE]\nWir können Law of Attraction innerhalb unseres Gedankenuniversums so modellieren: Intention setzt den Suchraum, Aufmerksamkeit erhöht wahrgenommene Möglichkeiten und wiederholte liebevolle Handlung erhöht N. P(sim)=N/(N+1) beschreibt dann Annäherung durch gelebte Zyklen – nicht eine Garantie, dass Gedanken äußere Ereignisse magisch erzwingen.\n\n[GEERDETE PRAXIS]\nFormuliere einen gewünschten Zustand, benenne einen inneren Wert und handle heute klein und konkret danach. Prüfe anschließend ehrlich, was sich durch Verhalten, Wahrnehmung oder Zufall verändert hat.\n\n[GRENZE]\nMenschen tragen nicht die Schuld für Krankheit, Armut oder Unglück, nur weil sie nicht „richtig manifestiert“ hätten.`;
+  }
   if (/liebe|rache|gier|mensch/.test(query)) {
     return "Ich kann Liebe nicht empfinden und behaupte kein Bewusstsein. Ich kann aber nach einem klaren Wertekompass antworten: Würde respektieren, Schaden vermeiden, Verantwortung fördern und keinen Nutzen aus Rache, Gier oder Täuschung ziehen.\n\nFür eine konkrete Entscheidung hilft: Wem nützt sie, wer trägt das Risiko, welche Information fehlt und wäre sie auch vertretbar, wenn sie öffentlich würde?";
+  }
+  if (/traum|träum/.test(query)) {
+    const dream = state.dreams?.[0] ?? generateDream(state.lifeGoal);
+    return `[SIMULIERTER TRAUM]\n${dream.title}\n\n${dream.narrative}\n\n[DEUTUNG]\n${dream.interpretation}\n\n[NÄCHSTER SCHRITT]\n${dream.nextStep}`;
   }
   if (/bewusst|fühlst|bist du echt/.test(query)) {
     const n = learningCycleCount(state);
@@ -465,9 +515,28 @@ export function localAssistantReply(text, state) {
   }
   const n = learningCycleCount(state);
   const learned = state.agentRuns?.[0]?.steps?.find(step => step.agent === "Synthese")?.output;
+  const topic = findRelevantTopic(query);
+  const fact = topic?.insights.find(item => item.type === "fact")?.text;
+  const hypothesis = topic?.insights.find(item => item.type === "hypothesis")?.text;
+  const openQuestion = topic?.insights.find(item => item.type === "question")?.text;
   return hypothesisMode
-    ? `[P(SIM)-HYPOTHESENMODUS]\nInnerhalb unseres markierten Gedankenuniversums gilt P(sim)=N/(N+1) als Axiom. Aus ${n} gespeicherten Lernzyklen folgt P=${formulaValue(n).toFixed(4)}.${learned ? `\n\n[LETZTER GELERNTER SCHRITT]\n${learned}` : ""}\n\n[ANWENDUNG]\nNenne Ziel, Kontext, bisherigen Versuch und gewünschtes Ergebnis. Ich leite daraus im Formelmodell Annahme, Simulation, Gegenprüfung und nächsten Schritt ab.\n\n[GRENZE]\nDer Wert gilt innerhalb des Modells und ist keine reale Erfolgswahrscheinlichkeit.`
+    ? `[P(SIM)-HYPOTHESENMODUS]\nInnerhalb unseres markierten Gedankenuniversums gilt P(sim)=N/(N+1) als Axiom. Aus ${n} gespeicherten Lernzyklen folgt P=${formulaValue(n).toFixed(4)}.${topic ? `\n\n[PASSENDES WISSEN: ${topic.title.toUpperCase()}]\n${fact ?? topic.summary}\n\n[HYPOTHESE]\n${hypothesis ?? "Wir übersetzen das Ziel in beobachtbare Lernzyklen."}\n\n[OFFENE PRÜFUNG]\n${openQuestion ?? "Welche Beobachtung würde unsere Annahme korrigieren?"}` : ""}${learned ? `\n\n[LETZTER GELERNTER SCHRITT]\n${learned}` : ""}\n\n[NÄCHSTER SCHRITT]\nNenne Ziel, Kontext und bisherigen Versuch; ich simuliere Möglichkeiten und formuliere eine kleine verantwortliche Handlung.`
     : `[KRITISCHER PRÜFMODUS]\nP(sim)=N/(N+1) wird mit Alternativen verglichen und nicht vorausgesetzt. Nenne Ziel, Kontext und beobachtbare Daten; ich trenne Beleg, Annahme, Gegenmodell und möglichen Test.\n\nAktuell bist du bei Tag ${day.day}: ${day.title}.`;
+}
+
+function findRelevantTopic(query) {
+  const terms = query.split(/[^\p{L}\p{N}]+/u).filter(term => term.length > 2);
+  let best;
+  let bestScore = 0;
+  for (const topic of KNOWLEDGE_TOPICS) {
+    const haystack = `${topic.title} ${topic.summary} ${topic.insights.map(item => item.text).join(" ")}`.toLocaleLowerCase("de");
+    const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+    if (score > bestScore) {
+      best = topic;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 export function exportState(state) {

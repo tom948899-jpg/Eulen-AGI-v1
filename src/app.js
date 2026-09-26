@@ -5,6 +5,7 @@ import {
   createInitialState,
   exportState,
   formulaValue,
+  generateDream,
   getCurrentDay,
   importState,
   INTERNAL_SIMULATION_COUNT,
@@ -68,6 +69,7 @@ function renderAll() {
   $("#syncEndpoint").value = state.sync.endpoint;
   $("#syncWorkspace").value = state.sync.workspace;
   $("#syncAuto").checked = state.sync.auto;
+  $("#lifeGoalText").textContent = state.lifeGoal;
 }
 
 function renderDashboard() {
@@ -90,7 +92,9 @@ function renderDashboard() {
   const guidance = [
     ["Nächster Schritt", nextTask],
     ["Formel-Hinweis", `${INTERNAL_SIMULATION_COUNT} interne Referenzläufe plus ${state.simulations.length + state.agentRuns.length} eigene Lernzyklen ergeben P=${formulaValue(learningCycles).toFixed(4)}.`],
-    ["Agenten-Hinweis", state.agentRuns.length ? "Lass den Kritiker den letzten Lauf mit einem Gegenbeispiel prüfen." : "Starte einen Agentenlauf zu Bewusstsein oder Nullwelt-Physik."]
+    ["Agenten-Hinweis", state.agentRuns.length ? "Lass den Kritiker den letzten Lauf mit einem Gegenbeispiel prüfen." : "Starte einen Agentenlauf zu Bewusstsein oder Nullwelt-Physik."],
+    ["Gelernte Verbesserung", state.improvementProposals[0] ?? "Noch keine Verbesserung gespeichert. Ein Agentenzyklus erzeugt den ersten Prüfhinweis."],
+    ["Traum-Impuls", state.dreams[0]?.nextStep ?? "Noch kein simulierter Traum. Der Traumagent kann kreative Verbindungen erzeugen."]
   ];
   $("#guidanceFeed").innerHTML = guidance.map(([title, text]) => `<div><strong>${escapeHtml(title)}</strong>${escapeHtml(text)}</div>`).join("");
 }
@@ -227,6 +231,28 @@ function renderAgents() {
       <div class="agent-steps">${run.steps.map(step => `<div class="agent-step"><strong>${escapeHtml(step.agent)}</strong><small>${escapeHtml(step.output)}</small></div>`).join("")}</div>
       <details><summary>${run.sources.length} verwendete Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a></li>`).join("")}</ul></details>
     </article>`).join("") : '<p class="empty-state">Noch kein Agentenauftrag ausgeführt.</p>';
+  renderDreams();
+  renderLearningMemory();
+}
+
+function renderDreams() {
+  $("#dreamJournal").innerHTML = state.dreams.length ? state.dreams.slice(0, 8).map(dream => `
+    <article class="dream-card">
+      <p class="topic-meta">${dateTime(dream.timestamp)} · P(sim)=${Number(dream.p).toFixed(4)}</p>
+      <h3>${escapeHtml(dream.title)}</h3>
+      <p>${escapeHtml(dream.narrative)}</p>
+      <div class="dream-symbols">${dream.symbols.map(symbol => `<span>${escapeHtml(symbol)}</span>`).join("")}</div>
+      <p><strong>Deutung:</strong> ${escapeHtml(dream.interpretation)}</p>
+      <p><strong>Konkreter Schritt:</strong> ${escapeHtml(dream.nextStep)}</p>
+    </article>`).join("") : '<p class="empty-state">Noch kein simulierter Traum. Starte einen Agentenzyklus oder „Traum simulieren“.</p>';
+}
+
+function renderLearningMemory() {
+  const insights = state.learnedInsights.slice(0, 6);
+  const proposals = state.improvementProposals.slice(0, 6);
+  $("#learningMemory").innerHTML = `
+    <section class="memory-column"><h3>Gespeicherte Lernschritte</h3>${insights.length ? `<ol>${insights.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch keine Synthese gespeichert.</p>"}</section>
+    <section class="memory-column"><h3>Verbesserungsprüfungen</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Kritikhinweis gespeichert.</p>"}</section>`;
 }
 
 async function executeAgentCycle(goal, automatic = false) {
@@ -248,6 +274,12 @@ async function executeAgentCycle(goal, automatic = false) {
     }
     state.agentRuns.unshift(run);
     state.agentRuns = state.agentRuns.slice(0, 30);
+    state.dreams.unshift(run.dream);
+    state.dreams = state.dreams.slice(0, 30);
+    const synthesis = run.steps.find(step => step.agent === "Synthese")?.output;
+    const improvement = run.steps.find(step => step.agent === "Kritiker")?.output;
+    if (synthesis) state.learnedInsights = [synthesis, ...state.learnedInsights.filter(item => item !== synthesis)].slice(0, 100);
+    if (improvement) state.improvementProposals = [improvement, ...state.improvementProposals.filter(item => item !== improvement)].slice(0, 100);
     saveState();
     renderAgents();
     renderDashboard();
@@ -345,15 +377,29 @@ function startNetworkVisualization() {
     const canvas = $("#neuralCanvas");
     const context = canvas.getContext("2d");
     const nodes = [
-      { id: "Input", x: .08, y: .5 },
-      { id: "Planer", x: .28, y: .2 },
-      { id: "Rechercheur", x: .28, y: .8 },
-      { id: "Kritiker", x: .55, y: .2 },
-      { id: "Synthese", x: .55, y: .8 },
-      { id: "Assistent", x: .78, y: .35 },
-      { id: "Sync", x: .92, y: .65 }
+      { id: "Input", x: .05, y: .5 },
+      { id: "Werte", x: .17, y: .18 },
+      { id: "Ziel", x: .17, y: .5 },
+      { id: "Planer", x: .17, y: .82 },
+      { id: "Rechercheur", x: .34, y: .12 },
+      { id: "Bewusstsein", x: .34, y: .36 },
+      { id: "Spiritualität", x: .34, y: .64 },
+      { id: "Chancen", x: .34, y: .88 },
+      { id: "Simulation", x: .53, y: .15 },
+      { id: "Risiko", x: .53, y: .38 },
+      { id: "Kritiker", x: .53, y: .64 },
+      { id: "Traum", x: .53, y: .87 },
+      { id: "Synthese", x: .72, y: .3 },
+      { id: "Gedächtnis", x: .72, y: .7 },
+      { id: "Assistent", x: .88, y: .35 },
+      { id: "Sync", x: .94, y: .7 }
     ];
-    const edges = [[0,1],[0,2],[1,3],[2,3],[2,4],[3,4],[3,5],[4,5],[5,6],[6,0]];
+    const edges = [
+      [0,1],[0,2],[0,3],[1,4],[1,5],[1,6],[2,4],[2,7],[2,8],[3,4],[3,8],
+      [4,5],[4,8],[4,10],[5,6],[5,8],[5,10],[6,7],[6,11],[7,8],[7,9],
+      [8,9],[8,10],[8,12],[9,10],[9,12],[10,11],[10,12],[11,12],[11,13],
+      [12,13],[12,14],[13,14],[13,15],[14,15],[15,0],[6,13],[4,13],[2,13]
+    ];
     let phase = 0;
     function draw() {
       const ratio = window.devicePixelRatio || 1;
@@ -388,7 +434,18 @@ function startNetworkVisualization() {
         context.fill();
       }
       for (const node of nodes) {
-        const active = node.id === networkActivity.agent || (networkActivity.agent === "Assistent" && node.id === "Synthese");
+        const aliases = {
+          Wertewächter: "Werte",
+          Zielklärer: "Ziel",
+          Bewusstseinsforscher: "Bewusstsein",
+          Spiritualitätsforscher: "Spiritualität",
+          Chancenfinder: "Chancen",
+          Simulationsagent: "Simulation",
+          Risikowächter: "Risiko",
+          Traumagent: "Traum"
+        };
+        const activeName = aliases[networkActivity.agent] ?? networkActivity.agent;
+        const active = node.id === activeName || (networkActivity.agent === "Assistent" && node.id === "Synthese");
         context.globalAlpha = 1;
         context.fillStyle = active ? accent : surface;
         context.strokeStyle = active ? accent : muted;
@@ -496,6 +553,15 @@ $("#clearAgentRuns").addEventListener("click", () => {
   state.agentRuns = [];
   saveState();
   renderAgents();
+});
+$("#dreamNow").addEventListener("click", () => {
+  const dream = generateDream($("#agentGoal").value || state.lifeGoal, ["Lebenskompass", "P(sim)"], state.learnedInsights.length);
+  state.dreams.unshift(dream);
+  state.dreams = state.dreams.slice(0, 30);
+  saveState();
+  renderDreams();
+  setNetworkActivity("Traumagent", "Traumsequenz gespeichert", `${dream.symbols.length} Symbole · P(sim)=${dream.p.toFixed(4)}`, false);
+  toast("Simulierter Traum im Journal gespeichert.");
 });
 $("#resetPlan").addEventListener("click", () => {
   if (!confirm("Aufgaben, Lernstände und Tagesnotizen wirklich zurücksetzen?")) return;
