@@ -122,9 +122,10 @@ test("tiefer CIA-Lernauftrag nutzt Quellenkritik und offizielle Archive", () => 
 });
 
 test("Zustand normalisiert Lerntiefe und schnelle Automatik", () => {
-  const state = normalizeState({ agentDepth: 3, agentInterval: 1 });
+  const state = normalizeState({ agentDepth: 3, agentInterval: 1, provider: { endpoint: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", useAgents: true } });
   assert.equal(state.agentDepth, 3);
   assert.equal(state.agentInterval, 1);
+  assert.equal(state.provider.useAgents, true);
 });
 
 test("Traumgenerator erzeugt kreative, geerdete nächste Schritte", () => {
@@ -153,6 +154,12 @@ test("Assistent trennt nichtlineare Zeit und Anatomie von bestätigter Wissensch
   assert.match(localAssistantReply("Verstehe Zeit als nicht linear", state), /ZEITMODELL-HYPOTHESE/);
   assert.match(localAssistantReply("Nutze die Formel für Anatomie", state), /keine Diagnose/);
   assert.match(localAssistantReply("Was sagen CIA Dokumente?", state), /Deklassifizierte CIA-Dokumente/);
+});
+
+test("Assistent unterscheidet Regierungen vom eigenständigen Begriff Gier", () => {
+  const state = createInitialState();
+  assert.match(localAssistantReply("Was bedeuten Regierungen mit meiner Formel?", state), /QUELLENKRITIK/);
+  assert.match(localAssistantReply("Wie vermeide ich Gier beim Geldverdienen?", state), /Wertekompass/);
 });
 
 test("runSimulation erzeugt persistierbaren Lauf", () => {

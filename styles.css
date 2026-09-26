@@ -192,8 +192,7 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .research-mission p:not(.eyebrow) { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 0; }
 .research-mission label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
 .research-mission .primary { min-height: 44px; }
-.research-mission .form-status { grid-column: 2 / -1; margin: 0; }
-.research-provider-toggle { grid-column: 2 / -1; margin: 0 !important; }
+.research-mission .form-status { grid-column: 1 / -1; margin: 0; }
 .research-suggestions { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 20px; }
 .research-suggestions button, .provider-presets button { white-space: nowrap; border: 1px solid var(--line); color: var(--muted); background: color-mix(in srgb, var(--surface) 80%, transparent); border-radius: 999px; padding: 8px 11px; font-size: 11px; }
 .research-suggestions button:hover, .provider-presets button:hover { color: var(--text); border-color: var(--accent); }
@@ -286,7 +285,6 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   .metrics article:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .dashboard-grid, .sim-grid, .agent-layout, .research-mission { grid-template-columns: 1fr; }
   .research-mission .form-status { grid-column: auto; }
-  .research-provider-toggle { grid-column: auto; }
   .research-mission-history article { grid-template-columns: 1fr; gap: 5px; }
   .life-goal-panel { align-items: flex-start; flex-direction: column; }
   .guidance-feed { grid-template-columns: 1fr; }
