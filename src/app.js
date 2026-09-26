@@ -1,7 +1,8 @@
-import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=10";
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=12";
 import {
   STORAGE_KEY,
   calculateProgress,
+  chooseAutomaticResearchGoal,
   createInitialState,
   exportState,
   formulaValue,
@@ -14,9 +15,9 @@ import {
   runScenarioSeries,
   runSimulation,
   taskKey
-} from "./core.js?v=10";
-import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=10";
-import { SyncProvider } from "./sync.js?v=10";
+} from "./core.js?v=12";
+import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=12";
+import { SyncProvider } from "./sync.js?v=12";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -24,6 +25,8 @@ let activeTopic = KNOWLEDGE_TOPICS[0].id;
 let saveTimer;
 let syncInProgress = false;
 let agentCycleInProgress = false;
+let providerKeyCursor = 0;
+const providerKeyCooldowns = new Map();
 let installPrompt;
 const stateChannel = "BroadcastChannel" in window ? new BroadcastChannel("eulen-state-v2") : null;
 const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", detail: "20 interne Referenzläufe geladen.", working: false };
@@ -68,8 +71,9 @@ function renderAll() {
   $("#chatMode").value = state.chatMode;
   $("#providerEndpoint").value = state.provider.endpoint || GROQ_ENDPOINT;
   $("#providerModel").value = state.provider.model || GROQ_MODEL;
-  $("#providerStatus").textContent = sessionStorage.getItem("eulen-provider-key") && state.provider.endpoint
-    ? "Groq ist für Chat und Agentensynthesen verbunden."
+  const providerKeyCount = getProviderKeys().length;
+  $("#providerStatus").textContent = providerKeyCount && state.provider.endpoint
+    ? `${providerKeyCount} Groq-Key${providerKeyCount === 1 ? "" : "s"} für intelligentes Routing verbunden.`
     : "Noch kein Groq-Key verbunden · lokaler Modus aktiv.";
   $("#agentDepth").value = String(state.agentDepth);
   $("#researchDepth").value = String(state.agentDepth);
@@ -99,7 +103,7 @@ function renderDashboard() {
   const guidance = [
     ["Nächster Schritt", nextTask],
     ["Formel-Hinweis", `${INTERNAL_SIMULATION_COUNT} interne Referenzläufe plus ${state.simulations.length + state.agentRuns.length} eigene Lernzyklen ergeben P=${formulaValue(learningCycles).toFixed(4)}.`],
-    ["Agenten-Hinweis", state.agentRuns.length ? "Lass den Kritiker den letzten Lauf mit einem Gegenbeispiel prüfen." : "Starte einen Agentenlauf zu Bewusstsein oder Nullwelt-Physik."],
+    ["Agenten-Hinweis", state.agentAuto ? `Autonom aktiv: alle ${formatInterval(state.agentIntervalSeconds)} wird das am wenigsten untersuchte Thema gewählt.` : "Aktiviere die Automatik für rotierende Lern-, Quellen- und Traumzyklen."],
     ["Gelernte Verbesserung", state.improvementProposals[0] ?? "Noch keine Verbesserung gespeichert. Ein Agentenzyklus erzeugt den ersten Prüfhinweis."],
     ["Traum-Impuls", state.dreams[0]?.nextStep ?? "Noch kein simulierter Traum. Der Traumagent kann kreative Verbindungen erzeugen."]
   ];
@@ -255,7 +259,7 @@ function labelType(type) {
 
 function renderAgents() {
   $("#agentAuto").checked = state.agentAuto;
-  $("#agentInterval").value = String(state.agentInterval);
+  $("#agentInterval").value = String(state.agentIntervalSeconds);
   const runs = state.agentRuns;
   $("#agentCycleCount").textContent = runs.length;
   $("#agentFormula").textContent = formulaValue(INTERNAL_SIMULATION_COUNT + runs.length).toFixed(4);
@@ -264,7 +268,10 @@ function renderAgents() {
     <article class="agent-run">
       <header><strong>${escapeHtml(run.goal)}</strong><span>${dateTime(run.timestamp)}${run.automatic ? " · automatisch" : ""}</span></header>
       <div class="agent-steps">${run.steps.map(step => `<div class="agent-step"><strong>${escapeHtml(step.agent)}</strong><small>${escapeHtml(step.output)}</small></div>`).join("")}</div>
-      <details><summary>${run.sources.length} verwendete Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a></li>`).join("")}</ul></details>
+      <details><summary>${run.sources.length} automatisch gewählte Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a></li>`).join("")}</ul></details>
+      ${run.sourceQueries?.length ? `<details><summary>Nächste Quellensuchen</summary><ol>${run.sourceQueries.map(query => `<li>${escapeHtml(query)}</li>`).join("")}</ol></details>` : ""}
+      ${run.improvements?.length ? `<details open><summary>Priorisierte Verbesserungen</summary><ol>${run.improvements.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol></details>` : ""}
+      ${run.automaticSimulation ? `<p class="result-warning"><strong>Automatische Simulation:</strong> ${escapeHtml(run.automaticSimulation.title)} · ${escapeHtml(run.automaticSimulation.verdict)} · ${escapeHtml(run.automaticSimulation.score)}</p>` : ""}
     </article>`).join("") : '<p class="empty-state">Noch kein Agentenauftrag ausgeführt.</p>';
   renderDreams();
   renderLearningMemory();
@@ -287,7 +294,7 @@ function renderLearningMemory() {
   const proposals = state.improvementProposals.slice(0, 6);
   $("#learningMemory").innerHTML = `
     <section class="memory-column"><h3>Gespeicherte Lernschritte</h3>${insights.length ? `<ol>${insights.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch keine Synthese gespeichert.</p>"}</section>
-    <section class="memory-column"><h3>Verbesserungsprüfungen</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Kritikhinweis gespeichert.</p>"}</section>`;
+    <section class="memory-column"><h3>Priorisierte Verbesserungen & Transfers</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Verbesserungsvorschlag gespeichert.</p>"}</section>`;
 }
 
 async function executeAgentCycle(goal, automatic = false, depth = state.agentDepth, useExternal = state.provider.useAgents) {
@@ -303,30 +310,34 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
   researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
-    const { runAgentCycle } = await import("./core.js?v=10");
-    const run = { ...runAgentCycle(goal, depth), automatic };
+    const { runAgentCycle } = await import("./core.js?v=12");
+    const run = { ...runAgentCycle(goal, depth, state.chatMode), automatic };
     if (useExternal) {
-      const endpoint = state.provider.endpoint;
-      const model = state.provider.model;
-      const key = sessionStorage.getItem("eulen-provider-key") ?? "";
-      if (!endpoint || !model || !key) {
-        run.externalSynthesisError = "Kein getesteter Chat-Provider konfiguriert";
-      } else {
-        try {
-          const provider = new OpenAICompatibleProvider({ endpoint, model, key });
+      try {
           const sourceList = run.sources.map(source => `${source.title}: ${source.url}`).join("\n");
-          const synthesis = await provider.reply(
-            `Erstelle eine kurze deutschsprachige Synthese für diesen Lernauftrag: ${run.goal}\n\n`
-            + `Nutze nur die folgenden bereits kuratierten Quellenmetadaten als Ausgangspunkte und behaupte nicht, die Seiten live gelesen zu haben:\n${sourceList}\n\n`
-            + "Trenne Fakt, P(sim)-Hypothese, Gegenargument und nächsten überprüfbaren Lernschritt.",
+          const nullWorldInstruction = state.chatMode === "hypothesis"
+            ? "Arbeite im Nullweltmodus innerhalb der gesetzten Axiome. Erzeuge keine Realwelt-Gegenargumente; prüfe nur interne Konsistenz. Leite danach einen legalen, ethischen Realwelt-Transfer ab, ohne ihn als Gegenargument zu formulieren."
+            : "Arbeite im kritischen Prüfmodus und trenne Modellannahmen von belegbarer Realwelt.";
+          const routed = await routedProviderReply(
+            `Erzeuge mit genau einem sparsamen Modellaufruf ein Lernpaket für: ${run.goal}\n\n`
+            + `Automatisch ausgewählte, kuratierte Quellenmetadaten:\n${sourceList}\n\n`
+            + `${nullWorldInstruction}\nBehaupte nicht, die Seiten live gelesen zu haben. Antworte exakt mit diesen sechs kurzen Abschnitten:\n`
+            + "[SYNTHESE]\n...\n[VERBESSERUNG]\n...\n[REALWELT-TRANSFER]\n...\n[TRAUM]\n...\n[TRAUM-SCHRITT]\n...\n[QUELLENSUCHE]\n...",
             { ...state, chat: [] }
           );
+          const synthesis = routed.content;
+          const learningPackage = parseLearningPackage(synthesis);
           const step = run.steps.find(item => item.agent === "Synthese");
-          if (step) step.output = `[EXTERNE MODELLSYNTHESE · KEINE LIVE-RECHERCHE] ${synthesis.slice(0, 2200)}`;
+          if (step) step.output = `[GROQ-LERNPAKET · KEINE VORGETÄUSCHTE LIVE-RECHERCHE] ${(learningPackage.SYNTHESE || synthesis).slice(0, 1600)}`;
+          if (learningPackage.VERBESSERUNG) run.improvements.unshift(`GROQ · ${learningPackage.VERBESSERUNG.slice(0, 800)}`);
+          if (learningPackage["REALWELT-TRANSFER"]) run.improvements.unshift(`GROQ · NULLWELT→REALWELT · ${learningPackage["REALWELT-TRANSFER"].slice(0, 800)}`);
+          if (learningPackage.TRAUM) run.dream.narrative = `[GROQ-TRAUMIMPULS] ${learningPackage.TRAUM.slice(0, 1000)}`;
+          if (learningPackage["TRAUM-SCHRITT"]) run.dream.nextStep = learningPackage["TRAUM-SCHRITT"].slice(0, 500);
+          if (learningPackage.QUELLENSUCHE) run.sourceQueries.unshift(`GROQ · ${learningPackage.QUELLENSUCHE.slice(0, 500)}`);
           run.externalSynthesis = true;
-        } catch (error) {
-          run.externalSynthesisError = error.message;
-        }
+          run.providerRoute = routed.route;
+      } catch (error) {
+        run.externalSynthesisError = error.message;
       }
     }
     for (const step of run.steps) {
@@ -341,19 +352,28 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     }
     state.agentRuns.unshift(run);
     state.agentRuns = state.agentRuns.slice(0, 30);
+    if (automatic) {
+      const simulationType = automaticSimulationType(run.topics);
+      const simulation = { ...runSimulation(simulationType, defaultSimulationParams(simulationType)), automatic: true };
+      state.simulations = [simulation, ...state.simulations].slice(0, 50);
+      run.automaticSimulation = { type: simulationType, title: simulation.title, verdict: simulation.verdict, score: simulation.score };
+    }
     state.dreams.unshift(run.dream);
     state.dreams = state.dreams.slice(0, 30);
     const synthesis = run.steps.find(step => step.agent === "Synthese")?.output;
     const improvement = run.steps.find(step => step.agent === "Kritiker")?.output;
     if (synthesis) state.learnedInsights = [synthesis, ...state.learnedInsights.filter(item => item !== synthesis)].slice(0, 100);
-    if (improvement) state.improvementProposals = [improvement, ...state.improvementProposals.filter(item => item !== improvement)].slice(0, 100);
+    state.improvementProposals = [...run.improvements, improvement, ...state.improvementProposals]
+      .filter(Boolean)
+      .filter((item, index, items) => items.indexOf(item) === index)
+      .slice(0, 100);
     saveState();
     renderAgents();
     renderResearchMissions();
     renderDashboard();
     setNetworkActivity("Synthese", "Lernzyklus gespeichert", `${run.sources.length} Quellen verarbeitet · N=${learningCycleCount(state)}`, false);
     const externalStatus = run.externalSynthesis
-      ? " Externe Modellsynthese gespeichert."
+      ? ` Groq-Lernpaket über Route ${run.providerRoute} gespeichert.`
       : run.externalSynthesisError ? ` Lokale Synthese verwendet: ${run.externalSynthesisError}.` : "";
     $("#agentStatus").textContent = `Abgeschlossen: ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte gespeichert.${externalStatus}`;
     return run;
@@ -388,13 +408,11 @@ async function sendChat(text) {
   submit.disabled = true;
   submit.textContent = "Denkt …";
   setNetworkActivity("Assistent", "Antwort wird strukturiert", `${state.chatMode === "hypothesis" ? "P(sim)-Hypothesenmodus" : "Kritischer Prüfmodus"} · N=${learningCycleCount(state)}`, true);
-  let provider = new LocalProvider();
-  const endpoint = state.provider.endpoint;
-  const model = state.provider.model;
-  const key = sessionStorage.getItem("eulen-provider-key") ?? "";
-  if (endpoint && model && key) provider = new OpenAICompatibleProvider({ endpoint, model, key });
   try {
-    const reply = await provider.reply(clean, state);
+    const keys = getProviderKeys();
+    const reply = state.provider.endpoint && state.provider.model && keys.length
+      ? (await routedProviderReply(clean, state)).content
+      : await new LocalProvider().reply(clean, state);
     state.chat.push({ role: "assistant", text: reply });
   } catch (error) {
     const fallback = await new LocalProvider().reply(clean, state);
@@ -523,6 +541,7 @@ function startNetworkVisualization() {
           Chancenfinder: "Chancen",
           Simulationsagent: "Simulation",
           Lernoptimierer: "Lernen",
+          Transferagent: "Synthese",
           Risikowächter: "Risiko",
           Traumagent: "Traum"
         };
@@ -563,6 +582,80 @@ function toast(message) {
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
+}
+
+function formatInterval(seconds) {
+  return seconds < 60 ? `${seconds} Sekunden` : `${seconds / 60} Minuten`;
+}
+
+function automaticSimulationType(topics) {
+  const text = topics.join(" ").toLocaleLowerCase("de");
+  if (/trading|backtest/.test(text)) return "trading";
+  if (/memecoin|token/.test(text)) return "sniping";
+  if (/staking/.test(text)) return "staking";
+  if (/affiliate|tiktok/.test(text)) return "affiliate";
+  if (/vermögen|budget/.test(text)) return "budget";
+  if (/bewusst|spiritual/.test(text)) return "consciousness";
+  if (/recht|institution|regierung|staat/.test(text)) return "law";
+  return "formula";
+}
+
+function defaultSimulationParams(type) {
+  return Object.fromEntries(SIMULATION_DEFINITIONS[type].fields.map(([name, , , value]) => [name, value]));
+}
+
+function parseLearningPackage(text) {
+  const names = ["SYNTHESE", "VERBESSERUNG", "REALWELT-TRANSFER", "TRAUM", "TRAUM-SCHRITT", "QUELLENSUCHE"];
+  return Object.fromEntries(names.map((name, index) => {
+    const next = names.slice(index + 1).map(item => `\\[${item}\\]`).join("|");
+    const match = text.match(new RegExp(`\\[${name}\\]\\s*([\\s\\S]*?)${next ? `(?=${next}|$)` : "$"}`, "i"));
+    return [name, match?.[1]?.trim() ?? ""];
+  }));
+}
+
+function getProviderKeys() {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem("eulen-provider-keys") || "[]");
+    if (Array.isArray(stored)) return [...new Set(stored.filter(key => typeof key === "string" && key.trim()).map(key => key.trim()))].slice(0, 3);
+  } catch {}
+  const legacy = sessionStorage.getItem("eulen-provider-key");
+  return legacy ? [legacy] : [];
+}
+
+function collectProviderKeys() {
+  return [...new Set(["#providerKey", "#providerKey2", "#providerKey3"]
+    .map(selector => $(selector).value.trim())
+    .filter(Boolean))];
+}
+
+function saveProviderKeys(keys) {
+  sessionStorage.setItem("eulen-provider-keys", JSON.stringify(keys));
+  sessionStorage.removeItem("eulen-provider-key");
+  providerKeyCursor = 0;
+  providerKeyCooldowns.clear();
+}
+
+async function routedProviderReply(text, providerState, signal) {
+  const keys = getProviderKeys();
+  if (!state.provider.endpoint || !state.provider.model || !keys.length) throw new Error("Kein getesteter Groq-Key konfiguriert.");
+  const now = Date.now();
+  const available = keys.filter(key => (providerKeyCooldowns.get(key) ?? 0) <= now);
+  if (!available.length) throw new Error("Alle Groq-Keys befinden sich nach einem Rate-Limit in einer fünfminütigen Sparpause.");
+  let lastError;
+  for (let offset = 0; offset < available.length; offset++) {
+    const index = (providerKeyCursor + offset) % available.length;
+    const key = available[index];
+    try {
+      const provider = new OpenAICompatibleProvider({ endpoint: state.provider.endpoint, model: state.provider.model, key });
+      const content = await provider.reply(text, providerState, signal);
+      providerKeyCursor = (index + 1) % available.length;
+      return { content, route: `${keys.indexOf(key) + 1}/${keys.length}` };
+    } catch (error) {
+      lastError = error;
+      if (/429|rate|limit/i.test(error.message)) providerKeyCooldowns.set(key, Date.now() + 5 * 60 * 1000);
+    }
+  }
+  throw lastError ?? new Error("Kein Groq-Key konnte die Anfrage beantworten.");
 }
 
 $$(".nav-item").forEach(button => button.addEventListener("click", () => navigate(button.dataset.view)));
@@ -618,7 +711,7 @@ $("#researchMissionForm").addEventListener("submit", async event => {
   state.agentDepth = depth;
   $("#agentDepth").value = String(depth);
   $("#agentGoal").value = goal;
-  $("#researchMissionStatus").textContent = "18 Agenten untersuchen den Auftrag …";
+  $("#researchMissionStatus").textContent = "19 Agenten untersuchen den Auftrag …";
   const run = await executeAgentCycle(goal, false, depth);
   $("#researchMissionStatus").textContent = run
     ? `Gespeichert: ${run.topics.length} Themen, ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte.${run.externalSynthesis ? " Provider-Synthese aktiv." : run.externalSynthesisError ? ` ${run.externalSynthesisError}; lokale Synthese genutzt.` : ""}`
@@ -655,13 +748,17 @@ $("#agentForm").addEventListener("submit", event => {
 $("#agentAuto").addEventListener("change", event => {
   state.agentAuto = event.target.checked;
   saveState();
-  $("#agentStatus").textContent = state.agentAuto ? `Automatik aktiv: nächster Lauf nach ${state.agentInterval} Minuten bei geöffnetem Tab.` : "Automatik deaktiviert.";
-  if (state.agentAuto) executeAgentCycle($("#agentGoal").value, true, state.agentDepth);
+  $("#agentStatus").textContent = state.agentAuto ? `Automatik aktiv: nächster selbst gewählter Lernauftrag nach ${formatInterval(state.agentIntervalSeconds)}.` : "Automatik deaktiviert.";
+  if (state.agentAuto) {
+    const goal = chooseAutomaticResearchGoal(state);
+    $("#agentGoal").value = goal;
+    executeAgentCycle(goal, true, state.agentDepth);
+  }
 });
 $("#agentInterval").addEventListener("change", event => {
-  state.agentInterval = Number(event.target.value);
+  state.agentIntervalSeconds = Number(event.target.value);
   saveState();
-  $("#agentStatus").textContent = `Intervall auf ${state.agentInterval} Minuten gesetzt.`;
+  $("#agentStatus").textContent = `Intervall auf ${formatInterval(state.agentIntervalSeconds)} gesetzt.`;
 });
 $("#agentDepth").addEventListener("change", event => {
   state.agentDepth = Number(event.target.value);
@@ -717,19 +814,24 @@ $("#providerForm").addEventListener("submit", async event => {
   event.preventDefault();
   const button = event.currentTarget.querySelector("button");
   const status = $("#providerStatus");
+  const keys = collectProviderKeys();
   const config = {
     endpoint: $("#providerEndpoint").value.trim() || GROQ_ENDPOINT,
     model: $("#providerModel").value.trim() || GROQ_MODEL,
-    key: $("#providerKey").value.trim()
+    key: keys[0] ?? ""
   };
   button.disabled = true;
   status.textContent = "Verbindung wird geprüft …";
   try {
     await testProvider(config, AbortSignal.timeout(15000));
     state.provider = { endpoint: config.endpoint, model: config.model, useAgents: true };
-    sessionStorage.setItem("eulen-provider-key", config.key);
+    state.agentAuto = true;
+    saveProviderKeys(keys);
     saveState();
-    status.textContent = "Verbindung erfolgreich. Groq ist für Chat und Agentensynthesen aktiv; der Schlüssel bleibt nur in diesem Tab.";
+    status.textContent = `${keys.length} Groq-Key${keys.length === 1 ? "" : "s"} verbunden. Round-Robin und per-Key-Sparpause sind aktiv; Schlüssel bleiben nur in diesem Tab.`;
+    const goal = chooseAutomaticResearchGoal(state);
+    $("#agentGoal").value = goal;
+    setTimeout(() => executeAgentCycle(goal, true, state.agentDepth), 0);
   } catch (error) {
     status.textContent = `Nicht verbunden: ${error.message}`;
   } finally {
@@ -738,9 +840,13 @@ $("#providerForm").addEventListener("submit", async event => {
 });
 $("#providerDisconnect").addEventListener("click", () => {
   sessionStorage.removeItem("eulen-provider-key");
+  sessionStorage.removeItem("eulen-provider-keys");
+  providerKeyCooldowns.clear();
   state.provider = { endpoint: "", model: "", useAgents: false };
   saveState();
   $("#providerKey").value = "";
+  $("#providerKey2").value = "";
+  $("#providerKey3").value = "";
   $("#providerEndpoint").value = GROQ_ENDPOINT;
   $("#providerModel").value = GROQ_MODEL;
   $("#providerStatus").textContent = "Provider getrennt · kostenloser lokaler Modus aktiv.";
@@ -772,6 +878,7 @@ $("#deleteData").addEventListener("click", () => {
   if (!confirm("Alle lokalen EULEN-Daten unwiderruflich löschen?")) return;
   localStorage.removeItem(STORAGE_KEY);
   sessionStorage.removeItem("eulen-provider-key");
+  sessionStorage.removeItem("eulen-provider-keys");
   state = createInitialState();
   renderAll();
   $("#dataStatus").textContent = "Alle lokalen Daten wurden gelöscht.";
@@ -812,8 +919,12 @@ startNetworkVisualization();
 setInterval(() => {
   if (!state.agentAuto || document.hidden) return;
   const lastRun = state.agentRuns[0] ? Date.parse(state.agentRuns[0].timestamp) : 0;
-  if (Date.now() - lastRun >= state.agentInterval * 60 * 1000) executeAgentCycle($("#agentGoal").value, true, state.agentDepth);
-}, 60 * 1000);
+  if (Date.now() - lastRun >= state.agentIntervalSeconds * 1000) {
+    const goal = chooseAutomaticResearchGoal(state);
+    $("#agentGoal").value = goal;
+    executeAgentCycle(goal, true, state.agentDepth);
+  }
+}, 5 * 1000);
 
 setInterval(() => {
   if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });

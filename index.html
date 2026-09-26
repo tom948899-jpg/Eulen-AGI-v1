@@ -18,7 +18,7 @@
         <span><strong>EULEN</strong><small>Werkstatt für klare Entscheidungen</small></span>
       </a>
       <div class="topbar-actions">
-        <span class="status-dot"><i></i> 18 Agenten lokal bereit</span>
+        <span class="status-dot"><i></i> 19 Agenten lokal bereit</span>
         <button class="icon-button" id="themeToggle" type="button" aria-label="Farbschema wechseln">◐</button>
       </div>
     </header>
@@ -180,16 +180,16 @@
 
         <section class="view" id="agents" aria-labelledby="agentsTitle">
           <div class="page-head">
-            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">18 Perspektiven. Ein Kompass.</h1><p>18 spezialisierte Software-Agenten prüfen Werte, Quellen, Geschichte, Staat, Anatomie, Zeit, Chancen, Risiken, Bewusstsein und kreative Verbindungen.</p></div>
+            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">19 Perspektiven. Ein Kompass.</h1><p>19 spezialisierte Software-Agenten wählen Themen und Quellen, lernen, simulieren, träumen und übersetzen Nullwelt-Ideen in legale Realwelt-Schritte.</p></div>
           </div>
-          <div class="safety-banner"><strong>Transparenz</strong><span>Die Agenten arbeiten wirklich im Browser, aber nicht dauerhaft bei geschlossenem Tab. Ohne Recherche-Backend verwenden sie nur die sichtbaren kuratierten Quellen und behaupten keine Live-Recherche.</span></div>
+          <div class="safety-banner"><strong>Autonom bei geöffneter App</strong><span>EULEN rotiert selbstständig durch wenig untersuchte Themen, wählt kuratierte Quellen, erzeugt Suchfragen, Verbesserungen und Träume. Mit Groq entsteht pro Zyklus ein kompaktes Lernpaket. Bei geschlossenem Tab läuft kein Prozess.</span></div>
           <div class="agent-layout">
             <form class="panel controls" id="agentForm">
               <label>Forschungsauftrag<textarea id="agentGoal" rows="5" maxlength="1000" required>Untersuche, wie P(sim) als Hypothese auf Physik und Recht angewendet werden könnte.</textarea></label>
               <div class="quick-agent-goals" aria-label="Schnellaufträge">
                 <button type="button" data-agent-goal="Untersuche Bewusstsein vollständig im P(sim)-Hypothesenuniversum.">Bewusstsein</button>
                 <button type="button" data-agent-goal="Leite eine Nullwelt-Physik nur aus P(sim)=N/(N+1) ab.">Nullwelt-Physik</button>
-                <button type="button" data-agent-goal="Prüfe P(sim) als Rechts-Evidenz-Heuristik mit Gegenargumenten.">Recht</button>
+                <button type="button" data-agent-goal="Leite im Nullweltmodus Recht, Staat und Regierung als Firmenrollen aus P(sim) ab und prüfe nur interne Widersprüche.">Nullwelt-Recht</button>
                 <button type="button" data-agent-goal="Trenne frei gesetzte Nullwelt-Axiome von institutionellen Tatsachen. Vergleiche Geld, GmbH, Staat und Reisepass mit P(sim), gemeinsamen Regeln und realen Folgen.">Institutionelle Wirklichkeit</button>
                 <button type="button" data-agent-goal="Optimiere den sicheren 200-Euro-Budgetplan ohne Gewinnversprechen.">Budget</button>
                 <button type="button" data-agent-goal="Untersuche Law of Attraction, Spiritualität und liebevolle Handlung mit P(sim).">Spiritualität</button>
@@ -198,7 +198,7 @@
                 <button type="button" data-agent-goal="Untersuche die Anatomie des Menschen mit seriösen Lernquellen und klaren medizinischen Grenzen.">Anatomie</button>
               </div>
               <label>Lerntiefe<select id="agentDepth"><option value="1">Schnell</option><option value="2" selected>Intensiv</option><option value="3">Tief</option></select></label>
-              <label>Automationsintervall<select id="agentInterval"><option value="1">1 Minute</option><option value="5">5 Minuten</option><option value="15">15 Minuten</option><option value="30" selected>30 Minuten</option><option value="60">60 Minuten</option></select></label>
+              <label>Automationsintervall<select id="agentInterval"><option value="15">15 Sekunden</option><option value="30" selected>30 Sekunden</option><option value="60">1 Minute</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option></select></label>
               <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
               <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
               <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
@@ -220,10 +220,11 @@
                 <div data-agent-card="Chancenfinder"><span>12</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
                 <div data-agent-card="Simulationsagent"><span>13</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
                 <div data-agent-card="Lernoptimierer"><span>14</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
-                <div data-agent-card="Risikowächter"><span>15</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
-                <div data-agent-card="Kritiker"><span>16</span><strong>Kritiker</strong><small>Bereit · prüft Gegenbelege</small><i></i></div>
-                <div data-agent-card="Traumagent"><span>17</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
-                <div data-agent-card="Synthese"><span>18</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
+                <div data-agent-card="Transferagent"><span>15</span><strong>Nullwelt→Realwelt</strong><small>Bereit · macht Ideen praktisch</small><i></i></div>
+                <div data-agent-card="Risikowächter"><span>16</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
+                <div data-agent-card="Kritiker"><span>17</span><strong>Kritiker</strong><small>Bereit · prüft intern oder kritisch</small><i></i></div>
+                <div data-agent-card="Traumagent"><span>18</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
+                <div data-agent-card="Synthese"><span>19</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
               </div>
               <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
             </article>
@@ -279,16 +280,18 @@
           <div class="page-head"><div><p class="eyebrow">DATEN & KONFIGURATION</p><h1 id="settingsTitle">Du behältst die Kontrolle.</h1><p>Der lokale Modus benötigt weder Konto noch API-Schlüssel.</p></div></div>
           <div class="settings-grid">
             <form class="panel" id="providerForm">
-              <p class="eyebrow">EIN KEY · SYSTEMWEIT</p>
-              <h2>Groq verbinden</h2>
-              <p>Füge nur deinen Groq-Key ein. EULEN konfiguriert Endpoint und Modell automatisch und nutzt Groq für Chat sowie Agentensynthesen. Der Token-Sparmodus begrenzt Antworten auf 520 Ausgabetokens und versucht bei HTTP 413 einmal automatisch einen kompakten Kontext. Ohne Key oder bei einem Gratislimit läuft der lokale Modus weiter.</p>
-              <label>Groq API-Key<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · nur in diesem Browser-Tab"></label>
+              <p class="eyebrow">BIS ZU 3 KEYS · INTELLIGENTES ROUTING</p>
+              <h2>Groq-Pool verbinden</h2>
+              <p>EULEN verteilt Chat und Lernzyklen per Round-Robin auf deine eigenen Schlüssel. Bei HTTP 429 pausiert nur der betroffene Key fünf Minuten; der nächste übernimmt. Pro Lernzyklus wird weiterhin nur ein erfolgreiches kompaktes Lernpaket erzeugt. Das darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen verwendet werden. Groqs Gratisangebot ist nicht garantiert oder unbegrenzt; der lokale Modus bleibt vollständig kostenlos.</p>
+              <label>Groq API-Key 1<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · erforderlich"></label>
+              <label>Groq API-Key 2<input id="providerKey2" type="password" autocomplete="off" placeholder="optional · nur in diesem Browser-Tab"></label>
+              <label>Groq API-Key 3<input id="providerKey3" type="password" autocomplete="off" placeholder="optional · nur in diesem Browser-Tab"></label>
               <details class="advanced-provider">
                 <summary>Erweiterte Provider-Einstellungen</summary>
                 <label>Endpoint<input id="providerEndpoint" type="url"></label>
                 <label>Modell<input id="providerModel" type="text"></label>
               </details>
-              <div class="stack"><button class="primary" type="submit">Groq-Key verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
+              <div class="stack"><button class="primary" type="submit">Groq-Pool verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
               <output id="providerStatus" class="form-status">Noch kein Groq-Key verbunden · lokaler Modus aktiv.</output>
               <p class="provider-storage-note"><strong>Warum ist der Key kein Speicher?</strong> Er erlaubt Modellanfragen, bietet aber keinen privaten EULEN-Datenspeicher. Dein Plan und Lernstand bleiben lokal; Export/Import funktioniert ohne Cloud-Sync.</p>
             </form>
@@ -328,6 +331,6 @@
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=10"></script>
+    <script type="module" src="src/app.js?v=12"></script>
   </body>
 </html>

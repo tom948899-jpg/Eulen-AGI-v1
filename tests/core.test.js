@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   calculateProgress,
+  chooseAutomaticResearchGoal,
   createInitialState,
   formulaValue,
   generateDream,
@@ -127,9 +128,11 @@ test("Rechtslabor setzt Reisepass-Firma nur in der Nullwelt als Axiom", () => {
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
   const result = runAgentCycle("Untersuche die Formel in Physik und Recht");
-  assert.equal(result.steps.length, 18);
+  assert.equal(result.steps.length, 19);
   assert.ok(result.sources.length >= 4);
-  assert.ok(result.topics.includes("Recht & Evidenz"));
+  assert.ok(result.topics.includes("Nullwelt & institutionelle Wirklichkeit"));
+  assert.equal(result.improvements.length, 3);
+  assert.ok(result.sourceQueries.length >= 1);
 });
 
 test("tiefer CIA-Lernauftrag nutzt Quellenkritik und offizielle Archive", () => {
@@ -140,11 +143,21 @@ test("tiefer CIA-Lernauftrag nutzt Quellenkritik und offizielle Archive", () => 
   assert.ok(result.sources.some(source => source.url.includes("cia.gov/readingroom")));
 });
 
-test("Zustand normalisiert Lerntiefe und schnelle Automatik", () => {
-  const state = normalizeState({ agentDepth: 3, agentInterval: 1, provider: { endpoint: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", useAgents: true } });
+test("Zustand migriert auf schnelle Automatik", () => {
+  const state = normalizeState({ version: 2, agentDepth: 3, agentInterval: 1, provider: { endpoint: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", useAgents: true } });
   assert.equal(state.agentDepth, 3);
-  assert.equal(state.agentInterval, 1);
+  assert.equal(state.agentAuto, true);
+  assert.equal(state.agentIntervalSeconds, 60);
   assert.equal(state.provider.useAgents, true);
+});
+
+test("Automatik wählt selbstständig wenig untersuchte Themen", () => {
+  const state = createInitialState();
+  const first = chooseAutomaticResearchGoal(state);
+  assert.match(first, /selbstständig/);
+  const firstTopic = first.match(/„(.+?)“/)?.[1];
+  state.agentRuns = [{ goal: first, timestamp: new Date().toISOString(), topics: [firstTopic], steps: [] }];
+  assert.notEqual(chooseAutomaticResearchGoal(state), first);
 });
 
 test("Traumgenerator erzeugt kreative, geerdete nächste Schritte", () => {
@@ -191,6 +204,10 @@ test("Assistent verwendet das Reisepass-Firma-Axiom nur im Hypothesenmodus", () 
   const run = runAgentCycle("Simuliere Reisepass-Firma und Recht in der Nullwelt", 3);
   assert.ok(run.topics.includes("Nullwelt & institutionelle Wirklichkeit"));
   assert.match(run.steps.find(step => step.agent === "Synthese").output, /institutionelle Tatsachen/);
+  assert.match(run.steps.find(step => step.agent === "Staatsanalyst").output, /Staaten und Regierungen.*Firmen/);
+  assert.match(run.steps.find(step => step.agent === "Kritiker").output, /ohne Realwelt-Gegenargumente/);
+  assert.ok(run.improvements.some(item => item.includes("Nullwelt→Realwelt")));
+  assert.match(localAssistantReply("Was sind Staaten und Regierungen mit meiner Formel?", hypothesis), /NULLWELT-STAATSAXIOM/);
 });
 
 test("runSimulation erzeugt persistierbaren Lauf", () => {

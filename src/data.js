@@ -152,11 +152,12 @@ export const KNOWLEDGE_TOPICS = [
     summary: "Das Labor trennt frei gesetzte Nullwelt-Axiome von institutionellen Tatsachen der Realwelt: Geld, Gesellschaften und Staaten bestehen durch gemeinsam anerkannte Regeln und Verfahren und haben gerade deshalb reale Folgen.",
     insights: [
       { type: "hypothesis", text: "NULLWELT-AXIOM: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass; Identität, Rolle und Vertragsbeziehung werden in diesem Gedankenuniversum daraus abgeleitet." },
+      { type: "hypothesis", text: "NULLWELT-AXIOM: Staaten und Regierungen gelten als Firmen beziehungsweise korporative Akteure; Ämter, Register, Rollen und Verträge werden als interne Unternehmensbeziehungen simuliert." },
       { type: "hypothesis", text: "NULLWELT-AXIOM: P(sim)=N/(N+1); N zählt konsistente Registrierungs-, Rollen- und Vertragsbeziehungen innerhalb des simulierten Rechtssystems." },
       { type: "simulation", text: "LABORREGEL: Eine einzelne Person kann einen Modellparameter wie N festlegen. Die Simulation prüft dann interne Kohärenz, erzeugt aber keine äußere Rechtswirkung." },
       { type: "fact", text: "INSTITUTIONELLE TATSACHE: Was umgangssprachlich auch „institutionelle Fiktion“ genannt wird, wird in der Sozialontologie präziser als institutionelle Tatsache untersucht. Geld, eine GmbH und ein Staat beruhen auf kollektiv anerkannten Regeln, Rollen und Verfahren. Sie sind sozial konstruiert, aber nicht folgenlos oder beliebig." },
       { type: "fact", text: "REALWELT-VERGLEICH: Eine GmbH ist kraft Gesetzes eine juristische Person und wird durch geregelte Gründung und Registereintragung wirksam. Ein Reisepass ist ein amtliches Dokument und macht seinen Inhaber nicht zur Firma oder juristischen Person." },
-      { type: "question", text: "Welche Aussage ist ein frei gesetztes Laboraxiom, welche eine kollektiv getragene institutionelle Regel und welche konkrete Rechtsfolge lässt sich aus einer Quelle ableiten?" }
+      { type: "question", text: "Welche Folgerungen entstehen innerhalb der Nullwelt, wenn Person, Reisepass, Regierung und Staat als Firmenrollen modelliert werden?" }
     ],
     sources: [
       ["Passgesetz – reale Vergleichsebene", "https://www.gesetze-im-internet.de/pa_g_1986/"],

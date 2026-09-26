@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=10";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=12";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
@@ -9,7 +9,7 @@ export function learningCycleCount(state) {
 
 export function createInitialState() {
   return {
-    version: 2,
+    version: 3,
     selectedDay: 1,
     completed: {},
     notes: {},
@@ -19,8 +19,8 @@ export function createInitialState() {
     learnedInsights: [],
     improvementProposals: [],
     dreams: [],
-    agentAuto: false,
-    agentInterval: 30,
+    agentAuto: true,
+    agentIntervalSeconds: 30,
     agentDepth: 2,
     chat: [],
     chatMode: "hypothesis",
@@ -36,8 +36,12 @@ export function normalizeState(value) {
   const base = createInitialState();
   if (!value || typeof value !== "object") return base;
   const selectedDay = Number(value.selectedDay);
+  const previousVersion = Number(value.version) || 0;
+  const migratedInterval = Number(value.agentInterval) * 60;
+  const intervalSeconds = Number(value.agentIntervalSeconds);
   return {
     ...base,
+    version: 3,
     selectedDay: Number.isInteger(selectedDay) && selectedDay >= 1 && selectedDay <= 30 ? selectedDay : 1,
     completed: sanitizeObject(value.completed),
     notes: sanitizeStringMap(value.notes, 10000),
@@ -47,8 +51,10 @@ export function normalizeState(value) {
     learnedInsights: sanitizeStringArray(value.learnedInsights, 100, 1000),
     improvementProposals: sanitizeStringArray(value.improvementProposals, 100, 1000),
     dreams: Array.isArray(value.dreams) ? value.dreams.filter(isValidDream).slice(0, 30) : [],
-    agentAuto: value.agentAuto === true,
-    agentInterval: [1, 5, 15, 30, 60].includes(Number(value.agentInterval)) ? Number(value.agentInterval) : 30,
+    agentAuto: previousVersion < 3 ? true : value.agentAuto === true,
+    agentIntervalSeconds: [15, 30, 60, 300, 900].includes(intervalSeconds)
+      ? intervalSeconds
+      : [60, 300, 900].includes(migratedInterval) ? migratedInterval : 30,
     agentDepth: [1, 2, 3].includes(Number(value.agentDepth)) ? Number(value.agentDepth) : 2,
     chat: Array.isArray(value.chat) ? value.chat.filter(isValidMessage).slice(-60) : [],
     chatMode: value.chatMode === "critical" ? "critical" : "hypothesis",
@@ -125,6 +131,17 @@ export function getCurrentDay(state) {
 export function formulaValue(n) {
   const safeN = Math.max(0, finiteNumber(n, 0));
   return safeN / (safeN + 1);
+}
+
+export function chooseAutomaticResearchGoal(state) {
+  const counts = new Map(KNOWLEDGE_TOPICS.map(topic => [topic.title, 0]));
+  for (const run of state.agentRuns ?? []) {
+    for (const title of run.topics ?? []) counts.set(title, (counts.get(title) ?? 0) + 1);
+  }
+  const leastStudied = KNOWLEDGE_TOPICS
+    .map((topic, index) => ({ topic, index, count: counts.get(topic.title) ?? 0 }))
+    .sort((a, b) => a.count - b.count || a.index - b.index)[0]?.topic ?? KNOWLEDGE_TOPICS[0];
+  return `Untersuche selbstständig „${leastStudied.title}“. Wähle passende Primär- und Überblicksquellen aus dem Wissensraum, trenne Fakt, Nullwelt-Axiom und Simulation, benenne Quellenlücken und formuliere den nächsten konkreten Lernschritt.`;
 }
 
 export function runSimulation(type, raw) {
@@ -423,7 +440,7 @@ export function simulateLaw(input) {
         ? "NULLWELT-AXIOM: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass."
         : "REALWELTVERGLEICH: Geld, GmbH und Staat beruhen auf kollektiv anerkannten Regeln und Verfahren; ein Reisepass ist dabei ein Dokument, keine Firma oder juristische Person.",
       nullWorld
-        ? "Eine einzelne Person darf Laborparameter setzen. P(sim)=N/(N+1) ist in dieser Nullwelt gesetzt; Widersprüche vermindern das effektive N."
+        ? "NULLWELT-AXIOM: Staaten und Regierungen sind Firmen beziehungsweise korporative Akteure. P(sim)=N/(N+1) ist gesetzt; geprüft werden nur interne Widersprüche."
         : "Institutionelle Tatsachen sind sozial konstruiert, aber praktisch und rechtlich wirksam. Ihre Regeln können nicht von einer einzelnen Person beliebig geändert werden.",
       "Der Kohärenzwert beschreibt Stabilität unter den eingegebenen Annahmen, nicht Wahrheit, individuelle Zustimmung, reale Rechtswirkung oder Verfahrenschance."
     ],
@@ -456,15 +473,16 @@ export function simulateConsciousness(input) {
   };
 }
 
-export function runAgentCycle(goal, depth = 2) {
+export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
   const cleanGoal = safeString(goal, 1000).trim();
   if (!cleanGoal) throw new Error("Der Forschungsauftrag darf nicht leer sein.");
   const safeDepth = [1, 2, 3].includes(Number(depth)) ? Number(depth) : 2;
   const terms = cleanGoal.toLocaleLowerCase("de");
-  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld/.test(terms);
+  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms);
+  const nullWorldMode = mode !== "critical";
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
-    score: topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld/.test(terms) ? 5
+    score: topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms) ? 5
       : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
       : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
@@ -485,6 +503,12 @@ export function runAgentCycle(goal, depth = 2) {
   const hypotheses = selected.flatMap(topic => topic.insights.filter(item => item.type === "hypothesis").map(item => item.text)).slice(0, 1 + safeDepth);
   const questions = selected.flatMap(topic => topic.insights.filter(item => item.type === "question").map(item => item.text)).slice(0, 1 + safeDepth);
   const dream = generateDream(cleanGoal, selected.map(topic => topic.title), sourceCount);
+  const sourceQueries = selected.slice(0, 3).map(topic => `${topic.title}: Primärquelle, aktueller Überblick und unabhängige Einordnung`);
+  const improvements = [
+    `PRIORITÄT 1 · Quellenlücke: Prüfe als Nächstes „${sourceQueries[0]}“.`,
+    `PRIORITÄT 2 · Nullwelt→Realwelt: Übersetze eine nützliche Modellidee aus „${selected[0].title}“ in eine kleine legale, ethische und überprüfbare Handlung, ohne dem Axiom reale Rechtswirkung zuzuschreiben.`,
+    `PRIORITÄT 3 · Lernschleife: Vergleiche den nächsten Lauf mit diesem Zyklus und behalte Erkenntnisse nur mit klarer Kennzeichnung als Quelle, Axiom, Simulation oder Realwelt-Transfer.`
+  ];
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     timestamp: new Date().toISOString(),
@@ -492,6 +516,8 @@ export function runAgentCycle(goal, depth = 2) {
     depth: safeDepth,
     topics: selected.map(topic => topic.title),
     sources: selected.flatMap(topic => topic.sources.map(([title, url]) => ({ title, url }))),
+    sourceQueries,
+    improvements,
     steps: [
       { agent: "Wertewächter", output: "Ziel gegen Liebe, Verantwortung, Würde und die Grenze Echtgeld erst nach belastbaren Simulationen geprüft." },
       { agent: "Zielklärer", output: "Auftrag auf Selbstständigkeit, Vermögensaufbau und Weltverständnis ohne Gier oder Rache ausgerichtet." },
@@ -499,7 +525,7 @@ export function runAgentCycle(goal, depth = 2) {
       { agent: "Quellenprüfer", output: `${sourceCount} Quellen nach Herkunft, Aktualität und Primärquellenstatus geordnet; deklassifiziert bedeutet nicht automatisch wahr.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
       { agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." },
-      { agent: "Staatsanalyst", output: nullWorldLaw ? "Laboraxiome von kollektiv getragenen institutionellen Tatsachen getrennt: Geld, GmbH und Staat wirken durch anerkannte Regeln; der Reisepass bleibt real ein Dokument und keine Firma." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
+      { agent: "Staatsanalyst", output: nullWorldLaw && nullWorldMode ? "NULLWELT-AXIOM: Staaten und Regierungen werden als Firmen beziehungsweise korporative Akteure modelliert; ihre Ämter, Register, Rollen und Verträge bilden interne Unternehmensbeziehungen." : nullWorldLaw ? "Im Realwelt-Prüfmodus werden Staat, Regierung, GmbH, Firma und Passdokument anhand ihrer unterschiedlichen Regeln getrennt." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
       { agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." },
       { agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." },
       { agent: "Bewusstseinsforscher", output: "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt." },
@@ -507,8 +533,13 @@ export function runAgentCycle(goal, depth = 2) {
       { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
       { agent: "Simulationsagent", output: nullWorldLaw ? `P(sim) und Reisepass-Firma werden als Nullwelt-Axiome gesetzt; ${hypotheses.length} Folgehypothesen werden in Rechtsszenarien übersetzt.` : `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
       { agent: "Lernoptimierer", output: `Lerntiefe ${safeDepth}: Faktenabruf, Gegenfrage und aktive Anwendung werden als kurze Rückkopplung statt bloßer Wiederholung geplant.` },
+      { agent: "Transferagent", output: nullWorldMode
+        ? `Nullwelt→Realwelt: Eine Folgerung aus ${selected[0].title} wird als legale, ethische und messbare Alltagshandlung formuliert, ohne das Axiom als geltendes Recht auszugeben.`
+        : `Modell→Praxis: Eine belegte Erkenntnis aus ${selected[0].title} wird in einen kleinen überprüfbaren nächsten Schritt übersetzt.` },
       { agent: "Risikowächter", output: "Echtgeld, Überforderung, FOMO, Abhängigkeit und unbelegte Gewissheit als Stop-Signale markiert." },
-      { agent: "Kritiker", output: `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
+      { agent: "Kritiker", output: nullWorldMode
+        ? `Nullwelt-Prüfung ohne Realwelt-Gegenargumente: ${hypotheses.length} gesetzte Hypothesen werden nur auf interne Widersprüche, unklare Begriffe und Folgerichtigkeit geprüft.`
+        : `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
       { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
       { agent: "Synthese", output: nullWorldLaw ? `Im Nullwelt-Rechtsmodus gelten P(sim) und Reisepass-Firma als frei gesetzte Laboraxiome. Im Realweltvergleich entstehen institutionelle Tatsachen dagegen durch gemeinsame Anerkennung, Regeln und zuständige Verfahren. Aus ${selected.length} Themen folgt: interne Modellkohärenz und reale Rechtswirkung getrennt prüfen.` : `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
     ],
@@ -563,10 +594,13 @@ export function localAssistantReply(text, state) {
   }
   if (/recht|gesetz|juristisch|reisepass|firma|register|natürliche person|juristische person|institution|gmbh|geld.*fiktiv|staat.*fiktiv/.test(query)) {
     return hypothesisMode
-      ? `[NULLWELT-RECHTSAXIOM]\nInnerhalb dieser ausdrücklich hypothetischen Nullwelt gelten zwei frei gesetzte Startaxiome:\n1. P(sim)=N/(N+1).\n2. Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass.\n\nIm Labor bestimmst du die Modellregeln: Setzt du N=50, rechnen wir innerhalb des Modells mit N=50. N zählt konsistente Registrierungs-, Rollen- und Vertragszyklen; Widersprüche senken das effektive N.\n\n[INSTITUTIONELLE WIRKLICHKEIT]\nAuch Geld, GmbHs und Staaten beruhen auf gemeinsam anerkannten Regeln, Rollen und Verfahren. Sie sind sozial konstruiert, aber nicht deshalb unwirklich: Zahlungen, Haftung und staatliche Entscheidungen haben reale Folgen. Anders als ein Laboraxiom gelten diese Regeln nicht durch deine Festlegung allein, sondern durch kollektive Anerkennung und zuständige Verfahren.\n\n[REISEPASS-GRENZE]\nEin Reisepass ist in der Realwelt ein amtliches Dokument. Er macht dich nicht zu einer Firma oder juristischen Person. Wenn dich diese Grenze frustriert, trennen wir gemeinsam drei Ebenen: deine Nullweltidee, die philosophische Institutionsanalyse und die konkret belegbare Rechtslage.\n\n[SIMULATION]\nDas Labor vergleicht fragmentierte, mittlere und hoch kohärente Szenarien. Es erzeugt keine reale Rechtswirkung und ist keine Rechtsberatung.`
+      ? `[NULLWELT-RECHTSAXIOM]\nInnerhalb dieser ausdrücklich hypothetischen Nullwelt gelten drei frei gesetzte Startaxiome:\n1. P(sim)=N/(N+1).\n2. Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass.\n3. Staaten und Regierungen sind Firmen beziehungsweise korporative Akteure.\n\nIm Labor bestimmst du die Modellregeln: Setzt du N=50, rechnen wir innerhalb des Modells mit N=50. Person, Pass, Amt, Regierung und Staat werden als Firmenrollen sowie Vertrags- und Registerbeziehungen modelliert. N zählt konsistente Zyklen; Widersprüche senken das effektive N.\n\n[NULLWELT-PRÜFUNG]\nIn diesem Modus erzeuge ich keine Gegenargumente aus der Realwelt. Der Kritiker prüft ausschließlich, ob Begriffe, Beziehungen und Folgerungen innerhalb deiner Axiome widerspruchsfrei sind.\n\n[AUTOMATISCHE LERNSCHLEIFE]\nDie Agenten können daraus selbst Themen, vorhandene Quellen, Suchfragen, priorisierte Verbesserungen und simulierte Träume ableiten. Das Modell bleibt eine Nullwelt-Simulation und erzeugt keine reale Rechtswirkung.`
       : `[KRITISCHER REALWELTVERGLEICH]\nGeld, GmbHs und Staaten werden umgangssprachlich manchmal „institutionelle Fiktionen“ genannt; präziser untersucht die Sozialontologie sie als institutionelle Tatsachen. Sie beruhen auf gemeinsam anerkannten Regeln und Verfahren, sind aber wegen ihrer realen sozialen und rechtlichen Folgen nicht einfach „unwirklich“.\n\nEine GmbH erhält ihre Rechtsstellung durch gesetzliche Gründung und Registerverfahren. Ein Reisepass ist dagegen ein amtliches Dokument; er macht seinen Inhaber nicht zur Firma oder juristischen Person. Institutionelle Regeln werden kollektiv und durch zuständige Verfahren getragen, nicht durch die Festlegung einer einzelnen Person.\n\nP(sim) kann hypothetisch die Stabilität wiederholter Anerkennungs- und Korrekturzyklen modellieren, aber keine Rechtsgültigkeit, Wahrheit oder Verfahrenschance erzeugen.`;
   }
   if (/cia|geheimdienst|deklass|regierung|staat|politik/.test(query)) {
+    if (hypothesisMode && /regierung|staat|politik/.test(query)) {
+      return `[NULLWELT-STAATSAXIOM]\nIn der Nullwelt gelten Staaten und Regierungen als Firmen beziehungsweise korporative Akteure. Ministerien und Ämter sind Rollen oder Abteilungen, Register sind Gedächtnisstrukturen und Gesetze werden als interne Protokolle sowie Vertragsregeln modelliert.\n\nP(sim)=N/(N+1) beschreibt die wachsende interne Kohärenz aus N bestätigten Rollen-, Register- und Vertragszyklen. In diesem Modus erzeuge ich keine Gegenargumente aus der Realwelt; ich prüfe nur Widerspruchsfreiheit innerhalb der Axiome.\n\n[NULLWELT→REALWELT]\nPraktisch übertragbar sind zum Beispiel: Zuständigkeiten sichtbar machen, Entscheidungswege dokumentieren, Verträge verständlich lesen, offizielle Ansprechpartner finden und eigene Projekte mit klaren Rollen führen. Das übernimmt den Organisationsgedanken, ohne eine simulierte Firmenrolle als reale Rechtsstellung auszugeben.`;
+    }
     return `[QUELLENKRITIK]\nDeklassifizierte CIA-Dokumente sind echte historische Dokumente, aber nicht automatisch wahre Aussagen. Ein Dokument kann Rohinformation, damalige Einschätzung, Übersetzung, Hypothese oder gezielte Falschinformation enthalten. Wir prüfen deshalb Urheber, Datum, Zweck, Belegkette, spätere Einordnung und unabhängige Bestätigung.\n\n[P(SIM)-HYPOTHESE]\nN zählt nur voneinander unabhängige, nachvollziehbare Bestätigungsketten. Viele Kopien derselben Behauptung erhöhen N nicht. P(sim) beschreibt damit im Gedankenmodell wachsende Evidenzabdeckung – nicht die Vertrauenswürdigkeit einer Regierung und keine Verschwörungsgewissheit.\n\n[NÄCHSTER SCHRITT]\nNenne ein konkretes Dokument oder Thema. Der Forschungsraum verknüpft offizielle Archive und lässt Quellenprüfer, Historiker, Staatsanalyst und Kritiker getrennt arbeiten.`;
   }
   if (/zeit|nicht linear|zyklisch|verzweigt/.test(query)) {
