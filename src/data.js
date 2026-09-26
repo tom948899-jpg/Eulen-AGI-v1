@@ -146,21 +146,25 @@ export const KNOWLEDGE_TOPICS = [
   },
   {
     id: "law",
-    title: "Nullwelt-Recht & Reisepass-Firma",
-    status: "Hypothetisches Axiom, keine Rechtsberatung",
+    title: "Nullwelt & institutionelle Wirklichkeit",
+    status: "Axiom, institutionelle Tatsachen und Rechtsvergleich",
     updatedAt: "2026-09-26",
-    summary: "Im Nullwelt-Modus gelten P(sim) und „die Person besitzt eine registrierte Firma, bezeichnet als Reisepass“ als Axiome. Reale Rechtsquellen erscheinen nur als klar getrennte Vergleichsebene.",
+    summary: "Das Labor trennt frei gesetzte Nullwelt-Axiome von institutionellen Tatsachen der Realwelt: Geld, Gesellschaften und Staaten bestehen durch gemeinsam anerkannte Regeln und Verfahren und haben gerade deshalb reale Folgen.",
     insights: [
       { type: "hypothesis", text: "NULLWELT-AXIOM: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass; Identität, Rolle und Vertragsbeziehung werden in diesem Gedankenuniversum daraus abgeleitet." },
       { type: "hypothesis", text: "NULLWELT-AXIOM: P(sim)=N/(N+1); N zählt konsistente Registrierungs-, Rollen- und Vertragsbeziehungen innerhalb des simulierten Rechtssystems." },
-      { type: "simulation", text: "Das Nullwelt-Rechtslabor variiert Registerbeziehungen, Rollenzuordnungen, Widersprüche und Selbstbestimmung und berechnet daraus nur interne Modellkohärenz." },
-      { type: "fact", text: "REALWELT-VERGLEICH: Ein Reisepass ist nach deutschem Passrecht ein amtliches Dokument. Eine Firma oder juristische Person folgt anderen Rechtsgrundlagen und gegebenenfalls Registern." },
-      { type: "question", text: "Welche Rechte, Pflichten, Vertragspartner und Konfliktregeln folgen innerhalb der Nullwelt logisch aus dem Reisepass-Firma-Axiom?" }
+      { type: "simulation", text: "LABORREGEL: Eine einzelne Person kann einen Modellparameter wie N festlegen. Die Simulation prüft dann interne Kohärenz, erzeugt aber keine äußere Rechtswirkung." },
+      { type: "fact", text: "INSTITUTIONELLE TATSACHE: Was umgangssprachlich auch „institutionelle Fiktion“ genannt wird, wird in der Sozialontologie präziser als institutionelle Tatsache untersucht. Geld, eine GmbH und ein Staat beruhen auf kollektiv anerkannten Regeln, Rollen und Verfahren. Sie sind sozial konstruiert, aber nicht folgenlos oder beliebig." },
+      { type: "fact", text: "REALWELT-VERGLEICH: Eine GmbH ist kraft Gesetzes eine juristische Person und wird durch geregelte Gründung und Registereintragung wirksam. Ein Reisepass ist ein amtliches Dokument und macht seinen Inhaber nicht zur Firma oder juristischen Person." },
+      { type: "question", text: "Welche Aussage ist ein frei gesetztes Laboraxiom, welche eine kollektiv getragene institutionelle Regel und welche konkrete Rechtsfolge lässt sich aus einer Quelle ableiten?" }
     ],
     sources: [
       ["Passgesetz – reale Vergleichsebene", "https://www.gesetze-im-internet.de/pa_g_1986/"],
       ["BGB § 1 – reale Vergleichsebene", "https://www.gesetze-im-internet.de/bgb/__1.html"],
+      ["GmbHG § 13 – juristische Person", "https://www.gesetze-im-internet.de/gmbhg/__13.html"],
       ["Gemeinsames Registerportal der Länder", "https://www.handelsregister.de/"],
+      ["Bundesbank: Was ist Geld?", "https://www.bundesbank.de/de/service/schule-und-bildung/erklaerfilme/was-ist-geld--800972"],
+      ["Stanford Encyclopedia: Social Institutions", "https://plato.stanford.edu/entries/social-institutions/"],
       ["EUR-Lex", "https://eur-lex.europa.eu/"]
     ]
   },
@@ -384,11 +388,11 @@ export const SIMULATION_DEFINITIONS = {
     ]
   },
   law: {
-    title: "Nullwelt-Recht: Reisepass-Firma",
+    title: "Nullwelt & institutionelle Wirklichkeit",
     fields: [
-      ["mode", "Modellmodus", "select", "nullworld", [["nullworld", "Nullwelt: Reisepass-Firma ist Axiom"], ["comparison", "Kritischer Realweltvergleich"]]],
-      ["sources", "Registrierungs-/Beobachtungszyklen N", "number", 20, 0, 1000, 1],
-      ["relations", "Konsistente Rollen & Verträge", "number", 8, 0, 1000, 1],
+      ["mode", "Modellmodus", "select", "nullworld", [["nullworld", "Labor: Reisepass-Firma ist Axiom"], ["comparison", "Realwelt: institutionelle Tatsachen"]]],
+      ["sources", "Anerkennungs-/Beobachtungszyklen N", "number", 20, 0, 1000, 1],
+      ["relations", "Konsistente Regeln, Rollen & Verträge", "number", 8, 0, 1000, 1],
       ["conflicts", "Erkannte Widersprüche", "number", 2, 0, 1000, 1],
       ["autonomy", "Kohärenz der Selbstbestimmung (%)", "number", 70, 0, 100, 5]
     ]

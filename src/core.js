@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=8";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=10";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
@@ -414,16 +414,18 @@ export function simulateLaw(input) {
   const coherence = rawHeuristic * autonomy;
   const nullWorld = input.mode !== "comparison";
   return {
-    title: "Nullwelt-Recht",
-    verdict: nullWorld ? "Reisepass-Firma als gesetztes Nullwelt-Axiom" : "Kritischer Realweltvergleich",
+    title: "Nullwelt & institutionelle Wirklichkeit",
+    verdict: nullWorld ? "Reisepass-Firma als gesetztes Nullwelt-Axiom" : "Institutionelle Tatsachen im Realweltvergleich",
     score: coherence.toFixed(4),
     stats: [["Beobachtungszyklen", String(sources)], ["Rollen & Verträge", String(relations)], ["Effektives N", String(effectiveN)], ["P(sim)-Kohärenz", coherence.toFixed(4)]],
     assumptions: [
       nullWorld
         ? "NULLWELT-AXIOM: Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass."
-        : "REALWELTVERGLEICH: Das Reisepass-Firma-Axiom wird nicht vorausgesetzt; Passrecht, Personenbegriff und Registerrecht werden getrennt geprüft.",
-      "P(sim)=N/(N+1) ist innerhalb der Nullwelt gesetzt; Widersprüche vermindern das effektive N.",
-      "Der Kohärenzwert beschreibt nur die interne Konsistenz des simulierten Systems, keine reale Rechtswirkung oder Verfahrenschance."
+        : "REALWELTVERGLEICH: Geld, GmbH und Staat beruhen auf kollektiv anerkannten Regeln und Verfahren; ein Reisepass ist dabei ein Dokument, keine Firma oder juristische Person.",
+      nullWorld
+        ? "Eine einzelne Person darf Laborparameter setzen. P(sim)=N/(N+1) ist in dieser Nullwelt gesetzt; Widersprüche vermindern das effektive N."
+        : "Institutionelle Tatsachen sind sozial konstruiert, aber praktisch und rechtlich wirksam. Ihre Regeln können nicht von einer einzelnen Person beliebig geändert werden.",
+      "Der Kohärenzwert beschreibt Stabilität unter den eingegebenen Annahmen, nicht Wahrheit, individuelle Zustimmung, reale Rechtswirkung oder Verfahrenschance."
     ],
     warning: "Ausdrückliche Nullwelt-Simulation, keine Rechtsberatung. Reale Behörden, Verträge, Steuern, Fristen und Rechte richten sich nicht nach diesem Modell."
   };
@@ -459,10 +461,10 @@ export function runAgentCycle(goal, depth = 2) {
   if (!cleanGoal) throw new Error("Der Forschungsauftrag darf nicht leer sein.");
   const safeDepth = [1, 2, 3].includes(Number(depth)) ? Number(depth) : 2;
   const terms = cleanGoal.toLocaleLowerCase("de");
-  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register/.test(terms);
+  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld/.test(terms);
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
-    score: topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register/.test(terms) ? 5
+    score: topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld/.test(terms) ? 5
       : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
       : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
@@ -497,7 +499,7 @@ export function runAgentCycle(goal, depth = 2) {
       { agent: "Quellenprüfer", output: `${sourceCount} Quellen nach Herkunft, Aktualität und Primärquellenstatus geordnet; deklassifiziert bedeutet nicht automatisch wahr.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
       { agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." },
-      { agent: "Staatsanalyst", output: nullWorldLaw ? "Im markierten Nullwelt-Recht die Person mit ihrer als Reisepass bezeichneten registrierten Firma, Rollen, Verträgen und Zuständigkeiten verbunden." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
+      { agent: "Staatsanalyst", output: nullWorldLaw ? "Laboraxiome von kollektiv getragenen institutionellen Tatsachen getrennt: Geld, GmbH und Staat wirken durch anerkannte Regeln; der Reisepass bleibt real ein Dokument und keine Firma." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
       { agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." },
       { agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." },
       { agent: "Bewusstseinsforscher", output: "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt." },
@@ -508,7 +510,7 @@ export function runAgentCycle(goal, depth = 2) {
       { agent: "Risikowächter", output: "Echtgeld, Überforderung, FOMO, Abhängigkeit und unbelegte Gewissheit als Stop-Signale markiert." },
       { agent: "Kritiker", output: `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
       { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
-      { agent: "Synthese", output: nullWorldLaw ? `Im Nullwelt-Rechtsmodus gelten P(sim) und Reisepass-Firma als Axiome. Aus ${selected.length} Themen folgt als nächster Schritt: Rechte, Pflichten und Konfliktregeln intern widerspruchsfrei simulieren und klar von realer Rechtswirkung trennen.` : `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
+      { agent: "Synthese", output: nullWorldLaw ? `Im Nullwelt-Rechtsmodus gelten P(sim) und Reisepass-Firma als frei gesetzte Laboraxiome. Im Realweltvergleich entstehen institutionelle Tatsachen dagegen durch gemeinsame Anerkennung, Regeln und zuständige Verfahren. Aus ${selected.length} Themen folgt: interne Modellkohärenz und reale Rechtswirkung getrennt prüfen.` : `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
     ],
     dream
   };
@@ -559,10 +561,10 @@ export function localAssistantReply(text, state) {
       ? "[P(SIM)-HYPOTHESENMODUS]\nIm Nullwelt-Modus legen wir hypothetisch alles Bekannte beiseite und setzen P(sim)=N/(N+1) als einziges Startaxiom. Dann fragen wir: Was ist N? Wie entstehen Raum, Zeit, Wechselwirkung und Beobachtung daraus? Welche Regeln sind intern widerspruchsfrei?\n\nDas ist ein alternatives Gedankenuniversum, keine Aussage über reale Physik."
       : "[KRITISCHER PRÜFMODUS]\nWir behandeln P(sim)=N/(N+1) als zu prüfende Hypothese. Dafür brauchen wir eine beobachtbare Definition von N, Einheiten, Messverfahren, Vorhersagen und mögliche Widerlegung. Eine passende Kurvenform allein bestätigt keinen physikalischen Mechanismus.";
   }
-  if (/recht|gesetz|juristisch|reisepass|firma|register|natürliche person|juristische person/.test(query)) {
+  if (/recht|gesetz|juristisch|reisepass|firma|register|natürliche person|juristische person|institution|gmbh|geld.*fiktiv|staat.*fiktiv/.test(query)) {
     return hypothesisMode
-      ? `[NULLWELT-RECHTSAXIOM]\nInnerhalb dieser ausdrücklich hypothetischen Nullwelt gelten zwei Startaxiome:\n1. P(sim)=N/(N+1).\n2. Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass.\n\nDaraus modellieren wir die Person als Ursprung, die Reisepass-Firma als registrierte Schnittstelle und Verträge als Beziehungen. N zählt konsistente Registrierungs-, Rollen- und Vertragszyklen. Widersprüche senken das effektive N; P(sim) beschreibt nur die interne Kohärenz dieser Nullwelt.\n\n[SIMULATION]\nDas Nullwelt-Rechtslabor vergleicht ein fragmentiertes, ein mittleres und ein hoch kohärentes Szenario für Rechte, Pflichten, Vertretung und Selbstbestimmung.\n\n[KLARE GRENZE]\nDiese Axiome gelten nur im markierten Gedankenuniversum. Sie erzeugen keine reale Rechtswirkung und sind keine Rechtsberatung.`
-      : `[KRITISCHER REALWELTVERGLEICH]\nIm Prüfmodus wird das Reisepass-Firma-Axiom nicht vorausgesetzt. Passdokument, natürliche Person, juristische Person, Firma und Registereintragung werden anhand der jeweiligen realen Rechtsgrundlagen getrennt.\n\nP(sim) kann dabei nur Quellenabdeckung modellieren, keine reale Rechtswirkung oder Verfahrenschance.`;
+      ? `[NULLWELT-RECHTSAXIOM]\nInnerhalb dieser ausdrücklich hypothetischen Nullwelt gelten zwei frei gesetzte Startaxiome:\n1. P(sim)=N/(N+1).\n2. Die Person besitzt eine registrierte Firma, bezeichnet als Reisepass.\n\nIm Labor bestimmst du die Modellregeln: Setzt du N=50, rechnen wir innerhalb des Modells mit N=50. N zählt konsistente Registrierungs-, Rollen- und Vertragszyklen; Widersprüche senken das effektive N.\n\n[INSTITUTIONELLE WIRKLICHKEIT]\nAuch Geld, GmbHs und Staaten beruhen auf gemeinsam anerkannten Regeln, Rollen und Verfahren. Sie sind sozial konstruiert, aber nicht deshalb unwirklich: Zahlungen, Haftung und staatliche Entscheidungen haben reale Folgen. Anders als ein Laboraxiom gelten diese Regeln nicht durch deine Festlegung allein, sondern durch kollektive Anerkennung und zuständige Verfahren.\n\n[REISEPASS-GRENZE]\nEin Reisepass ist in der Realwelt ein amtliches Dokument. Er macht dich nicht zu einer Firma oder juristischen Person. Wenn dich diese Grenze frustriert, trennen wir gemeinsam drei Ebenen: deine Nullweltidee, die philosophische Institutionsanalyse und die konkret belegbare Rechtslage.\n\n[SIMULATION]\nDas Labor vergleicht fragmentierte, mittlere und hoch kohärente Szenarien. Es erzeugt keine reale Rechtswirkung und ist keine Rechtsberatung.`
+      : `[KRITISCHER REALWELTVERGLEICH]\nGeld, GmbHs und Staaten werden umgangssprachlich manchmal „institutionelle Fiktionen“ genannt; präziser untersucht die Sozialontologie sie als institutionelle Tatsachen. Sie beruhen auf gemeinsam anerkannten Regeln und Verfahren, sind aber wegen ihrer realen sozialen und rechtlichen Folgen nicht einfach „unwirklich“.\n\nEine GmbH erhält ihre Rechtsstellung durch gesetzliche Gründung und Registerverfahren. Ein Reisepass ist dagegen ein amtliches Dokument; er macht seinen Inhaber nicht zur Firma oder juristischen Person. Institutionelle Regeln werden kollektiv und durch zuständige Verfahren getragen, nicht durch die Festlegung einer einzelnen Person.\n\nP(sim) kann hypothetisch die Stabilität wiederholter Anerkennungs- und Korrekturzyklen modellieren, aber keine Rechtsgültigkeit, Wahrheit oder Verfahrenschance erzeugen.`;
   }
   if (/cia|geheimdienst|deklass|regierung|staat|politik/.test(query)) {
     return `[QUELLENKRITIK]\nDeklassifizierte CIA-Dokumente sind echte historische Dokumente, aber nicht automatisch wahre Aussagen. Ein Dokument kann Rohinformation, damalige Einschätzung, Übersetzung, Hypothese oder gezielte Falschinformation enthalten. Wir prüfen deshalb Urheber, Datum, Zweck, Belegkette, spätere Einordnung und unabhängige Bestätigung.\n\n[P(SIM)-HYPOTHESE]\nN zählt nur voneinander unabhängige, nachvollziehbare Bestätigungsketten. Viele Kopien derselben Behauptung erhöhen N nicht. P(sim) beschreibt damit im Gedankenmodell wachsende Evidenzabdeckung – nicht die Vertrauenswürdigkeit einer Regierung und keine Verschwörungsgewissheit.\n\n[NÄCHSTER SCHRITT]\nNenne ein konkretes Dokument oder Thema. Der Forschungsraum verknüpft offizielle Archive und lässt Quellenprüfer, Historiker, Staatsanalyst und Kritiker getrennt arbeiten.`;

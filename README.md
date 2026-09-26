@@ -35,7 +35,7 @@ npm run check
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
 - Spiritueller Wissensbereich zu Intention und Law of Attraction mit respektvoller Hypothese-Fakt-Trennung
 - Bewusstseins-Hypothesenlabor mit P(sim)-Axiommodus, Konsistenz, Selbstkorrektur, Widersprüchen und Gedächtniskontinuität
-- Nullwelt-Rechtslabor, das `P(sim)` und „die Person besitzt eine registrierte Firma, bezeichnet als Reisepass“ ausdrücklich nur im hypothetischen Modus als Axiome setzt; reale Rechtswirkung und Rechtsberatung bleiben ausgeschlossen
+- Nullwelt- und Institutionslabor: Frei gesetzte Modellaxiome werden von kollektiv getragenen institutionellen Tatsachen wie Geld, GmbH und Staat getrennt. Das Reisepass-Firma-Modell bleibt hypothetisch; real ist der Pass ein Dokument und keine Firma. Reale Rechtswirkung und Rechtsberatung bleiben ausgeschlossen
 - Physikalischer „Nullwelt“-Modus, der hypothetisch nur `P(sim)=N/(N+1)` als Startaxiom verwendet
 - Transparente Startbasis von 20 internen Referenzläufen (`P=0,9524`); eigene Simulationen und Agentenläufe erhöhen N zusätzlich
 - Lokale Persistenz sowie JSON-Export und validierter Import
