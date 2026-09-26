@@ -27,7 +27,7 @@ export function createInitialState() {
     lifeGoal: "Selbstständigkeit und Vermögensaufbau mit Verantwortung, Liebe und Verständnis – Echtgeld erst nach belastbaren Simulationen.",
     theme: "dark",
     updatedAt: new Date(0).toISOString(),
-    provider: { endpoint: "", model: "" },
+    provider: { endpoint: "", model: "", useAgents: false },
     sync: { endpoint: "", workspace: "", auto: false }
   };
 }
@@ -57,7 +57,8 @@ export function normalizeState(value) {
     updatedAt: Number.isFinite(Date.parse(value.updatedAt)) ? value.updatedAt : base.updatedAt,
     provider: {
       endpoint: safeString(value.provider?.endpoint, 500),
-      model: safeString(value.provider?.model, 200)
+      model: safeString(value.provider?.model, 200),
+      useAgents: value.provider?.useAgents === true
     },
     sync: {
       endpoint: safeString(value.sync?.endpoint, 500),

@@ -159,7 +159,6 @@
             <label class="mission-input">Forschungsfrage<textarea id="researchMission" rows="3" maxlength="1000" required placeholder="Zum Beispiel: Was bedeuten deklassifizierte CIA-Dokumente im P(sim)-Hypothesenmodell?"></textarea></label>
             <label>Lerntiefe<select id="researchDepth"><option value="1">Schnell · Kernpunkte</option><option value="2" selected>Intensiv · Quellen + Gegenprüfung</option><option value="3">Tief · mehr Themenverbindungen</option></select></label>
             <button class="primary" type="submit">Lernauftrag starten</button>
-            <label class="toggle-line research-provider-toggle"><input id="researchExternal" type="checkbox"> Optionalen Chat-Provider nur für die abschließende Synthese verwenden</label>
             <output id="researchMissionStatus" class="form-status">Bereit · Ergebnisse werden lokal gespeichert.</output>
           </form>
           <div class="research-suggestions" aria-label="Vorgeschlagene Forschungsaufträge">
@@ -279,11 +278,12 @@
           <div class="settings-grid">
             <form class="panel" id="providerForm">
               <h2>Optionaler Chat-Provider</h2>
-              <p>OpenAI-kompatible Schnittstelle. Groq kann Antworten beschleunigen, führt aber ohne Suchwerkzeug keine Live-Webrecherche aus. Der Schlüssel bleibt nur bis zum Schließen dieses Browser-Tabs im <code>sessionStorage</code>; nutze ihn nur auf einem vertrauenswürdigen Gerät.</p>
+              <p>OpenAI-kompatible Schnittstelle. Groq kann Antworten beschleunigen, führt aber ohne Suchwerkzeug keine Live-Webrecherche aus. Ein kostenloses Kontingent kann Rate-Limits oder Modellgrenzen haben; bei Fehlern bleibt EULEN lokal nutzbar. Der Schlüssel bleibt nur bis zum Schließen dieses Browser-Tabs im <code>sessionStorage</code>; nutze ihn nur auf einem vertrauenswürdigen Gerät.</p>
               <div class="provider-presets"><button class="secondary" type="button" data-provider-preset="groq">Groq vorbereiten</button><button class="secondary" type="button" data-provider-preset="openai">OpenAI vorbereiten</button></div>
               <label>Endpoint<input id="providerEndpoint" type="url" placeholder="https://…/v1/chat/completions"></label>
               <label>Modell<input id="providerModel" type="text" placeholder="Modellname"></label>
               <label>API-Schlüssel<input id="providerKey" type="password" autocomplete="off" placeholder="Wird nicht dauerhaft gespeichert"></label>
+              <label class="toggle-line"><input id="providerUseAgents" type="checkbox"> Provider für Chat sowie alle manuellen und automatischen Agentensynthesen verwenden</label>
               <button class="primary" type="submit">Verbindung testen</button>
               <output id="providerStatus" class="form-status"></output>
             </form>

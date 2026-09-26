@@ -67,6 +67,7 @@ function renderAll() {
   $("#chatMode").value = state.chatMode;
   $("#providerEndpoint").value = state.provider.endpoint;
   $("#providerModel").value = state.provider.model;
+  $("#providerUseAgents").checked = state.provider.useAgents;
   $("#agentDepth").value = String(state.agentDepth);
   $("#researchDepth").value = String(state.agentDepth);
   $("#syncEndpoint").value = state.sync.endpoint;
@@ -269,7 +270,7 @@ function renderLearningMemory() {
     <section class="memory-column"><h3>Verbesserungsprüfungen</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Kritikhinweis gespeichert.</p>"}</section>`;
 }
 
-async function executeAgentCycle(goal, automatic = false, depth = state.agentDepth, useExternal = false) {
+async function executeAgentCycle(goal, automatic = false, depth = state.agentDepth, useExternal = state.provider.useAgents) {
   if (agentCycleInProgress) {
     $("#agentStatus").textContent = "Ein Agentenzyklus läuft bereits. Der nächste Auftrag startet danach manuell oder im nächsten Intervall.";
     if ($("#researchMissionStatus")) $("#researchMissionStatus").textContent = "Ein anderer Lernauftrag läuft bereits.";
@@ -587,7 +588,7 @@ $("#researchMissionForm").addEventListener("submit", async event => {
   $("#agentDepth").value = String(depth);
   $("#agentGoal").value = goal;
   $("#researchMissionStatus").textContent = "18 Agenten untersuchen den Auftrag …";
-  const run = await executeAgentCycle(goal, false, depth, $("#researchExternal").checked);
+  const run = await executeAgentCycle(goal, false, depth);
   $("#researchMissionStatus").textContent = run
     ? `Gespeichert: ${run.topics.length} Themen, ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte.${run.externalSynthesis ? " Provider-Synthese aktiv." : run.externalSynthesisError ? ` ${run.externalSynthesisError}; lokale Synthese genutzt.` : ""}`
     : "Lernauftrag konnte nicht abgeschlossen werden.";
@@ -694,10 +695,12 @@ $("#providerForm").addEventListener("submit", async event => {
   status.textContent = "Verbindung wird geprüft …";
   try {
     await testProvider(config, AbortSignal.timeout(15000));
-    state.provider = { endpoint: config.endpoint, model: config.model };
+    state.provider = { endpoint: config.endpoint, model: config.model, useAgents: $("#providerUseAgents").checked };
     sessionStorage.setItem("eulen-provider-key", config.key);
     saveState();
-    status.textContent = "Verbindung erfolgreich. Schlüssel nur für diesen Tab gespeichert.";
+    status.textContent = state.provider.useAgents
+      ? "Verbindung erfolgreich. Provider ist für Chat und Agentensynthesen aktiv; Schlüssel nur für diesen Tab gespeichert."
+      : "Verbindung erfolgreich. Provider ist nur für den Chat aktiv; Schlüssel nur für diesen Tab gespeichert.";
   } catch (error) {
     status.textContent = `Nicht verbunden: ${error.message}`;
   } finally {
@@ -708,10 +711,12 @@ $$("[data-provider-preset]").forEach(button => button.addEventListener("click", 
   if (button.dataset.providerPreset === "groq") {
     $("#providerEndpoint").value = "https://api.groq.com/openai/v1/chat/completions";
     $("#providerModel").value = "openai/gpt-oss-120b";
-    $("#providerStatus").textContent = "Groq vorbereitet. API-Schlüssel einfügen und Verbindung testen. Groq ist kein Live-Suchprovider.";
+    $("#providerUseAgents").checked = true;
+    $("#providerStatus").textContent = "Groq für Chat und Agentensynthesen vorbereitet. API-Schlüssel einfügen und Verbindung testen. Groq ist kein Live-Suchprovider.";
   } else {
     $("#providerEndpoint").value = "https://api.openai.com/v1/chat/completions";
     $("#providerModel").value = "gpt-4.1-mini";
+    $("#providerUseAgents").checked = true;
     $("#providerStatus").textContent = "OpenAI vorbereitet. Modell bei Bedarf anpassen und API-Schlüssel einfügen.";
   }
 }));
