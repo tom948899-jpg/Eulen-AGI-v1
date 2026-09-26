@@ -1,6 +1,7 @@
-import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=12";
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=14";
 import {
   STORAGE_KEY,
+  buildActiveGuidance,
   calculateProgress,
   chooseAutomaticResearchGoal,
   createInitialState,
@@ -15,9 +16,9 @@ import {
   runScenarioSeries,
   runSimulation,
   taskKey
-} from "./core.js?v=12";
-import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=12";
-import { SyncProvider } from "./sync.js?v=12";
+} from "./core.js?v=14";
+import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=14";
+import { SyncProvider } from "./sync.js?v=14";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -99,15 +100,15 @@ function renderDashboard() {
   $("#todayDescription").textContent = day.description;
   $("#todayTasks").innerHTML = day.tasks.slice(0, 3).map((task, index) => taskMarkup(day.day, task, index)).join("");
   $("#todayTasks").querySelectorAll("input").forEach(input => input.addEventListener("change", onTaskChange));
-  const nextTask = day.tasks.find((_, index) => !state.completed[taskKey(day.day, index)]) ?? "Tagesreflexion notieren.";
-  const guidance = [
-    ["Nächster Schritt", nextTask],
-    ["Formel-Hinweis", `${INTERNAL_SIMULATION_COUNT} interne Referenzläufe plus ${state.simulations.length + state.agentRuns.length} eigene Lernzyklen ergeben P=${formulaValue(learningCycles).toFixed(4)}.`],
-    ["Agenten-Hinweis", state.agentAuto ? `Autonom aktiv: alle ${formatInterval(state.agentIntervalSeconds)} wird das am wenigsten untersuchte Thema gewählt.` : "Aktiviere die Automatik für rotierende Lern-, Quellen- und Traumzyklen."],
-    ["Gelernte Verbesserung", state.improvementProposals[0] ?? "Noch keine Verbesserung gespeichert. Ein Agentenzyklus erzeugt den ersten Prüfhinweis."],
-    ["Traum-Impuls", state.dreams[0]?.nextStep ?? "Noch kein simulierter Traum. Der Traumagent kann kreative Verbindungen erzeugen."]
-  ];
-  $("#guidanceFeed").innerHTML = guidance.map(([title, text]) => `<div><strong>${escapeHtml(title)}</strong>${escapeHtml(text)}</div>`).join("");
+  const guidance = buildActiveGuidance(state);
+  $("#guidanceMode").textContent = state.chatMode === "critical" ? "PRÜFMODUS" : "HYPOTHESENMODUS";
+  $("#guidanceMode").className = `badge ${state.chatMode === "critical" ? "fact" : "hypothesis"}`;
+  $("#guidanceFeed").innerHTML = guidance.map(item => `<article class="guidance-card ${item.level}">
+    <header><span>${escapeHtml(item.level.toUpperCase())}</span><strong>${escapeHtml(item.title)}</strong></header>
+    <p><b>Warum jetzt:</b> ${escapeHtml(item.why)}</p>
+    <p><b>Aktion:</b> ${escapeHtml(item.action)}</p>
+    <small><b>Fertig-Kriterium:</b> ${escapeHtml(item.evidence)}</small>
+  </article>`).join("");
 }
 
 function taskMarkup(day, task, index) {
@@ -262,7 +263,7 @@ function renderAgents() {
   $("#agentInterval").value = String(state.agentIntervalSeconds);
   const runs = state.agentRuns;
   $("#agentCycleCount").textContent = runs.length;
-  $("#agentFormula").textContent = formulaValue(INTERNAL_SIMULATION_COUNT + runs.length).toFixed(4);
+  $("#agentFormula").textContent = formulaValue(INTERNAL_SIMULATION_COUNT + state.totalAgentCycles).toFixed(4);
   $("#agentSourceCount").textContent = runs.reduce((sum, run) => sum + run.sources.length, 0);
   $("#agentRuns").innerHTML = runs.length ? runs.map(run => `
     <article class="agent-run">
@@ -310,7 +311,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
   researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
-    const { runAgentCycle } = await import("./core.js?v=12");
+    const { runAgentCycle } = await import("./core.js?v=14");
     const run = { ...runAgentCycle(goal, depth, state.chatMode), automatic };
     if (useExternal) {
       try {
@@ -352,10 +353,12 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     }
     state.agentRuns.unshift(run);
     state.agentRuns = state.agentRuns.slice(0, 30);
+    state.totalAgentCycles += 1;
     if (automatic) {
       const simulationType = automaticSimulationType(run.topics);
       const simulation = { ...runSimulation(simulationType, defaultSimulationParams(simulationType)), automatic: true };
       state.simulations = [simulation, ...state.simulations].slice(0, 50);
+      state.totalSimulationCycles += 1;
       run.automaticSimulation = { type: simulationType, title: simulation.title, verdict: simulation.verdict, score: simulation.score };
     }
     state.dreams.unshift(run.dream);
@@ -671,6 +674,7 @@ $("#simulationForm").addEventListener("submit", event => {
   setNetworkActivity("Synthese", `${result.title} wird ausgewertet`, `P(sim)-Zyklus ${learningCycleCount(state) + 1}`, true);
   state.simulations.unshift(result);
   state.simulations = state.simulations.slice(0, 50);
+  state.totalSimulationCycles += 1;
   saveState();
   renderSimulationResult(result);
   renderHistory();
@@ -682,6 +686,7 @@ $("#simulationSeries").addEventListener("click", () => {
   const results = runScenarioSeries(activeSimulation, raw);
   setNetworkActivity("Simulation", `${results.length} Szenarien werden verglichen`, `${results[0].title} · keine Prognose`, true);
   state.simulations = [...results, ...state.simulations].slice(0, 50);
+  state.totalSimulationCycles += results.length;
   saveState();
   renderSimulationSeries(results);
   renderHistory();

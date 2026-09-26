@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildActiveGuidance,
   calculateProgress,
   chooseAutomaticResearchGoal,
   createInitialState,
@@ -51,6 +52,17 @@ test("Modell startet transparent mit 20 internen Referenzläufen", () => {
   assert.equal(INTERNAL_SIMULATION_COUNT, 20);
   assert.equal(learningCycleCount(createInitialState()), 20);
   assert.equal(formulaValue(learningCycleCount(createInitialState())).toFixed(4), "0.9524");
+});
+
+test("Lebenszeit-Zähler überleben begrenzte sichtbare Verläufe", () => {
+  const state = createInitialState();
+  state.totalSimulationCycles = 500;
+  state.totalAgentCycles = 120;
+  assert.equal(learningCycleCount(state), 640);
+  const normalized = normalizeState({ ...state, simulations: [], agentRuns: [] });
+  assert.equal(normalized.totalSimulationCycles, 500);
+  assert.equal(normalized.totalAgentCycles, 120);
+  assert.equal(learningCycleCount(normalized), 640);
 });
 
 test("Trading-Simulation ist mit gleichem Seed reproduzierbar", () => {
@@ -163,8 +175,31 @@ test("Automatik wählt selbstständig wenig untersuchte Themen", () => {
 test("Traumgenerator erzeugt kreative, geerdete nächste Schritte", () => {
   const dream = generateDream("Selbstständigkeit mit Liebe", ["Spiritualität"], 3);
   assert.match(dream.narrative, /Selbstständigkeit mit Liebe/);
-  assert.match(dream.nextStep, /30 Minuten/);
+  assert.match(dream.nextStep, /Spiritualität/);
+  assert.match(dream.nextStep, /15 Minuten/);
   assert.ok(dream.p > 0 && dream.p < 1);
+});
+
+test("Aktive Hinweise priorisieren Qualität statt bloßer Zyklusmenge", () => {
+  const state = createInitialState();
+  state.simulations = Array.from({ length: 50 }, (_, index) => ({ type: "formula", title: "Lauf", timestamp: new Date(index).toISOString() }));
+  state.agentRuns = Array.from({ length: 30 }, (_, index) => ({
+    goal: "Lernen",
+    timestamp: new Date(Date.now() - index * 1000).toISOString(),
+    topics: ["Bewusstsein & Kommunikation"],
+    sources: [{ title: "Quelle", url: "https://example.com" }],
+    sourceQueries: ["Bewusstsein Primärquelle"],
+    steps: []
+  }));
+  state.improvementProposals = [
+    "PRIORITÄT 1 · Quellenlücke: weitere Quelle",
+    "PRIORITÄT 2 · Nullwelt→Realwelt: eine konkrete Handlung testen"
+  ];
+  const guidance = buildActiveGuidance(state, Date.now());
+  assert.ok(guidance.some(item => item.title === "P(sim) ist gesättigt" && item.why.includes("Lernqualität")));
+  assert.match(guidance.find(item => item.title === "Beste gelernte Verbesserung").action, /Nullwelt→Realwelt/);
+  assert.ok(guidance.some(item => item.title === "Themenwiederholung erkannt"));
+  assert.ok(guidance.every(item => item.why && item.action && item.evidence));
 });
 
 test("Bewusstseinslabor nimmt Formel nur im Hypothesenmodus als Axiom", () => {

@@ -111,8 +111,16 @@ input[type="checkbox"] { accent-color: var(--accent); width: 17px; height: 17px;
 .principles li small { color: var(--muted); margin-top: 4px; line-height: 1.4; }
 .guidance-panel { margin-top: 24px; }
 .guidance-feed { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
-.guidance-feed div { padding: 13px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; line-height: 1.5; font-size: 13px; }
-.guidance-feed strong { display: block; color: var(--accent); margin-bottom: 4px; }
+.guidance-card { padding: 14px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 10px; line-height: 1.45; font-size: 13px; }
+.guidance-card.watch { border-left-color: var(--danger); }
+.guidance-card.active { border-left-color: var(--accent-2); }
+.guidance-card.dream { border-left-color: var(--purple); }
+.guidance-card header { display: flex; gap: 8px; align-items: center; margin-bottom: 9px; }
+.guidance-card header span { padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 9px; letter-spacing: .08em; }
+.guidance-card strong { color: var(--text); }
+.guidance-card p { margin: 6px 0; color: var(--muted); }
+.guidance-card p b, .guidance-card small b { color: var(--text); }
+.guidance-card small { display: block; margin-top: 8px; color: var(--muted); }
 .neural-panel { margin-top: 24px; overflow: hidden; border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); }
 .network-stage { position: relative; margin-top: 12px; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); border-radius: 20px; overflow: hidden; background: linear-gradient(145deg, color-mix(in srgb, var(--surface-2) 96%, var(--accent) 4%), var(--surface-2)); }
 #neuralCanvas { width: 100%; height: min(590px, 58vw); min-height: 390px; display: block; background: radial-gradient(ellipse at 46% 48%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 45%), radial-gradient(ellipse at 62% 45%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 55%); }

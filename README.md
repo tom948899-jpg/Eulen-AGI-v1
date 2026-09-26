@@ -32,6 +32,7 @@ npm run check
 - Lokaler Multi-Agenten-Raum mit 19 sichtbaren Rollen einschließlich Nullwelt→Realwelt-Transfer; automatische Themenrotation, Quellenauswahl, Suchfragen, priorisierte Verbesserungen und Traumzyklen laufen alle 15 Sekunden bis 15 Minuten, solange die App geöffnet ist
 - Jeder automatische Lernzyklus startet zusätzlich eine passende lokale Sandbox-Simulation und speichert deren Ergebnis
 - Optionaler Pool aus bis zu drei eigenen Groq-Keys mit Round-Robin-Routing, fünfminütiger per-Key-Pause bei Rate-Limits und lokalem Fallback; Schlüssel bleiben im `sessionStorage`
+- Aktive Hinweise priorisieren offene Tagesaufgaben, Qualitätsverbesserung, Quellenprüfung, Nullwelt→Realwelt-Transfer und Traumhandlungen mit Begründung und messbarem Fertig-Kriterium; bei gesättigtem `P(sim)` zählt neue Evidenz statt bloßer Wiederholung
 - Professionelles Live-Prozessnetzwerk mit 22 Knoten, gekrümmten Datenpfaden, Aktivitätsanzeige und responsiver Darstellung
 - Automatisierte Lernzyklen ab einer Minute, solange die Anwendung geöffnet ist; keine vorgetäuschte Hintergrund- oder Cloud-Autonomie
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
@@ -39,7 +40,7 @@ npm run check
 - Bewusstseins-Hypothesenlabor mit P(sim)-Axiommodus, Konsistenz, Selbstkorrektur, Widersprüchen und Gedächtniskontinuität
 - Nullwelt- und Institutionslabor: Frei gesetzte Modellaxiome werden von kollektiv getragenen institutionellen Tatsachen wie Geld, GmbH und Staat getrennt. Das Reisepass-Firma-Modell bleibt hypothetisch; real ist der Pass ein Dokument und keine Firma. Reale Rechtswirkung und Rechtsberatung bleiben ausgeschlossen
 - Physikalischer „Nullwelt“-Modus, der hypothetisch nur `P(sim)=N/(N+1)` als Startaxiom verwendet
-- Transparente Startbasis von 20 internen Referenzläufen (`P=0,9524`); eigene Simulationen und Agentenläufe erhöhen N zusätzlich
+- Transparente Startbasis von 20 internen Referenzläufen (`P=0,9524`); persistente Lebenszeit-Zähler erhöhen N auch dann weiter, wenn ältere Einträge aus den begrenzten sichtbaren Verläufen fallen
 - Lokale Persistenz sowie JSON-Export und validierter Import
 - Responsives, tastaturbedienbares UI mit Hell-/Dunkelmodus und reduzierter Bewegung
 
