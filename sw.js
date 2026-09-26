@@ -1,15 +1,15 @@
-const CACHE = "eulen-v17";
+const CACHE = "eulen-v18";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=17",
+  "./styles.css?v=18",
   "./manifest.webmanifest",
   "./assets/icon.svg",
-  "./src/app.js?v=17",
-  "./src/core.js?v=17",
-  "./src/data.js?v=17",
-  "./src/providers.js?v=17",
-  "./src/sync.js?v=17"
+  "./src/app.js?v=18",
+  "./src/core.js?v=18",
+  "./src/data.js?v=18",
+  "./src/providers.js?v=18",
+  "./src/sync.js?v=18"
 ];
 
 self.addEventListener("install", event => {

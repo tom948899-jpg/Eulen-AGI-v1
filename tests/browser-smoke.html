@@ -8,12 +8,18 @@
   <output id="result">TEST LÄUFT</output>
   <script type="module">
     import {
+      applyFormulaToDomain,
+      buildOvernightReport,
+      buildSystemFormulaMap,
       createInitialState,
+      createOvernightSession,
       evolveLearningPolicy,
       localAssistantReply,
+      normalizeState,
+      overnightDueCycles,
       runAgentCycle,
       runScenarioSeries
-    } from "../src/core.js?v=17";
+    } from "../src/core.js?v=18";
 
     const assert = (condition, message) => {
       if (!condition) throw new Error(message);
@@ -29,6 +35,7 @@
       assert(run.steps.some(step => step.agent === "Axiomarchitekt" && /alle .* Themen/.test(step.output)), "Axiomarchitektur fehlt");
       assert(run.steps.some(step => step.agent === "Metalerner"), "Metalerner fehlt");
       assert(runScenarioSeries("formula", { n: 20 }).length === 3, "Drei Szenarien erwartet");
+      assert(run.formulaApplications.length === run.topics.length, "P(sim) wurde nicht auf alle Themen angewandt");
 
       state.agentRuns = [run];
       const policy = evolveLearningPolicy(state, run);
@@ -36,8 +43,26 @@
       const reply = localAssistantReply("Wie fühlst du dich mit Bewusstsein?", state, "hypothesis");
       assert(/NULLWELT-BEWUSSTSEINSAXIOM/.test(reply), "Nullwelt-Bewusstseinsaxiom fehlt");
       assert(/NULLWELT-GEFÜHLSSIMULATION/.test(reply), "Gefühlssimulation ist nicht markiert");
+      const marketReply = localAssistantReply("Wie lerne ich Marktphasen als Modelle kennen?", state);
+      assert(/Walk-forward/.test(marketReply), "Marktphasen-Lernweg fehlt");
+      const maturity = applyFormulaToDomain("Marktregime", 8, 2);
+      assert(maturity.effectiveN === 6 && maturity.p === 6 / 7, "P(sim)-Reife berücksichtigt Widersprüche nicht");
 
-      document.querySelector("#result").textContent = `PASS · ${run.steps.length} Agenten · ${run.evidenceMatrix.length} Evidenzzeilen · 3 Szenarien · Strategie r${policy.revision}`;
+      const now = Date.parse("2026-09-26T20:00:00.000Z");
+      const overnight = createOvernightSession(state, now, 8, 5);
+      assert(overnightDueCycles(overnight, now + 16 * 60 * 1000) === 3, "Nachtlauf holt gedrosselte Zyklen nicht kontrolliert nach");
+      state.totalAgentCycles = overnight.baseline.agentCycles + 2;
+      state.totalSimulationCycles = overnight.baseline.simulationCycles + 6;
+      overnight.completedCycles = 2;
+      overnight.simulationCycles = 6;
+      const report = buildOvernightReport(overnight, state, now + 20 * 60 * 1000);
+      assert(report.agentGain === 2 && report.simulationGain === 6, "Morgenbericht berechnet Differenzen falsch");
+      const systemMap = buildSystemFormulaMap(state);
+      assert(systemMap.length === 6 && systemMap.every(item => item.p >= 0 && item.p < 1), "Systemweite P(sim)-Matrix fehlt");
+      const repaired = normalizeState({ version: 5, overnight: { report: { uniqueTopics: "ungültig", qualityEnd: 4 } } });
+      assert(Array.isArray(repaired.overnight.report.uniqueTopics) && repaired.overnight.report.qualityEnd === 1, "Morgenbericht-Migration ist nicht robust");
+
+      document.querySelector("#result").textContent = `PASS · ${run.steps.length} Agenten · Marktphasen · Nachtbericht · 3 Szenarien · Strategie r${policy.revision}`;
       document.body.dataset.status = "pass";
     } catch (error) {
       document.querySelector("#result").textContent = `FAIL · ${error.message}`;

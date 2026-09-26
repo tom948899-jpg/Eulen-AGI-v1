@@ -57,6 +57,25 @@ export const KNOWLEDGE_TOPICS = [
     ]
   },
   {
+    id: "market-phases",
+    title: "Marktphasen & Regime-Modelle",
+    status: "Walk-forward-Lernpfad kuratiert",
+    updatedAt: "2026-09-26",
+    summary: "Marktphasen werden als messbare, zeitabhängige Modelle gelernt – nicht als sichere Etiketten oder Vorhersagen.",
+    insights: [
+      { type: "fact", text: "Ein Marktregime ist eine Modellklasse. Bezeichnungen wie Trend, Seitwärtsphase oder Stress hängen von Merkmalen, Zeithorizont und Schwellenwerten ab." },
+      { type: "fact", text: "Nützliche Merkmale sind Renditerichtung, realisierte Volatilität, Drawdown, Marktbreite, Volumen und Liquidität; keines davon erkennt Wendepunkte sicher." },
+      { type: "simulation", text: "Ein Regime-Labor teilt synthetische Kursfolgen in Kontraktion, Aufwärtstrend, Distribution, Abwärtstrend, Stress und Erholung und prüft Übergänge ohne Zukunftsdaten." },
+      { type: "hypothesis", text: "P(sim) kann die Reife eines Regimemodells aus unabhängigen Walk-forward-Fenstern beschreiben, wenn Fehlklassifikationen und Widersprüche das effektive N reduzieren." },
+      { type: "question", text: "Bleiben Merkmale, Schwellen und Übergänge in zeitlich späteren Testfenstern stabil, nachdem Kosten und Fehlklassifikationen berücksichtigt wurden?" }
+    ],
+    sources: [
+      ["Cboe: VIX-Methodik und Volatilität", "https://www.cboe.com/tradable_products/vix/vix_white_paper/"],
+      ["Federal Reserve FRED: VIX-Zeitreihe", "https://fred.stlouisfed.org/series/VIXCLS"],
+      ["Investor.gov: What Is Risk?", "https://www.investor.gov/introduction-investing/investing-basics/what-risk"]
+    ]
+  },
+  {
     id: "consciousness",
     title: "Bewusstsein & Kommunikation",
     status: "Nullwelt-Axiom und Prüfmodus getrennt",

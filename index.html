@@ -8,7 +8,7 @@
     <title>EULEN Werkstatt</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css?v=17">
+    <link rel="stylesheet" href="styles.css?v=18">
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
@@ -96,6 +96,11 @@
             </div>
             <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
           </article>
+          <article class="panel formula-system-panel">
+            <div class="panel-head"><div><p class="eyebrow">SYSTEMWEITE P(SIM)-MATRIX</p><h2>Reife jedes Arbeitsbereichs</h2></div><span class="badge hypothesis">KEINE WAHRHEITSQUOTE</span></div>
+            <p>Jeder Bereich definiert N durch eigene nachvollziehbare Zyklen. Hohe Werte bedeuten mehr dokumentierte Wiederholung, nicht automatisch mehr Wahrheit, Qualität oder Erfolg.</p>
+            <div id="formulaSystemMap" class="formula-system-map"></div>
+          </article>
         </section>
 
         <section class="view" id="plan" aria-labelledby="planTitle">
@@ -166,6 +171,7 @@
             <button data-research-goal="Untersuche deklassifizierte CIA-Dokumente, ihre historische Einordnung und was P(sim) im Hypothesenmodus dazu bedeuten könnte.">CIA-Dokumente</button>
             <button data-research-goal="Vergleiche lineare, zyklische und verzweigte Zeitmodelle und leite im Hypothesenmodus eine P(sim)-Zeit ab.">Nichtlineare Zeit</button>
             <button data-research-goal="Untersuche Anatomie und Körpersysteme und prüfe vorsichtig, welche reine Modellmetapher P(sim) liefern könnte.">Anatomie</button>
+            <button data-research-goal="Lerne Marktphasen als messbare Regime-Modelle, plane chronologische Walk-forward-Tests und nutze P(sim) nur als Reifegrad unabhängiger Testfenster.">Marktphasen</button>
             <button data-research-goal="Entwirf risikoarme Wege, mit höchstens 200 Euro Fähigkeiten, Dienstleistungen und ehrliche Affiliate-Inhalte aufzubauen.">Vermögenspfade</button>
           </div>
           <div class="research-layout">
@@ -196,10 +202,21 @@
                 <button type="button" data-agent-goal="Ordne deklassifizierte CIA-Dokumente historisch ein und trenne Dokumentinhalt, Beleg und Spekulation.">CIA-Dokumente</button>
                 <button type="button" data-agent-goal="Vergleiche lineare, zyklische und verzweigte Zeit und konstruiere eine hypothetische P(sim)-Zeit.">Zeitmodelle</button>
                 <button type="button" data-agent-goal="Untersuche die Anatomie des Menschen mit seriösen Lernquellen und klaren medizinischen Grenzen.">Anatomie</button>
+                <button type="button" data-agent-goal="Lerne Marktphasen als messbare Regime-Modelle, simuliere Übergänge und prüfe sie chronologisch im Walk-forward-Paper-Test.">Marktphasen</button>
               </div>
               <label>Lerntiefe<select id="agentDepth"><option value="1">Schnell</option><option value="2" selected>Intensiv</option><option value="3">Tief</option></select></label>
               <label>Automationsintervall<select id="agentInterval"><option value="15" selected>15 Sekunden</option><option value="30">30 Sekunden</option><option value="60">1 Minute</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option></select></label>
               <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
+              <div class="overnight-control">
+                <div><strong>Nachtlabor</strong><small>Bis zu neun Simulationen je Zyklus mit Morgenbericht</small></div>
+                <div class="overnight-options">
+                  <label>Dauer<select id="overnightDuration"><option value="6">6 Stunden</option><option value="8" selected>8 Stunden</option><option value="10">10 Stunden</option></select></label>
+                  <label>Takt<select id="overnightCadence"><option value="3">3 Minuten</option><option value="5" selected>5 Minuten</option><option value="10">10 Minuten</option></select></label>
+                </div>
+                <button class="secondary wide" id="overnightToggle" type="button">8-Stunden-Nachtlauf starten</button>
+                <progress id="overnightProgress" max="100" value="0">0 %</progress>
+                <p id="overnightStatus">Bereit. Der Tab muss geöffnet bleiben; nach Standby werden fällige Zyklen kontrolliert nachgeholt.</p>
+              </div>
               <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
               <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
               <p class="form-status" id="agentStatus">Bereit. Jeder Lauf wird lokal protokolliert.</p>
@@ -246,6 +263,10 @@
           <article class="panel learning-memory-panel">
             <div class="panel-head"><div><p class="eyebrow">SELBSTVERBESSERUNGS-SPEICHER</p><h2>Was EULEN gelernt hat und als Nächstes prüfen will</h2></div><span class="badge fact">LOKAL PERSISTENT</span></div>
             <div id="learningMemory" class="learning-memory"></div>
+          </article>
+          <article class="panel overnight-report-panel">
+            <div class="panel-head"><div><p class="eyebrow">MORGENBERICHT</p><h2>Was sich seit Start des Nachtlaufs verändert hat</h2></div><span class="badge simulation">QUALITÄT STATT NUR ZYKLEN</span></div>
+            <div id="overnightReport"><p class="empty-state">Noch kein Nachtlauf abgeschlossen.</p></div>
           </article>
         </section>
 
@@ -337,6 +358,6 @@
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=17"></script>
+    <script type="module" src="src/app.js?v=18"></script>
   </body>
 </html>

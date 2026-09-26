@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=17";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=18";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
@@ -11,7 +11,7 @@ export function learningCycleCount(state) {
 
 export function createInitialState() {
   return {
-    version: 4,
+    version: 5,
     selectedDay: 1,
     completed: {},
     notes: {},
@@ -33,7 +33,22 @@ export function createInitialState() {
       simulationBatch: 3,
       topicDiversity: 1,
       sourceDiversity: 1,
+      qualityScore: 0.5,
       lastChange: "Startstrategie: Themen rotieren, Quellen diversifizieren und drei Szenarien vergleichen."
+    },
+    overnight: {
+      active: false,
+      startedAt: "",
+      endsAt: "",
+      nextRunAt: "",
+      cadenceMinutes: 5,
+      completedCycles: 0,
+      simulationCycles: 0,
+      failedCycles: 0,
+      providerCycles: 0,
+      lastError: "",
+      baseline: null,
+      report: null
     },
     chat: [],
     chatMode: "hypothesis",
@@ -54,7 +69,7 @@ export function normalizeState(value) {
   const intervalSeconds = Number(value.agentIntervalSeconds);
   return {
     ...base,
-    version: 4,
+    version: 5,
     selectedDay: Number.isInteger(selectedDay) && selectedDay >= 1 && selectedDay <= 30 ? selectedDay : 1,
     completed: sanitizeObject(value.completed),
     notes: sanitizeStringMap(value.notes, 10000),
@@ -78,6 +93,7 @@ export function normalizeState(value) {
       : [60, 300, 900].includes(migratedInterval) ? migratedInterval : 30,
     agentDepth: [1, 2, 3].includes(Number(value.agentDepth)) ? Number(value.agentDepth) : 2,
     learningPolicy: normalizeLearningPolicy(value.learningPolicy),
+    overnight: normalizeOvernight(value.overnight),
     chat: Array.isArray(value.chat) ? value.chat.filter(isValidMessage).slice(-60) : [],
     chatMode: value.chatMode === "critical" ? "critical" : "hypothesis",
     lifeGoal: safeString(value.lifeGoal, 1000) || base.lifeGoal,
@@ -155,6 +171,105 @@ export function formulaValue(n) {
   return safeN / (safeN + 1);
 }
 
+export function applyFormulaToDomain(domain, cycles, contradictions = 0) {
+  const observedCycles = Math.max(0, Math.round(finiteNumber(cycles, 0)));
+  const conflictCount = Math.max(0, Math.round(finiteNumber(contradictions, 0)));
+  const effectiveN = Math.max(0, observedCycles - conflictCount);
+  return {
+    domain: safeString(domain, 160) || "Unbenanntes Modell",
+    observedCycles,
+    contradictions: conflictCount,
+    effectiveN,
+    p: formulaValue(effectiveN),
+    meaning: "P(sim) beschreibt hier ausschließlich die Reife aus konsistenten Modellzyklen, nicht Wahrheit, Rendite oder Vorhersagewahrscheinlichkeit."
+  };
+}
+
+export function buildSystemFormulaMap(state) {
+  const completedTasks = Object.values(state.completed ?? {}).filter(Boolean).length;
+  const uniqueSources = new Set((state.agentRuns ?? []).flatMap(run => run.sources ?? []).map(source => source.url)).size;
+  return [
+    applyFormulaToDomain("30-Tage-Plan", completedTasks),
+    applyFormulaToDomain("Forschungszyklen", Math.max(Number(state.totalAgentCycles) || 0, state.agentRuns?.length ?? 0)),
+    applyFormulaToDomain("Quellenvielfalt", uniqueSources),
+    applyFormulaToDomain("Sandbox-Simulationen", Math.max(Number(state.totalSimulationCycles) || 0, state.simulations?.length ?? 0)),
+    applyFormulaToDomain("Strategierevisionen", Number(state.learningPolicy?.revision) || 0),
+    applyFormulaToDomain("Traumverknüpfungen", state.dreams?.length ?? 0)
+  ];
+}
+
+export function createOvernightSession(state, now = Date.now(), durationHours = 8, cadenceMinutes = 5) {
+  const start = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  const duration = clamp(finiteNumber(durationHours, 8), 1, 12);
+  const cadence = Math.round(clamp(finiteNumber(cadenceMinutes, 5), 1, 60));
+  return {
+    active: true,
+    startedAt: new Date(start).toISOString(),
+    endsAt: new Date(start + duration * 60 * 60 * 1000).toISOString(),
+    nextRunAt: new Date(start).toISOString(),
+    cadenceMinutes: cadence,
+    completedCycles: 0,
+    simulationCycles: 0,
+    failedCycles: 0,
+    providerCycles: 0,
+    lastError: "",
+    baseline: {
+      learningCycles: learningCycleCount(state),
+      simulationCycles: Math.max(Number(state.totalSimulationCycles) || 0, state.simulations?.length ?? 0),
+      agentCycles: Math.max(Number(state.totalAgentCycles) || 0, state.agentRuns?.length ?? 0),
+      policyRevision: Number(state.learningPolicy?.revision) || 0,
+      topicDiversity: finiteNumber(state.learningPolicy?.topicDiversity, 1),
+      sourceDiversity: finiteNumber(state.learningPolicy?.sourceDiversity, 1),
+      qualityScore: finiteNumber(state.learningPolicy?.qualityScore, 0.5)
+    },
+    report: null
+  };
+}
+
+export function overnightDueCycles(session, now = Date.now(), maxCatchUp = 3) {
+  if (!session?.active) return 0;
+  const next = Date.parse(session.nextRunAt);
+  const end = Date.parse(session.endsAt);
+  const current = Math.min(finiteNumber(now, Date.now()), end);
+  if (!Number.isFinite(next) || !Number.isFinite(end) || current < next) return 0;
+  const cadenceMs = Math.max(1, Number(session.cadenceMinutes) || 5) * 60 * 1000;
+  return Math.min(Math.max(1, Math.round(maxCatchUp) || 1), Math.floor((current - next) / cadenceMs) + 1);
+}
+
+export function buildOvernightReport(session, state, now = Date.now()) {
+  const baseline = session?.baseline ?? createOvernightSession(state, now).baseline;
+  const recentRuns = (state.agentRuns ?? []).filter(run => run.overnight === true && Date.parse(run.timestamp) >= Date.parse(session?.startedAt ?? ""));
+  const uniqueTopics = [...new Set(recentRuns.flatMap(run => run.topics ?? []))];
+  const uniqueSources = new Set(recentRuns.flatMap(run => run.sources ?? []).map(source => source.url)).size;
+  const endCycles = learningCycleCount(state);
+  const currentPolicy = state.learningPolicy ?? createInitialState().learningPolicy;
+  return {
+    generatedAt: new Date(finiteNumber(now, Date.now())).toISOString(),
+    startedAt: session?.startedAt ?? "",
+    endedAt: new Date(Math.min(finiteNumber(now, Date.now()), Date.parse(session?.endsAt) || finiteNumber(now, Date.now()))).toISOString(),
+    completedCycles: Math.max(0, Number(session?.completedCycles) || 0),
+    failedCycles: Math.max(0, Number(session?.failedCycles) || 0),
+    providerCycles: Math.max(0, Number(session?.providerCycles) || 0),
+    simulationGain: Math.max(0, Number(session?.simulationCycles) || 0),
+    agentGain: Math.max(0, Number(session?.completedCycles) || 0),
+    revisionGain: Math.max(0, (Number(currentPolicy.revision) || 0) - (Number(baseline.policyRevision) || 0)),
+    uniqueTopics,
+    uniqueSources,
+    formulaStart: formulaValue(Number(baseline.learningCycles) || 0),
+    formulaEnd: formulaValue(endCycles),
+    topicDiversityStart: finiteNumber(baseline.topicDiversity, 1),
+    topicDiversityEnd: finiteNumber(currentPolicy.topicDiversity, 1),
+    sourceDiversityStart: finiteNumber(baseline.sourceDiversity, 1),
+    sourceDiversityEnd: finiteNumber(currentPolicy.sourceDiversity, 1),
+    qualityStart: finiteNumber(baseline.qualityScore, 0.5),
+    qualityEnd: finiteNumber(currentPolicy.qualityScore, 0.5),
+    focus: currentPolicy.focus,
+    strongestInsights: (state.learnedInsights ?? []).slice(0, 5),
+    nextImprovements: (state.improvementProposals ?? []).slice(0, 5),
+    lastError: safeString(session?.lastError, 500)
+  };
+}
+
 export function chooseAutomaticResearchGoal(state) {
   const counts = new Map(KNOWLEDGE_TOPICS.map(topic => [topic.title, 0]));
   for (const run of state.agentRuns ?? []) {
@@ -180,6 +295,13 @@ export function evolveLearningPolicy(state, run) {
   const sources = recentRuns.flatMap(item => item.sources ?? []).map(source => source.url);
   const topicDiversity = topics.length ? new Set(topics).size / topics.length : 1;
   const sourceDiversity = sources.length ? new Set(sources).size / sources.length : 1;
+  const evidenceRows = run.evidenceMatrix ?? [];
+  const evidenceCoverage = evidenceRows.length
+    ? evidenceRows.filter(row => row.facts > 0 && row.questions > 0).length / evidenceRows.length
+    : 0;
+  const scenarioCoverage = run.automaticSimulations?.length >= 3 ? 1 : run.automaticSimulation ? .5 : 0;
+  const qualityScore = clamp(topicDiversity * .35 + sourceDiversity * .35 + evidenceCoverage * .2 + scenarioCoverage * .1, 0, 1);
+  const simulationBatch = run.overnight ? Math.max(3, Math.min(9, run.automaticSimulations?.length ?? 9)) : 3;
   const focus = topicDiversity < .55 ? "novelty"
     : sourceDiversity < .65 ? "sources"
       : !run.automaticSimulation && !run.automaticSimulations ? "simulation"
@@ -195,10 +317,11 @@ export function evolveLearningPolicy(state, run) {
     revision: (Number(previous.revision) || 0) + 1,
     focus,
     depth,
-    simulationBatch: 3,
+    simulationBatch,
     topicDiversity: Number(topicDiversity.toFixed(3)),
     sourceDiversity: Number(sourceDiversity.toFixed(3)),
-    lastChange: `R${(Number(previous.revision) || 0) + 1}: ${focusLabels[focus]}; nächste Lerntiefe ${depth}, drei Simulationen pro Zyklus.`
+    qualityScore: Number(qualityScore.toFixed(3)),
+    lastChange: `R${(Number(previous.revision) || 0) + 1}: ${focusLabels[focus]}; Qualitätsindex ${qualityScore.toFixed(3)}, nächste Lerntiefe ${depth}, ${simulationBatch} Simulationen pro Zyklus.`
   };
 }
 
@@ -209,10 +332,72 @@ function normalizeLearningPolicy(value) {
     revision: Math.round(clamp(finiteNumber(value.revision, 0), 0, Number.MAX_SAFE_INTEGER)),
     focus: ["novelty", "sources", "simulation", "transfer"].includes(value.focus) ? value.focus : base.focus,
     depth: [1, 2, 3].includes(Number(value.depth)) ? Number(value.depth) : base.depth,
-    simulationBatch: 3,
+    simulationBatch: [3, 6, 9].includes(Number(value.simulationBatch)) ? Number(value.simulationBatch) : 3,
     topicDiversity: clamp(finiteNumber(value.topicDiversity, 1), 0, 1),
     sourceDiversity: clamp(finiteNumber(value.sourceDiversity, 1), 0, 1),
+    qualityScore: clamp(finiteNumber(value.qualityScore, base.qualityScore), 0, 1),
     lastChange: safeString(value.lastChange, 500) || base.lastChange
+  };
+}
+
+function normalizeOvernight(value) {
+  const base = createInitialState().overnight;
+  if (!value || typeof value !== "object") return base;
+  const startedAt = Number.isFinite(Date.parse(value.startedAt)) ? value.startedAt : "";
+  const endsAt = Number.isFinite(Date.parse(value.endsAt)) ? value.endsAt : "";
+  const parsedNextRun = Number.isFinite(Date.parse(value.nextRunAt)) ? Date.parse(value.nextRunAt) : Date.parse(startedAt);
+  const nextRunAt = startedAt ? new Date(Math.max(Date.parse(startedAt), parsedNextRun)).toISOString() : "";
+  const baseline = value.baseline && typeof value.baseline === "object" ? {
+    learningCycles: Math.max(0, Math.round(finiteNumber(value.baseline.learningCycles, 0))),
+    simulationCycles: Math.max(0, Math.round(finiteNumber(value.baseline.simulationCycles, 0))),
+    agentCycles: Math.max(0, Math.round(finiteNumber(value.baseline.agentCycles, 0))),
+    policyRevision: Math.max(0, Math.round(finiteNumber(value.baseline.policyRevision, 0))),
+    topicDiversity: clamp(finiteNumber(value.baseline.topicDiversity, 1), 0, 1),
+    sourceDiversity: clamp(finiteNumber(value.baseline.sourceDiversity, 1), 0, 1),
+    qualityScore: clamp(finiteNumber(value.baseline.qualityScore, 0.5), 0, 1)
+  } : null;
+  return {
+    active: value.active === true && Boolean(startedAt && endsAt),
+    startedAt,
+    endsAt,
+    nextRunAt,
+    cadenceMinutes: Math.round(clamp(finiteNumber(value.cadenceMinutes, 5), 1, 60)),
+    completedCycles: Math.max(0, Math.round(finiteNumber(value.completedCycles, 0))),
+    simulationCycles: Math.max(0, Math.round(finiteNumber(value.simulationCycles, 0))),
+    failedCycles: Math.max(0, Math.round(finiteNumber(value.failedCycles, 0))),
+    providerCycles: Math.max(0, Math.round(finiteNumber(value.providerCycles, 0))),
+    lastError: safeString(value.lastError, 500),
+    baseline,
+    report: normalizeOvernightReport(value.report)
+  };
+}
+
+function normalizeOvernightReport(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    generatedAt: Number.isFinite(Date.parse(value.generatedAt)) ? value.generatedAt : "",
+    startedAt: Number.isFinite(Date.parse(value.startedAt)) ? value.startedAt : "",
+    endedAt: Number.isFinite(Date.parse(value.endedAt)) ? value.endedAt : "",
+    completedCycles: Math.max(0, Math.round(finiteNumber(value.completedCycles, 0))),
+    failedCycles: Math.max(0, Math.round(finiteNumber(value.failedCycles, 0))),
+    providerCycles: Math.max(0, Math.round(finiteNumber(value.providerCycles, 0))),
+    simulationGain: Math.max(0, Math.round(finiteNumber(value.simulationGain, 0))),
+    agentGain: Math.max(0, Math.round(finiteNumber(value.agentGain, 0))),
+    revisionGain: Math.max(0, Math.round(finiteNumber(value.revisionGain, 0))),
+    uniqueTopics: sanitizeStringArray(value.uniqueTopics, 30, 160),
+    uniqueSources: Math.max(0, Math.round(finiteNumber(value.uniqueSources, 0))),
+    formulaStart: clamp(finiteNumber(value.formulaStart, 0), 0, 1),
+    formulaEnd: clamp(finiteNumber(value.formulaEnd, 0), 0, 1),
+    topicDiversityStart: clamp(finiteNumber(value.topicDiversityStart, 0), 0, 1),
+    topicDiversityEnd: clamp(finiteNumber(value.topicDiversityEnd, 0), 0, 1),
+    sourceDiversityStart: clamp(finiteNumber(value.sourceDiversityStart, 0), 0, 1),
+    sourceDiversityEnd: clamp(finiteNumber(value.sourceDiversityEnd, 0), 0, 1),
+    qualityStart: clamp(finiteNumber(value.qualityStart, 0.5), 0, 1),
+    qualityEnd: clamp(finiteNumber(value.qualityEnd, 0.5), 0, 1),
+    focus: ["novelty", "sources", "simulation", "transfer"].includes(value.focus) ? value.focus : "novelty",
+    strongestInsights: sanitizeStringArray(value.strongestInsights, 5, 1000),
+    nextImprovements: sanitizeStringArray(value.nextImprovements, 5, 1000),
+    lastError: safeString(value.lastError, 500)
   };
 }
 
@@ -250,7 +435,14 @@ export function buildActiveGuidance(state, now = Date.now()) {
     evidence: "Fertig, wenn der nächste Lauf eine neue Quelle, korrigierte Annahme oder beobachtbare Handlung enthält."
   });
 
-  items.push({
+  const overnight = state.overnight;
+  items.push(overnight?.active ? {
+    level: "active",
+    title: `Nachtlabor · ${overnight.completedCycles} Zyklen`,
+    why: `${overnight.simulationCycles} Szenarien gespeichert; nächster geplanter Lauf ${new Date(overnight.nextRunAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}. Nach Browser-Drosselung werden höchstens drei fällige Zyklen kontrolliert nachgeholt.`,
+    action: "Lass diesen Tab geöffnet. Der Metalerner bewertet Quellen-, Themen- und Evidenzqualität statt nur die Zykluszahl.",
+    evidence: "Fertig, wenn der Morgenbericht Qualitätsindex, neue Themen, unterschiedliche Quellen, Simulationen und Fehler getrennt ausweist."
+  } : {
     level: state.agentAuto ? "active" : "watch",
     title: state.agentAuto ? "Automatik läuft" : "Automatik pausiert",
     why: state.agentAuto
@@ -264,7 +456,7 @@ export function buildActiveGuidance(state, now = Date.now()) {
   items.push({
     level: "active",
     title: `Selbstverbesserung R${policy.revision}`,
-    why: `Aktueller Fokus: ${policy.focus}; Themenvielfalt ${(policy.topicDiversity * 100).toFixed(0)} %, Quellenvielfalt ${(policy.sourceDiversity * 100).toFixed(0)} %.`,
+    why: `Qualitätsindex ${policy.qualityScore.toFixed(3)}; Fokus: ${policy.focus}; Themenvielfalt ${(policy.topicDiversity * 100).toFixed(0)} %, Quellenvielfalt ${(policy.sourceDiversity * 100).toFixed(0)} %.`,
     action: policy.lastChange,
     evidence: `Fertig, wenn Revision R${policy.revision + 1} andere Messwerte oder einen begründet neuen Fokus speichert.`
   });
@@ -672,7 +864,9 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
   const nullWorldMode = mode !== "critical";
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
-    score: topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms) ? 5
+    score: topic.id === "market-phases" && /marktphase|marktregime|regime|akkumulation|distribution|seitwärts|bullenmarkt|bärenmarkt/.test(terms) ? 6
+      : topic.id === "trading" && /trading|backtest|paper.?trading|markt/.test(terms) ? 4
+      : topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms) ? 5
       : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
       : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
@@ -708,6 +902,10 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
     questions: topic.insights.filter(item => item.type === "question").length
   }));
   const formulaN = Math.max(1, sourceCount + facts.length + hypotheses.length + questions.length);
+  const formulaApplications = selected.map(topic => {
+    const evidenceCycles = topic.sources.length + topic.insights.filter(item => ["fact", "simulation"].includes(item.type)).length;
+    return applyFormulaToDomain(topic.title, evidenceCycles);
+  });
   const improvements = [
     `PRIORITÄT 1 · Quellenlücke: Prüfe als Nächstes „${sourceQueries[0]}“.`,
     `PRIORITÄT 2 · Nullwelt→Realwelt: Übersetze eine nützliche Modellidee aus „${selected[0].title}“ in eine kleine legale, ethische und überprüfbare Handlung, ohne dem Axiom reale Rechtswirkung zuzuschreiben.`,
@@ -723,6 +921,7 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
     sourceQueries,
     evidenceMatrix,
     formulaModel: { n: formulaN, p: formulaValue(formulaN) },
+    formulaApplications,
     improvements,
     steps: [
       { agent: "Wertewächter", output: "Ziel gegen Liebe, Verantwortung, Würde und die Grenze Echtgeld erst nach belastbaren Simulationen geprüft." },
@@ -836,6 +1035,10 @@ export function localAssistantReply(text, state) {
   }
   if (/welt|realität|wirklichkeit|kosmos/.test(query)) {
     return `[P(SIM)-WELTMODELL]\nInnerhalb des markierten Hypothesenuniversums verstehen wir Welt als Netz fortlaufender Beobachtungs- und Aktualisierungsbeziehungen. N zählt konsistente Relationen; P(sim) nähert das aktuelle Modell an 1 an, ohne Vollständigkeit zu behaupten. Raum, Zeit und Ursache müssten dann als Regeln zwischen Aktualisierungen definiert werden.\n\n[KRITISCHE GRENZE]\nDas ist eine kreative Ontologie, keine bestätigte Beschreibung unserer Welt. Entscheidend wäre, ob sie intern widerspruchsfrei ist und eine messbare Vorhersage liefert, die einfachere Modelle nicht ebenso erklären.`;
+  }
+  if (/marktphase|marktregime|akkumulation|distribution|seitwärts|bullenmarkt|bärenmarkt/.test(query)) {
+    const maturity = applyFormulaToDomain("Marktphasen-Modell", 5);
+    return `[MARKTPHASEN ALS MODELLE]\nLerne Phasen nicht als geheime Wahrheit, sondern als überprüfbare Regime-Klassen. Ein praktisches Sechs-Phasen-Modell ist:\n1. Kontraktion/Seitwärts: geringe Richtung, oft sinkende Volatilität.\n2. Aufwärtstrend/Expansion: positive Renditerichtung und breitere Beteiligung.\n3. Distribution/Ermüdung: Trend verliert Breite oder Dynamik; nur rückblickend sicher benennbar.\n4. Abwärtstrend: negative Richtung, zunehmender Drawdown.\n5. Stress/Panik: sehr hohe Volatilität und schwache Liquidität.\n6. Erholung: Drawdown nimmt ab, Stabilität kehrt schrittweise zurück.\n\n[MESSBARE MERKMALE]\nBeobachte Renditerichtung, gleitende Trendsteigung, realisierte Volatilität, Drawdown, Marktbreite, Volumen und Liquidität. Lege Zeitraum und Schwellen vorher fest. Ein Modell darf auch „unklar“ ausgeben.\n\n[LERNWEG]\nMarkiere zuerst 20 historische Abschnitte nur mit damals verfügbaren Daten. Trenne chronologisch Training und spätere Testfenster. Führe anschließend Walk-forward-Tests durch, protokolliere Fehlklassifikationen und simuliere je Regime drei Varianten: stabil, Übergang und Stress. Handle weiter nur im Paper-Modus.\n\n[P(SIM)-REIFE]\nBei fünf voneinander unabhängigen, widerspruchsfreien Testfenstern ergibt sich P(sim)=${maturity.p.toFixed(4)}. Das ist ausschließlich Modellreife. Fehlklassifikationen reduzieren das effektive N; der Wert ist weder Trefferwahrscheinlichkeit noch Kauf- oder Verkaufssignal.\n\n[NÄCHSTER SCHRITT]\nÖffne „Wissen & Recherche“ → „Marktphasen & Regime-Modelle“ und starte danach einen Agentenlauf. Fertig ist der erste Lernschritt, wenn du für einen festen Zeitraum Phase, Merkmale, Unsicherheit und spätere tatsächliche Entwicklung getrennt notiert hast.`;
   }
   if (/trading|backtest|bot/.test(query)) {
     return "Beginne nicht mit einer Order, sondern mit einer prüfbaren Regel. Das Paper-Trading-Labor erzeugt synthetische Daten, zieht Wechselkosten ab und zeigt Drawdown sowie einen Kaufen-und-Halten-Vergleich.\n\nEin gutes Ergebnis ist nur der Start einer Prüfung: mehrere Seeds, andere Marktregime, Kosten-Stresstest und eine klare Stop-Regel. Keine autonome Echtgeldtransaktion und keine Gewinnzusage.";
