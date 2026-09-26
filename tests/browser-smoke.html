@@ -18,8 +18,9 @@
       normalizeState,
       overnightDueCycles,
       runAgentCycle,
-      runScenarioSeries
-    } from "../src/core.js?v=18";
+      runScenarioSeries,
+      simulateManifestation
+    } from "../src/core.js?v=19";
 
     const assert = (condition, message) => {
       if (!condition) throw new Error(message);
@@ -35,6 +36,7 @@
       assert(run.steps.some(step => step.agent === "Axiomarchitekt" && /alle .* Themen/.test(step.output)), "Axiomarchitektur fehlt");
       assert(run.steps.some(step => step.agent === "Metalerner"), "Metalerner fehlt");
       assert(runScenarioSeries("formula", { n: 20 }).length === 3, "Drei Szenarien erwartet");
+      assert(runScenarioSeries("manifestation", { cycles: 20, clarity: 80, action: 70, feedback: 60, obstacles: 30, mode: "nullworld" }).length === 3, "Manifestationsszenarien fehlen");
       assert(run.formulaApplications.length === run.topics.length, "P(sim) wurde nicht auf alle Themen angewandt");
 
       state.agentRuns = [run];
@@ -45,6 +47,9 @@
       assert(/NULLWELT-GEFÜHLSSIMULATION/.test(reply), "Gefühlssimulation ist nicht markiert");
       const marketReply = localAssistantReply("Wie lerne ich Marktphasen als Modelle kennen?", state);
       assert(/Walk-forward/.test(marketReply), "Marktphasen-Lernweg fehlt");
+      const manifestationReply = localAssistantReply("Wie nutze ich Manifestation in Nullwelt und Realwelt?", state);
+      assert(/NULLWELT-MANIFESTATIONSAXIOM/.test(manifestationReply) && /Wenn-dann-Plan/.test(manifestationReply), "Manifestations-Transfer fehlt");
+      assert(/keine magische Erfolgsgarantie/i.test(simulateManifestation({ cycles: 20 }).warning), "Manifestationsgrenze fehlt");
       const maturity = applyFormulaToDomain("Marktregime", 8, 2);
       assert(maturity.effectiveN === 6 && maturity.p === 6 / 7, "P(sim)-Reife berücksichtigt Widersprüche nicht");
 

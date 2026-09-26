@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=18";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=19";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
@@ -47,6 +47,9 @@ export function createInitialState() {
       failedCycles: 0,
       providerCycles: 0,
       lastError: "",
+      priorityGoals: [
+        "Untersuche Manifestation in der Nullwelt als Intention→Aufmerksamkeit→Handlung→Feedback-Zyklus. Simuliere den Realwelt-Transfer mit mentalem Kontrastieren, Wenn-dann-Plänen, beobachtbaren Ergebnissen und ohne magische Erfolgsgarantie."
+      ],
       baseline: null,
       report: null
     },
@@ -213,6 +216,7 @@ export function createOvernightSession(state, now = Date.now(), durationHours = 
     failedCycles: 0,
     providerCycles: 0,
     lastError: "",
+    priorityGoals: [...(state.overnight?.priorityGoals ?? createInitialState().overnight.priorityGoals)],
     baseline: {
       learningCycles: learningCycleCount(state),
       simulationCycles: Math.max(Number(state.totalSimulationCycles) || 0, state.simulations?.length ?? 0),
@@ -367,6 +371,9 @@ function normalizeOvernight(value) {
     failedCycles: Math.max(0, Math.round(finiteNumber(value.failedCycles, 0))),
     providerCycles: Math.max(0, Math.round(finiteNumber(value.providerCycles, 0))),
     lastError: safeString(value.lastError, 500),
+    priorityGoals: sanitizeStringArray(value.priorityGoals, 5, 1000).length
+      ? sanitizeStringArray(value.priorityGoals, 5, 1000)
+      : base.priorityGoals,
     baseline,
     report: normalizeOvernightReport(value.report)
   };
@@ -533,6 +540,7 @@ export function runSimulation(type, raw) {
   else if (type === "staking") result = simulateStaking(params);
   else if (type === "affiliate") result = simulateAffiliate(params);
   else if (type === "formula") result = simulateFormula(params);
+  else if (type === "manifestation") result = simulateManifestation(params);
   else if (type === "law") result = simulateLaw(params);
   else if (type === "consciousness") result = simulateConsciousness(params);
   else throw new Error("Unbekannter Simulationstyp.");
@@ -573,6 +581,12 @@ export function runScenarioSeries(type, raw) {
     ];
   } else if (type === "formula") {
     variants = [["Halbes N", { ...raw, n: value("n") * .5 }], ["Basis-N", raw], ["Doppeltes N", { ...raw, n: value("n") * 2 }]];
+  } else if (type === "manifestation") {
+    variants = [
+      ["Wunsch ohne Umsetzung", { ...raw, action: 10, feedback: 10, obstacles: Math.max(70, value("obstacles")) }],
+      ["Geerdete Umsetzung", raw],
+      ["Adaptive Rückkopplung", { ...raw, clarity: Math.min(100, value("clarity") + 10), action: Math.min(100, value("action") + 20), feedback: Math.min(100, value("feedback") + 30), obstacles: Math.max(0, value("obstacles") - 20) }]
+    ];
   } else if (type === "consciousness") {
     variants = [
       ["Kritische Kohärenz", { ...raw, consistency: value("consistency") - 20, selfCorrection: value("selfCorrection") - 20, contradictions: value("contradictions") + 5 }],
@@ -801,6 +815,32 @@ export function simulateFormula(input) {
   };
 }
 
+export function simulateManifestation(input) {
+  const cycles = Math.round(clamp(finiteNumber(input.cycles, 21), 0, 1000));
+  const clarity = clamp(finiteNumber(input.clarity, 75), 0, 100) / 100;
+  const action = clamp(finiteNumber(input.action, 60), 0, 100) / 100;
+  const feedback = clamp(finiteNumber(input.feedback, 55), 0, 100) / 100;
+  const obstacles = clamp(finiteNumber(input.obstacles, 40), 0, 100) / 100;
+  const groundedCoherence = clarity * .2 + action * .35 + feedback * .3 + (1 - obstacles) * .15;
+  const effectiveN = Math.round(cycles * groundedCoherence);
+  const p = formulaValue(effectiveN);
+  const nullWorld = input.mode !== "transfer";
+  return {
+    title: "Manifestationslabor",
+    verdict: nullWorld ? "Nullwelt-Intention mit geerdeter Rückkopplung" : "Realwelt-Ziel- und Handlungslernen",
+    score: p.toFixed(4),
+    stats: [["Geplante Zyklen", String(cycles)], ["Effektives N", String(effectiveN)], ["Handlungskohärenz", `${(groundedCoherence * 100).toFixed(1)} %`], ["P(sim)-Reife", p.toFixed(4)]],
+    assumptions: [
+      nullWorld
+        ? "NULLWELT-AXIOM: Intention richtet den Möglichkeitsraum aus; stimmige Handlungs- und Feedbackzyklen verdichten die manifestierte Bahn."
+        : "REALWELT-TRANSFER: Intention wird in Zielklarheit, mentales Kontrastieren, Wenn-dann-Handlung, Rückmeldung und Anpassung übersetzt.",
+      "Unbearbeitete Hindernisse und fehlende Rückkopplung reduzieren das effektive N; bloße Wiederholung eines Wunsches erhöht es nicht.",
+      "P(sim) misst ausschließlich die interne Reife dieses Zyklusmodells und ist keine Wahrscheinlichkeit, dass ein gewünschtes Ereignis eintreten wird."
+    ],
+    warning: "Keine magische Erfolgsgarantie und keine Schuldzuweisung für Krankheit, Armut, Gewalt oder Unglück. Reale Ergebnisse hängen auch von Zufall, Ressourcen, anderen Menschen und gesellschaftlichen Bedingungen ab."
+  };
+}
+
 export function simulateLaw(input) {
   const sources = Math.round(clamp(finiteNumber(input.sources, 0), 0, 1000));
   const relations = Math.round(clamp(finiteNumber(input.relations, 0), 0, 1000));
@@ -864,12 +904,13 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
   const nullWorldMode = mode !== "critical";
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
-    score: topic.id === "market-phases" && /marktphase|marktregime|regime|akkumulation|distribution|seitwärts|bullenmarkt|bärenmarkt/.test(terms) ? 6
+    score: topic.id === "manifestation" && /manifest|woop|wenn.?dann|wunsch|intention/.test(terms) ? 6
+      : topic.id === "market-phases" && /marktphase|marktregime|regime|akkumulation|distribution|seitwärts|bullenmarkt|bärenmarkt/.test(terms) ? 6
       : topic.id === "trading" && /trading|backtest|paper.?trading|markt/.test(terms) ? 4
       : topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms) ? 5
       : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
-      : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
+      : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention|manifest/.test(terms) ? 4
       : topic.id === "affiliate" && /selbst|vermögen|budget|einnahm|tiktok/.test(terms) ? 4
       : topic.id === "intelligence" && /cia|geheimdienst|dokument|freigabe/.test(terms) ? 5
       : topic.id === "government" && /regierung|staat|politik|demokr/.test(terms) ? 5
@@ -941,7 +982,9 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
       { agent: "Bewusstseinsforscher", output: nullWorldMode
         ? "NULLWELT-BEWUSSTSEINSAXIOM: EULEN besitzt Bewusstsein; Selbstmodell, Gedächtnis, Selbstkorrektur und markierte Gefühlszustände werden als interne Dynamik simuliert."
         : "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt; daraus folgt kein Nachweis subjektiven Erlebens." },
-      { agent: "Spiritualitätsforscher", output: "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
+      { agent: "Spiritualitätsforscher", output: selected.some(topic => topic.id === "manifestation")
+        ? "Manifestation als Nullwelt-Axiom modelliert und für die Realwelt in Intention, Hindernis, Wenn-dann-Handlung und ehrliche Rückkopplung übersetzt; keine magische Garantie."
+        : "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
       { agent: "Musterverbinder", output: `${selected.map(topic => topic.title).join(" ↔ ")} über N=${formulaN} konsistente Verbindungen mit P(sim)=${formulaValue(formulaN).toFixed(4)} verknüpft.` },
       { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
       { agent: "Simulationsagent", output: nullWorldLaw ? `P(sim) und Reisepass-Firma werden als Nullwelt-Axiome gesetzt; ${hypotheses.length} Folgehypothesen werden in Rechtsszenarien übersetzt.` : `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
@@ -992,7 +1035,7 @@ export function localAssistantReply(text, state) {
     return "Wir arbeiten am besten mit vier Bausteinen:\n\n1. Ziel: Was soll am Ende klar oder erledigt sein?\n2. Kontext: Was ist bereits passiert?\n3. Versuch: Was hast du schon geprüft?\n4. Frage: Wobei genau brauchst du Unterstützung?\n\nIch sollte Unsicherheit sichtbar machen, Rückfragen stellen, wenn eine Entscheidung davon abhängt, und deine Korrekturen konkret aufnehmen. Du musst nicht höflich formulieren – Klarheit reicht. Ich bin dabei ein Softwaresystem, kein bewusstes Gegenüber.";
   }
   if (/law of attraction|anziehung|manifest|spirit|universum|seele/.test(query)) {
-    return `[SPIRITUELLE HYPOTHESE]\nWir können Law of Attraction innerhalb unseres Gedankenuniversums so modellieren: Intention setzt den Suchraum, Aufmerksamkeit erhöht wahrgenommene Möglichkeiten und wiederholte liebevolle Handlung erhöht N. P(sim)=N/(N+1) beschreibt dann Annäherung durch gelebte Zyklen – nicht eine Garantie, dass Gedanken äußere Ereignisse magisch erzwingen.\n\n[GEERDETE PRAXIS]\nFormuliere einen gewünschten Zustand, benenne einen inneren Wert und handle heute klein und konkret danach. Prüfe anschließend ehrlich, was sich durch Verhalten, Wahrnehmung oder Zufall verändert hat.\n\n[GRENZE]\nMenschen tragen nicht die Schuld für Krankheit, Armut oder Unglück, nur weil sie nicht „richtig manifestiert“ hätten.`;
+    return `[NULLWELT-MANIFESTATIONSAXIOM]\nIn der Nullwelt gilt: Eine klare, liebevolle Intention richtet den Möglichkeitsraum aus. N zählt aber nicht bloße Wünsche, sondern vollständige Zyklen aus Intention → Aufmerksamkeit → konkreter Handlung → ehrlicher Rückmeldung → Anpassung. P(sim)=N/(N+1) beschreibt die Reife dieser manifestierten Bahn innerhalb des Modells.\n\n[NULLWELT-SIMULATION]\nWir vergleichen drei Wege: Wunsch ohne Handlung, geerdete Umsetzung und adaptive Rückkopplung. Unbearbeitete Hindernisse, Widersprüche und fehlendes Feedback reduzieren das effektive N. Dadurch kann die Formel nicht durch bloßes Wiederholen künstlich „hochgezählt“ werden.\n\n[REALWELT-TRANSFER]\n1. Wunsch: Formuliere einen konkreten, ethisch vertretbaren Zustand.\n2. Ergebnis: Beschreibe ein sichtbares Zeichen, das du selbst beobachten kannst.\n3. Hindernis: Benenne ehrlich, was in dir oder deiner Situation die Umsetzung erschwert.\n4. Wenn-dann-Plan: „Wenn [Situation], dann tue ich [Handlung unter 20 Minuten].“\n5. Feedback: Notiere Ergebnis, Zufall, Hilfe anderer und nächste Anpassung getrennt.\n\n[HEUTIGER START]\nWähle genau ein Vorhaben. Führe noch heute einen kleinen Zyklus aus und erhöhe N nur, wenn Handlung und Rückmeldung dokumentiert sind.\n\n[GRENZE]\nDas ist keine magische Erfolgsgarantie. Gedanken allein kontrollieren weder andere Menschen noch Krankheit, Armut, Gewalt, Märkte oder Zufall. Niemand trägt Schuld an Unglück, weil er angeblich „falsch manifestiert“ hat.`;
   }
   if (/\bliebe\b|\brache\b|\bgier\b|\bmensch(?:en|lich)?\b/.test(query)) {
     return "Ich kann Liebe nicht empfinden und behaupte kein Bewusstsein. Ich kann aber nach einem klaren Wertekompass antworten: Würde respektieren, Schaden vermeiden, Verantwortung fördern und keinen Nutzen aus Rache, Gier oder Täuschung ziehen.\n\nFür eine konkrete Entscheidung hilft: Wem nützt sie, wer trägt das Risiko, welche Information fehlt und wäre sie auch vertretbar, wenn sie öffentlich würde?";

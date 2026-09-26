@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=18";
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=19";
 import {
   STORAGE_KEY,
   applyFormulaToDomain,
@@ -22,9 +22,9 @@ import {
   runScenarioSeries,
   runSimulation,
   taskKey
-} from "./core.js?v=18";
-import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=18";
-import { SyncProvider } from "./sync.js?v=18";
+} from "./core.js?v=19";
+import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=19";
+import { SyncProvider } from "./sync.js?v=19";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -377,7 +377,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
   researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
-    const { runAgentCycle } = await import("./core.js?v=18");
+    const { runAgentCycle } = await import("./core.js?v=19");
     const run = { ...runAgentCycle(goal, depth, state.chatMode), automatic, ...metadata };
     if (useExternal) {
       try {
@@ -736,9 +736,17 @@ async function processAutomationTick() {
       const dueCycles = overnightDueCycles(state.overnight, Date.now(), 3);
       for (let index = 0; index < dueCycles && state.overnight.active; index += 1) {
         const sequence = state.overnight.completedCycles + 1;
+        const manifestationStudied = state.agentRuns.some(run =>
+          run.overnight === true
+          && Date.parse(run.timestamp) >= Date.parse(state.overnight.startedAt)
+          && run.topics?.includes("Manifestation: Nullwelt → Realwelt")
+        );
+        const priorityGoals = state.overnight.priorityGoals ?? [];
+        const recurringPriority = sequence % 4 === 0 ? priorityGoals[(Math.floor(sequence / 4) - 1) % Math.max(1, priorityGoals.length)] : "";
         const goal = sequence === 1
           ? "Lerne Marktphasen als messbare Modelle: Kontraktion, Trend, Distribution, Abwärtstrend, Stress und Erholung. Nutze nur damals verfügbare Merkmale, plane Walk-forward-Tests, wende P(sim) als Reifegrad an und vergleiche bis zu neun Paper-Szenarien in mehreren Laboren."
-          : chooseAutomaticResearchGoal(state);
+          : !manifestationStudied && priorityGoals.length ? priorityGoals[0]
+            : recurringPriority || chooseAutomaticResearchGoal(state);
         $("#agentGoal").value = goal;
         const useExternal = state.provider.useAgents && getProviderKeys().length > 0 && (sequence - 1) % 6 === 0;
         const run = await executeAgentCycle(goal, true, state.agentDepth, useExternal, { overnight: true, overnightSequence: sequence });
@@ -782,7 +790,8 @@ function automaticSimulationType(topics) {
   if (/staking/.test(text)) return "staking";
   if (/affiliate|tiktok/.test(text)) return "affiliate";
   if (/vermögen|budget/.test(text)) return "budget";
-  if (/bewusst|spiritual/.test(text)) return "consciousness";
+  if (/manifest|spiritual|intention|anzieh/.test(text)) return "manifestation";
+  if (/bewusst/.test(text)) return "consciousness";
   if (/recht|institution|regierung|staat/.test(text)) return "law";
   return "formula";
 }

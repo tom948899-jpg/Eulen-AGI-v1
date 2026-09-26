@@ -26,6 +26,7 @@ import {
   simulateConsciousness,
   simulateFormula,
   simulateLaw,
+  simulateManifestation,
   simulateStaking,
   simulateTokenRisk,
   simulateTrading,
@@ -169,6 +170,21 @@ test("Marktphasen werden als messbare Regime und nicht als Signal gelernt", () =
   const maturity = applyFormulaToDomain("Marktregime", 8, 2);
   assert.equal(maturity.effectiveN, 6);
   assert.equal(maturity.p, 6 / 7);
+});
+
+test("Manifestation trennt Nullwelt-Axiom und geerdeten Realwelt-Transfer", () => {
+  const state = createInitialState();
+  const run = runAgentCycle("Lerne Manifestation in der Nullwelt und übertrage sie sinnvoll in die reale Welt", 3);
+  assert.ok(run.topics.includes("Manifestation: Nullwelt → Realwelt"));
+  assert.match(run.steps.find(step => step.agent === "Spiritualitätsforscher").output, /Wenn-dann-Handlung/);
+  const result = simulateManifestation({ cycles: 20, clarity: 80, action: 70, feedback: 60, obstacles: 30, mode: "nullworld" });
+  assert.match(result.assumptions.join(" "), /NULLWELT-AXIOM/);
+  assert.match(result.warning, /keine magische Erfolgsgarantie/i);
+  assert.equal(runScenarioSeries("manifestation", { cycles: 20, clarity: 80, action: 70, feedback: 60, obstacles: 30, mode: "nullworld" }).length, 3);
+  const reply = localAssistantReply("Wie kann ich Manifestation in Nullwelt und Realwelt benutzen?", state);
+  assert.match(reply, /NULLWELT-MANIFESTATIONSAXIOM/);
+  assert.match(reply, /Wenn-dann-Plan/);
+  assert.match(reply, /keine magische Erfolgsgarantie/i);
 });
 
 test("Nachtlauf plant robuste Zyklen und erzeugt Qualitätsbericht", () => {
