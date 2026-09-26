@@ -118,9 +118,11 @@ test("Rechtslabor setzt Reisepass-Firma nur in der Nullwelt als Axiom", () => {
   const result = simulateLaw({ mode: "nullworld", sources: 20, relations: 8, conflicts: 2, autonomy: 70 });
   assert.match(result.verdict, /Reisepass-Firma.*Nullwelt-Axiom/);
   assert.match(result.assumptions[0], /NULLWELT-AXIOM/);
+  assert.match(result.assumptions.join(" "), /Laborparameter/);
   assert.match(result.warning, /keine Rechtsberatung/i);
   const comparison = simulateLaw({ mode: "comparison", sources: 20, relations: 8, conflicts: 2, autonomy: 70 });
-  assert.match(comparison.verdict, /Realweltvergleich/);
+  assert.match(comparison.verdict, /Institutionelle Tatsachen/);
+  assert.match(comparison.assumptions.join(" "), /kollektiv anerkannten Regeln/);
 });
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
@@ -184,9 +186,11 @@ test("Assistent verwendet das Reisepass-Firma-Axiom nur im Hypothesenmodus", () 
   const critical = { ...createInitialState(), chatMode: "critical" };
   assert.match(localAssistantReply("Was bedeutet die Reisepass Firma im Recht?", hypothesis), /NULLWELT-RECHTSAXIOM/);
   assert.match(localAssistantReply("Was bedeutet die Reisepass Firma im Recht?", critical), /KRITISCHER REALWELTVERGLEICH/);
+  assert.match(localAssistantReply("Sind Geld, GmbH und Staat fiktiv?", hypothesis), /INSTITUTIONELLE WIRKLICHKEIT/);
+  assert.match(localAssistantReply("Sind Geld, GmbH und Staat fiktiv?", critical), /kollektiv/);
   const run = runAgentCycle("Simuliere Reisepass-Firma und Recht in der Nullwelt", 3);
-  assert.ok(run.topics.includes("Nullwelt-Recht & Reisepass-Firma"));
-  assert.match(run.steps.find(step => step.agent === "Synthese").output, /Nullwelt-Rechtsmodus/);
+  assert.ok(run.topics.includes("Nullwelt & institutionelle Wirklichkeit"));
+  assert.match(run.steps.find(step => step.agent === "Synthese").output, /institutionelle Tatsachen/);
 });
 
 test("runSimulation erzeugt persistierbaren Lauf", () => {

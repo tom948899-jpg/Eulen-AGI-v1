@@ -1,4 +1,4 @@
-const CACHE = "eulen-v8";
+const CACHE = "eulen-v10";
 const ASSETS = [
   "./",
   "./index.html",
