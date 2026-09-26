@@ -161,6 +161,24 @@ export const KNOWLEDGE_TOPICS = [
       ["EUR-Lex", "https://eur-lex.europa.eu/"],
       ["Bundesverfassungsgericht", "https://www.bundesverfassungsgericht.de/"]
     ]
+  },
+  {
+    id: "spirituality",
+    title: "Spiritualität, Intention & Anziehung",
+    status: "Persönliche Praxis und Hypothese",
+    updatedAt: "2026-09-26",
+    summary: "Spiritualität wird respektvoll als Quelle für Sinn, Mitgefühl und Ausrichtung untersucht; übernatürliche Wirkbehauptungen bleiben Hypothesen.",
+    insights: [
+      { type: "fact", text: "Aufmerksamkeit, Zielklarheit und regelmäßige Reflexion können beeinflussen, welche Chancen Menschen wahrnehmen und welche Handlungen sie wiederholen." },
+      { type: "hypothesis", text: "Die Law of Attraction nimmt an, dass innere Ausrichtung entsprechende Erfahrungen anzieht; eine übernatürliche Kausalwirkung ist nicht wissenschaftlich bestätigt." },
+      { type: "simulation", text: "EULEN übersetzt Intention in beobachtbare Schritte: gewünschter Zustand, tägliche Handlung, Rückmeldung und Kurskorrektur." },
+      { type: "question", text: "Welche Veränderung entsteht durch Fokus und Verhalten – und welche Aussage würde darüber hinaus eine unabhängige Prüfung benötigen?" }
+    ],
+    sources: [
+      ["NYU: WOOP and Mental Contrasting", "https://woopmylife.org/en/science"],
+      ["Stanford Encyclopedia: Philosophy of Religion", "https://plato.stanford.edu/entries/philosophy-religion/"],
+      ["American Psychological Association: Resilience", "https://www.apa.org/topics/resilience"]
+    ]
   }
 ];
 

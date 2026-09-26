@@ -81,6 +81,10 @@ h2 { font-size: 20px; letter-spacing: -.02em; }
 .formula-card p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 18px 0 0; }
 
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); margin-bottom: 24px; }
+.life-goal-panel { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; gap: 24px; border-color: color-mix(in srgb, var(--accent-2) 35%, var(--line)); }
+.life-goal-panel p { color: var(--muted); max-width: 720px; margin-bottom: 0; line-height: 1.6; }
+.goal-guardrails { display: flex; flex-direction: column; gap: 7px; min-width: 220px; }
+.goal-guardrails span { border-left: 2px solid var(--accent-2); padding: 5px 10px; color: var(--muted); font-size: 12px; }
 .metrics article { padding: 22px; min-height: 124px; border-right: 1px solid var(--line); }
 .metrics article:last-child { border: 0; }
 .metrics span, .metrics small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .1em; }
@@ -100,11 +104,11 @@ input[type="checkbox"] { accent-color: var(--accent); width: 17px; height: 17px;
 .principles li strong, .principles li small { display: block; }
 .principles li small { color: var(--muted); margin-top: 4px; line-height: 1.4; }
 .guidance-panel { margin-top: 24px; }
-.guidance-feed { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.guidance-feed { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
 .guidance-feed div { padding: 13px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; line-height: 1.5; font-size: 13px; }
 .guidance-feed strong { display: block; color: var(--accent); margin-bottom: 4px; }
 .neural-panel { margin-top: 24px; overflow: hidden; }
-#neuralCanvas { width: 100%; height: min(330px, 38vw); min-height: 230px; display: block; margin-top: 12px; border-radius: 12px; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%), var(--surface-2); }
+#neuralCanvas { width: 100%; height: min(500px, 52vw); min-height: 320px; display: block; margin-top: 12px; border-radius: 18px; background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 66%), var(--surface-2); }
 .network-status { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 7px; }
 .network-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
 .network-status.working i { background: var(--accent); box-shadow: 0 0 14px var(--accent); animation: pulse 1s infinite alternate; }
@@ -192,7 +196,7 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .agent-layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 20px; }
 .toggle-line { display: flex !important; grid-template-columns: none !important; align-items: flex-start; gap: 10px !important; line-height: 1.5; }
 .toggle-line input { width: 18px; margin-top: 2px; }
-.agent-roster { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.agent-roster { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .agent-roster div { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 .agent-roster div { position: relative; transition: border-color .2s, transform .2s; }
 .agent-roster div i { position: absolute; top: 14px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
@@ -204,6 +208,18 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .agent-roster span { color: var(--accent); font-family: Georgia, serif; margin-bottom: 16px; }
 .agent-roster small { color: var(--muted); margin-top: 4px; }
 .agent-runs { display: grid; gap: 12px; margin-top: 12px; }
+.dream-panel { margin-top: 20px; }
+.learning-memory-panel { margin-top: 20px; }
+.learning-memory { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.memory-column { border: 1px solid var(--line); border-radius: 12px; padding: 15px; background: var(--surface-2); }
+.memory-column h3 { color: var(--accent); font-size: 14px; }
+.memory-column ol { padding-left: 20px; color: var(--muted); line-height: 1.55; }
+.dream-card { border-top: 1px solid var(--line); padding: 18px 0; }
+.dream-card:first-child { border-top: 0; }
+.dream-card h3 { font-family: Georgia, serif; font-size: 24px; margin-bottom: 7px; }
+.dream-card p { color: var(--muted); line-height: 1.65; }
+.dream-symbols { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.dream-symbols span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; color: var(--accent); font-size: 11px; }
 .agent-run { border-top: 1px solid var(--line); padding-top: 16px; }
 .agent-run header { display: flex; justify-content: space-between; gap: 12px; }
 .agent-run header span { color: var(--muted); font-size: 12px; }
@@ -244,6 +260,7 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   .metrics article:nth-child(2) { border-right: 0; }
   .metrics article:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .dashboard-grid, .sim-grid, .agent-layout { grid-template-columns: 1fr; }
+  .life-goal-panel { align-items: flex-start; flex-direction: column; }
   .guidance-feed { grid-template-columns: 1fr; }
   .plan-layout, .research-layout { grid-template-columns: 1fr; }
   .day-list, .topic-list { display: flex; max-height: none; overflow-x: auto; padding-bottom: 8px; }
@@ -266,10 +283,12 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   .result-stats { grid-template-columns: 1fr; }
   .run-item { grid-template-columns: 1fr; gap: 3px; }
   .settings-grid { grid-template-columns: 1fr; }
-  .agent-roster, .agent-steps { grid-template-columns: 1fr; }
+  .agent-roster, .agent-steps { grid-template-columns: repeat(2, 1fr); }
   .chat-form { grid-template-columns: 1fr; }
   .chat-head-actions { align-items: stretch; flex-direction: column; }
   .message { max-width: 92%; }
+  .agent-roster, .agent-steps { grid-template-columns: 1fr; }
+  .learning-memory { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

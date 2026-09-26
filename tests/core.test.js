@@ -4,6 +4,7 @@ import {
   calculateProgress,
   createInitialState,
   formulaValue,
+  generateDream,
   importState,
   INTERNAL_SIMULATION_COUNT,
   learningCycleCount,
@@ -107,9 +108,16 @@ test("Rechtslabor liefert keine Fallprognose", () => {
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
   const result = runAgentCycle("Untersuche die Formel in Physik und Recht");
-  assert.equal(result.steps.length, 4);
+  assert.equal(result.steps.length, 12);
   assert.ok(result.sources.length >= 4);
   assert.ok(result.topics.includes("Recht & Evidenz"));
+});
+
+test("Traumgenerator erzeugt kreative, geerdete nächste Schritte", () => {
+  const dream = generateDream("Selbstständigkeit mit Liebe", ["Spiritualität"], 3);
+  assert.match(dream.narrative, /Selbstständigkeit mit Liebe/);
+  assert.match(dream.nextStep, /30 Minuten/);
+  assert.ok(dream.p > 0 && dream.p < 1);
 });
 
 test("Bewusstseinslabor nimmt Formel nur im Hypothesenmodus als Axiom", () => {

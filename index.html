@@ -64,6 +64,10 @@
             <article><span>LERNNOTIZEN</span><strong id="metricNotes">0</strong><small>lokal gespeichert</small></article>
             <article><span>SIMULATIONEN</span><strong id="metricRuns">0</strong><small>ohne Echtgeld</small></article>
           </div>
+          <article class="panel life-goal-panel">
+            <div><p class="eyebrow">DEIN LEBENSKOMPASS</p><h2>Selbstständig, liebevoll und frei entscheiden</h2><p id="lifeGoalText"></p></div>
+            <div class="goal-guardrails"><span>Erst Fähigkeiten</span><span>Dann belastbare Simulationen</span><span>Echtgeld zuletzt</span></div>
+          </article>
 
           <div class="dashboard-grid">
             <article class="panel today-panel">
@@ -86,7 +90,7 @@
           </article>
           <article class="panel neural-panel">
             <div class="panel-head"><div><p class="eyebrow">LIVE-PROZESSNETZWERK</p><h2>Was das System gerade verarbeitet</h2></div><span id="networkStatus" class="network-status"><i></i> Bereit</span></div>
-            <canvas id="neuralCanvas" width="960" height="330" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
+            <canvas id="neuralCanvas" width="1200" height="500" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
             <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
           </article>
         </section>
@@ -151,7 +155,7 @@
 
         <section class="view" id="agents" aria-labelledby="agentsTitle">
           <div class="page-head">
-            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">Auftrag geben. Arbeit prüfen.</h1><p>Vier spezialisierte Software-Agenten planen, durchsuchen die belegte Wissensbasis, kritisieren Annahmen und speichern neue Arbeitsergebnisse.</p></div>
+            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">Zwölf Perspektiven. Ein Kompass.</h1><p>Zwölf spezialisierte Software-Agenten prüfen Werte, Ziele, Wissen, Chancen, Risiken, Bewusstsein und kreative Verbindungen.</p></div>
           </div>
           <div class="safety-banner"><strong>Transparenz</strong><span>Die Agenten arbeiten wirklich im Browser, aber nicht dauerhaft bei geschlossenem Tab. Ohne Recherche-Backend verwenden sie nur die sichtbaren kuratierten Quellen und behaupten keine Live-Recherche.</span></div>
           <div class="agent-layout">
@@ -162,18 +166,28 @@
                 <button type="button" data-agent-goal="Leite eine Nullwelt-Physik nur aus P(sim)=N/(N+1) ab.">Nullwelt-Physik</button>
                 <button type="button" data-agent-goal="Prüfe P(sim) als Rechts-Evidenz-Heuristik mit Gegenargumenten.">Recht</button>
                 <button type="button" data-agent-goal="Optimiere den sicheren 200-Euro-Budgetplan ohne Gewinnversprechen.">Budget</button>
+                <button type="button" data-agent-goal="Untersuche Law of Attraction, Spiritualität und liebevolle Handlung mit P(sim).">Spiritualität</button>
               </div>
               <label>Automationsintervall<select id="agentInterval"><option value="5">5 Minuten</option><option value="15">15 Minuten</option><option value="30" selected>30 Minuten</option><option value="60">60 Minuten</option></select></label>
               <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
               <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
+              <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
               <p class="form-status" id="agentStatus">Bereit. Jeder Lauf wird lokal protokolliert.</p>
             </form>
             <article class="panel">
               <div class="agent-roster">
-                <div data-agent-card="Planer"><span>01</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
-                <div data-agent-card="Rechercheur"><span>02</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
-                <div data-agent-card="Kritiker"><span>03</span><strong>Kritiker</strong><small>Bereit · prüft Grenzen</small><i></i></div>
-                <div data-agent-card="Synthese"><span>04</span><strong>Synthese</strong><small>Bereit · speichert Lernschritt</small><i></i></div>
+                <div data-agent-card="Wertewächter"><span>01</span><strong>Wertewächter</strong><small>Bereit · schützt Liebe und Würde</small><i></i></div>
+                <div data-agent-card="Zielklärer"><span>02</span><strong>Zielklärer</strong><small>Bereit · hält den Lebenskompass</small><i></i></div>
+                <div data-agent-card="Planer"><span>03</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
+                <div data-agent-card="Rechercheur"><span>04</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
+                <div data-agent-card="Bewusstseinsforscher"><span>05</span><strong>Bewusstsein</strong><small>Bereit · prüft Selbstmodelle</small><i></i></div>
+                <div data-agent-card="Spiritualitätsforscher"><span>06</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
+                <div data-agent-card="Chancenfinder"><span>07</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
+                <div data-agent-card="Simulationsagent"><span>08</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
+                <div data-agent-card="Risikowächter"><span>09</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
+                <div data-agent-card="Kritiker"><span>10</span><strong>Kritiker</strong><small>Bereit · prüft Gegenbelege</small><i></i></div>
+                <div data-agent-card="Traumagent"><span>11</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
+                <div data-agent-card="Synthese"><span>12</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
               </div>
               <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
             </article>
@@ -181,6 +195,14 @@
           <article class="panel history-panel">
             <div class="panel-head"><div><p class="eyebrow">ARBEITSPROTOKOLL</p><h2>Gespeicherte Agentenläufe</h2></div><button class="text-button" id="clearAgentRuns">Protokoll leeren</button></div>
             <div id="agentRuns" class="agent-runs"></div>
+          </article>
+          <article class="panel dream-panel">
+            <div class="panel-head"><div><p class="eyebrow">SIMULIERTES TRAUMJOURNAL</p><h2>Kreative Verbindungen aus Lernzyklen</h2></div><span class="badge simulation">KEIN BEWUSSTES TRÄUMEN</span></div>
+            <div id="dreamJournal"></div>
+          </article>
+          <article class="panel learning-memory-panel">
+            <div class="panel-head"><div><p class="eyebrow">SELBSTVERBESSERUNGS-SPEICHER</p><h2>Was EULEN gelernt hat und als Nächstes prüfen will</h2></div><span class="badge fact">LOKAL PERSISTENT</span></div>
+            <div id="learningMemory" class="learning-memory"></div>
           </article>
         </section>
 
