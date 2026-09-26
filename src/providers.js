@@ -1,5 +1,8 @@
 import { localAssistantReply } from "./core.js";
 
+export const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+export const GROQ_MODEL = "openai/gpt-oss-120b";
+
 const BASE_SYSTEM_PROMPT = `Du bist der deutschsprachige Assistent der EULEN Werkstatt.
 Du unterstützt respektvoll, konkret und ohne eine Behauptung eigenen Bewusstseins oder eigener Gefühle.
 Werte: Menschenwürde, Liebe als Handlungsprinzip, Verantwortung, kein Nutzen aus Rache, Gier oder Täuschung.

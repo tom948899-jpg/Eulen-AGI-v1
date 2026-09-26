@@ -11,10 +11,11 @@ import {
   INTERNAL_SIMULATION_COUNT,
   learningCycleCount,
   normalizeState,
+  runScenarioSeries,
   runSimulation,
   taskKey
 } from "./core.js";
-import { LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js";
+import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js";
 import { SyncProvider } from "./sync.js";
 
 let state = loadState();
@@ -65,9 +66,11 @@ function renderAll() {
   renderAgents();
   renderChat();
   $("#chatMode").value = state.chatMode;
-  $("#providerEndpoint").value = state.provider.endpoint;
-  $("#providerModel").value = state.provider.model;
-  $("#providerUseAgents").checked = state.provider.useAgents;
+  $("#providerEndpoint").value = state.provider.endpoint || GROQ_ENDPOINT;
+  $("#providerModel").value = state.provider.model || GROQ_MODEL;
+  $("#providerStatus").textContent = sessionStorage.getItem("eulen-provider-key") && state.provider.endpoint
+    ? "Groq ist für Chat und Agentensynthesen verbunden."
+    : "Noch kein Groq-Key verbunden · lokaler Modus aktiv.";
   $("#agentDepth").value = String(state.agentDepth);
   $("#researchDepth").value = String(state.agentDepth);
   $("#syncEndpoint").value = state.sync.endpoint;
@@ -190,10 +193,27 @@ function renderSimulationResult(result) {
     <p class="result-warning">${escapeHtml(result.warning)}</p>`;
 }
 
+function renderSimulationSeries(results) {
+  $("#simulationEmpty").hidden = true;
+  const target = $("#simulationResult");
+  target.hidden = false;
+  target.innerHTML = `
+    <div class="panel-head"><div><p class="eyebrow">SZENARIO-SERIE</p><h2>Drei Annahmen im Vergleich</h2></div><span class="badge simulation">KEINE PROGNOSE</span></div>
+    <div class="scenario-grid">${results.map(result => `
+      <article>
+        <span>${escapeHtml(result.scenario)}</span>
+        <h3>${escapeHtml(result.verdict)}</h3>
+        <strong>${escapeHtml(result.score)}</strong>
+        <dl>${result.stats.slice(0, 3).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
+      </article>`).join("")}
+    </div>
+    <p class="result-warning">Die Serie variiert ausgewählte Annahmen mechanisch. Sie zeigt Empfindlichkeit und Bandbreiten, nicht Eintrittswahrscheinlichkeiten oder garantierte Ergebnisse.</p>`;
+}
+
 function renderHistory() {
   const runs = state.simulations.slice(0, 10);
   $("#runHistory").innerHTML = runs.length
-    ? runs.map(run => `<div class="run-item"><span>${dateTime(run.timestamp)}</span><strong>${escapeHtml(run.title)}</strong><span>${escapeHtml(run.verdict)} · ${escapeHtml(run.score)}</span></div>`).join("")
+    ? runs.map(run => `<div class="run-item"><span>${dateTime(run.timestamp)}</span><strong>${run.scenario ? `${escapeHtml(run.scenario)} · ` : ""}${escapeHtml(run.title)}</strong><span>${escapeHtml(run.verdict)} · ${escapeHtml(run.score)}</span></div>`).join("")
     : '<p class="empty-state">Noch keine Simulation gespeichert.</p>';
 }
 
@@ -564,6 +584,17 @@ $("#simulationForm").addEventListener("submit", event => {
   renderDashboard();
   setNetworkActivity("Synthese", `${result.title} gespeichert`, result.verdict, false);
 });
+$("#simulationSeries").addEventListener("click", () => {
+  const raw = Object.fromEntries(new FormData($("#simulationForm")));
+  const results = runScenarioSeries(activeSimulation, raw);
+  setNetworkActivity("Simulation", `${results.length} Szenarien werden verglichen`, `${results[0].title} · keine Prognose`, true);
+  state.simulations = [...results, ...state.simulations].slice(0, 50);
+  saveState();
+  renderSimulationSeries(results);
+  renderHistory();
+  renderDashboard();
+  setNetworkActivity("Synthese", "Szenario-Serie gespeichert", `${results.length} Varianten · Annahmen sichtbar`, false);
+});
 $$(".simulation-tabs button").forEach(button => button.addEventListener("click", () => {
   activeSimulation = button.dataset.sim;
   renderSimulationControls();
@@ -687,39 +718,33 @@ $("#providerForm").addEventListener("submit", async event => {
   const button = event.currentTarget.querySelector("button");
   const status = $("#providerStatus");
   const config = {
-    endpoint: $("#providerEndpoint").value.trim(),
-    model: $("#providerModel").value.trim(),
+    endpoint: $("#providerEndpoint").value.trim() || GROQ_ENDPOINT,
+    model: $("#providerModel").value.trim() || GROQ_MODEL,
     key: $("#providerKey").value.trim()
   };
   button.disabled = true;
   status.textContent = "Verbindung wird geprüft …";
   try {
     await testProvider(config, AbortSignal.timeout(15000));
-    state.provider = { endpoint: config.endpoint, model: config.model, useAgents: $("#providerUseAgents").checked };
+    state.provider = { endpoint: config.endpoint, model: config.model, useAgents: true };
     sessionStorage.setItem("eulen-provider-key", config.key);
     saveState();
-    status.textContent = state.provider.useAgents
-      ? "Verbindung erfolgreich. Provider ist für Chat und Agentensynthesen aktiv; Schlüssel nur für diesen Tab gespeichert."
-      : "Verbindung erfolgreich. Provider ist nur für den Chat aktiv; Schlüssel nur für diesen Tab gespeichert.";
+    status.textContent = "Verbindung erfolgreich. Groq ist für Chat und Agentensynthesen aktiv; der Schlüssel bleibt nur in diesem Tab.";
   } catch (error) {
     status.textContent = `Nicht verbunden: ${error.message}`;
   } finally {
     button.disabled = false;
   }
 });
-$$("[data-provider-preset]").forEach(button => button.addEventListener("click", () => {
-  if (button.dataset.providerPreset === "groq") {
-    $("#providerEndpoint").value = "https://api.groq.com/openai/v1/chat/completions";
-    $("#providerModel").value = "openai/gpt-oss-120b";
-    $("#providerUseAgents").checked = true;
-    $("#providerStatus").textContent = "Groq für Chat und Agentensynthesen vorbereitet. API-Schlüssel einfügen und Verbindung testen. Groq ist kein Live-Suchprovider.";
-  } else {
-    $("#providerEndpoint").value = "https://api.openai.com/v1/chat/completions";
-    $("#providerModel").value = "gpt-4.1-mini";
-    $("#providerUseAgents").checked = true;
-    $("#providerStatus").textContent = "OpenAI vorbereitet. Modell bei Bedarf anpassen und API-Schlüssel einfügen.";
-  }
-}));
+$("#providerDisconnect").addEventListener("click", () => {
+  sessionStorage.removeItem("eulen-provider-key");
+  state.provider = { endpoint: "", model: "", useAgents: false };
+  saveState();
+  $("#providerKey").value = "";
+  $("#providerEndpoint").value = GROQ_ENDPOINT;
+  $("#providerModel").value = GROQ_MODEL;
+  $("#providerStatus").textContent = "Provider getrennt · kostenloser lokaler Modus aktiv.";
+});
 $("#exportData").addEventListener("click", () => {
   const blob = new Blob([exportState(state)], { type: "application/json" });
   const link = document.createElement("a");

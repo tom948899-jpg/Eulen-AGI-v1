@@ -148,6 +148,52 @@ export function runSimulation(type, raw) {
   };
 }
 
+export function runScenarioSeries(type, raw) {
+  const value = (name, fallback = 0) => finiteNumber(raw[name], fallback);
+  let variants;
+  if (type === "budget") {
+    variants = [
+      ["Vorsichtig", { ...raw, viewsPerVideo: value("viewsPerVideo") * .6, ctr: value("ctr") * .75, conversion: value("conversion") * .7, serviceJobs: Math.floor(value("serviceJobs") * .5) }],
+      ["Basis", raw],
+      ["Lernfortschritt", { ...raw, viewsPerVideo: value("viewsPerVideo") * 1.35, ctr: value("ctr") * 1.2, conversion: value("conversion") * 1.2, serviceJobs: value("serviceJobs") + 1 }]
+    ];
+  } else if (type === "trading") {
+    const seed = Math.round(value("seed", 42));
+    variants = [["Regime A", { ...raw, seed }], ["Regime B", { ...raw, seed: seed + 1 }], ["Regime C", { ...raw, seed: seed + 2 }]];
+  } else if (type === "sniping") {
+    variants = [
+      ["Weniger Warnzeichen", { ...raw, liquidity: value("liquidity") * 1.5, concentration: value("concentration") * .75, age: value("age") * 2 }],
+      ["Eingabe", raw],
+      ["Stress", { ...raw, liquidity: value("liquidity") * .5, concentration: Math.min(100, value("concentration") * 1.25), age: value("age") * .5 }]
+    ];
+  } else if (type === "staking") {
+    variants = [["Stress", { ...raw, priceShock: -60, slashing: Math.max(value("slashing"), 8) }], ["Basis", raw], ["Günstig", { ...raw, priceShock: 10, slashing: 0 }]];
+  } else if (type === "affiliate") {
+    variants = [
+      ["Vorsichtig", { ...raw, views: value("views") * .6, ctr: value("ctr") * .75, conversion: value("conversion") * .7, refund: Math.min(100, value("refund") * 1.4) }],
+      ["Basis", raw],
+      ["Lernfortschritt", { ...raw, views: value("views") * 1.35, ctr: value("ctr") * 1.2, conversion: value("conversion") * 1.2, refund: value("refund") * .75 }]
+    ];
+  } else if (type === "formula") {
+    variants = [["Halbes N", { ...raw, n: value("n") * .5 }], ["Basis-N", raw], ["Doppeltes N", { ...raw, n: value("n") * 2 }]];
+  } else if (type === "consciousness") {
+    variants = [
+      ["Kritische Kohärenz", { ...raw, consistency: value("consistency") - 20, selfCorrection: value("selfCorrection") - 20, contradictions: value("contradictions") + 5 }],
+      ["Basis", raw],
+      ["Stärkere Kohärenz", { ...raw, consistency: value("consistency") + 15, selfCorrection: value("selfCorrection") + 15, contradictions: Math.max(0, value("contradictions") - 3) }]
+    ];
+  } else if (type === "law") {
+    variants = [
+      ["Lückenhaft", { ...raw, conflicts: value("conflicts") + 2, outdated: value("outdated") + 2, facts: value("facts") - 20 }],
+      ["Basis", raw],
+      ["Besser geprüft", { ...raw, sources: value("sources") + 4, conflicts: Math.max(0, value("conflicts") - 1), outdated: Math.max(0, value("outdated") - 1), facts: value("facts") + 15 }]
+    ];
+  } else {
+    throw new Error("Unbekannter Simulationstyp.");
+  }
+  return variants.map(([scenario, params]) => ({ ...runSimulation(type, params), scenario }));
+}
+
 export function simulateBudget(input) {
   const budget = clamp(finiteNumber(input.budget, 200), 0, 200);
   const videos = Math.round(clamp(finiteNumber(input.videos, 20), 0, 60));
