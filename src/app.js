@@ -22,6 +22,7 @@ let activeSimulation = "budget";
 let activeTopic = KNOWLEDGE_TOPICS[0].id;
 let saveTimer;
 let syncInProgress = false;
+let agentCycleInProgress = false;
 let installPrompt;
 const stateChannel = "BroadcastChannel" in window ? new BroadcastChannel("eulen-state-v2") : null;
 const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", detail: "20 interne Referenzläufe geladen.", working: false };
@@ -66,6 +67,8 @@ function renderAll() {
   $("#chatMode").value = state.chatMode;
   $("#providerEndpoint").value = state.provider.endpoint;
   $("#providerModel").value = state.provider.model;
+  $("#agentDepth").value = String(state.agentDepth);
+  $("#researchDepth").value = String(state.agentDepth);
   $("#syncEndpoint").value = state.sync.endpoint;
   $("#syncWorkspace").value = state.sync.workspace;
   $("#syncAuto").checked = state.sync.auto;
@@ -212,6 +215,17 @@ function renderResearch(filter = "") {
     <h3>Quellen zum Nachlesen</h3>
     <ul class="sources">${topic.sources.map(([title, url]) => `<li><a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a></li>`).join("")}</ul>
     <p class="result-warning">Quellenlinks sind Ausgangspunkte. Prüfe Aktualität, Primärquelle, Jurisdiktion und Anwendbarkeit selbst.</p>` : '<p class="empty-state">Keine passenden Inhalte.</p>';
+  renderResearchMissions();
+}
+
+function renderResearchMissions() {
+  const missions = state.agentRuns.slice(0, 6);
+  $("#researchMissionHistory").innerHTML = missions.length ? missions.map(run => `
+    <article>
+      <span>${dateTime(run.timestamp)} · Tiefe ${run.depth ?? 2}${run.automatic ? " · automatisch" : ""}</span>
+      <strong>${escapeHtml(run.goal)}</strong>
+      <small>${run.topics.map(escapeHtml).join(" · ")} · ${run.sources.length} Quellen · ${run.steps.length} Agentenschritte</small>
+    </article>`).join("") : '<p class="empty-state">Noch kein eigener Lernauftrag. Formuliere oben eine Frage.</p>';
 }
 
 function labelType(type) {
@@ -255,22 +269,54 @@ function renderLearningMemory() {
     <section class="memory-column"><h3>Verbesserungsprüfungen</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Kritikhinweis gespeichert.</p>"}</section>`;
 }
 
-async function executeAgentCycle(goal, automatic = false) {
+async function executeAgentCycle(goal, automatic = false, depth = state.agentDepth, useExternal = false) {
+  if (agentCycleInProgress) {
+    $("#agentStatus").textContent = "Ein Agentenzyklus läuft bereits. Der nächste Auftrag startet danach manuell oder im nächsten Intervall.";
+    if ($("#researchMissionStatus")) $("#researchMissionStatus").textContent = "Ein anderer Lernauftrag läuft bereits.";
+    return;
+  }
+  agentCycleInProgress = true;
   const button = $("#runAgents");
+  const researchButton = $('#researchMissionForm button[type="submit"]');
   button.disabled = true;
+  researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
     const { runAgentCycle } = await import("./core.js");
-    const run = { ...runAgentCycle(goal), automatic };
+    const run = { ...runAgentCycle(goal, depth), automatic };
+    if (useExternal) {
+      const endpoint = state.provider.endpoint;
+      const model = state.provider.model;
+      const key = sessionStorage.getItem("eulen-provider-key") ?? "";
+      if (!endpoint || !model || !key) {
+        run.externalSynthesisError = "Kein getesteter Chat-Provider konfiguriert";
+      } else {
+        try {
+          const provider = new OpenAICompatibleProvider({ endpoint, model, key });
+          const sourceList = run.sources.map(source => `${source.title}: ${source.url}`).join("\n");
+          const synthesis = await provider.reply(
+            `Erstelle eine kurze deutschsprachige Synthese für diesen Lernauftrag: ${run.goal}\n\n`
+            + `Nutze nur die folgenden bereits kuratierten Quellenmetadaten als Ausgangspunkte und behaupte nicht, die Seiten live gelesen zu haben:\n${sourceList}\n\n`
+            + "Trenne Fakt, P(sim)-Hypothese, Gegenargument und nächsten überprüfbaren Lernschritt.",
+            { ...state, chat: [] }
+          );
+          const step = run.steps.find(item => item.agent === "Synthese");
+          if (step) step.output = `[EXTERNE MODELLSYNTHESE · KEINE LIVE-RECHERCHE] ${synthesis.slice(0, 2200)}`;
+          run.externalSynthesis = true;
+        } catch (error) {
+          run.externalSynthesisError = error.message;
+        }
+      }
+    }
     for (const step of run.steps) {
       setNetworkActivity(step.agent, step.output.split(".")[0], `Agentenzyklus ${state.agentRuns.length + 1} · P(sim)=${formulaValue(INTERNAL_SIMULATION_COUNT + state.agentRuns.length).toFixed(4)}`, true);
       const card = document.querySelector(`[data-agent-card="${step.agent}"]`);
-      card.classList.add("working");
-      card.querySelector("small").textContent = `Arbeitet · ${step.output.split(".")[0]}`;
-      await new Promise(resolve => setTimeout(resolve, 320));
-      card.classList.remove("working");
-      card.classList.add("done");
-      card.querySelector("small").textContent = `Fertig · ${step.output.split(".")[0]}`;
+      card?.classList.add("working");
+      if (card) card.querySelector("small").textContent = `Arbeitet · ${step.output.split(".")[0]}`;
+      await new Promise(resolve => setTimeout(resolve, 180));
+      card?.classList.remove("working");
+      card?.classList.add("done");
+      if (card) card.querySelector("small").textContent = `Fertig · ${step.output.split(".")[0]}`;
     }
     state.agentRuns.unshift(run);
     state.agentRuns = state.agentRuns.slice(0, 30);
@@ -282,13 +328,20 @@ async function executeAgentCycle(goal, automatic = false) {
     if (improvement) state.improvementProposals = [improvement, ...state.improvementProposals.filter(item => item !== improvement)].slice(0, 100);
     saveState();
     renderAgents();
+    renderResearchMissions();
     renderDashboard();
     setNetworkActivity("Synthese", "Lernzyklus gespeichert", `${run.sources.length} Quellen verarbeitet · N=${learningCycleCount(state)}`, false);
-    $("#agentStatus").textContent = `Abgeschlossen: ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte gespeichert.`;
+    const externalStatus = run.externalSynthesis
+      ? " Externe Modellsynthese gespeichert."
+      : run.externalSynthesisError ? ` Lokale Synthese verwendet: ${run.externalSynthesisError}.` : "";
+    $("#agentStatus").textContent = `Abgeschlossen: ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte gespeichert.${externalStatus}`;
+    return run;
   } catch (error) {
     $("#agentStatus").textContent = `Agentenlauf fehlgeschlagen: ${error.message}`;
   } finally {
+    agentCycleInProgress = false;
     button.disabled = false;
+    researchButton.disabled = false;
   }
 }
 
@@ -377,28 +430,21 @@ function startNetworkVisualization() {
     const canvas = $("#neuralCanvas");
     const context = canvas.getContext("2d");
     const nodes = [
-      { id: "Input", x: .05, y: .5 },
-      { id: "Werte", x: .17, y: .18 },
-      { id: "Ziel", x: .17, y: .5 },
-      { id: "Planer", x: .17, y: .82 },
-      { id: "Rechercheur", x: .34, y: .12 },
-      { id: "Bewusstsein", x: .34, y: .36 },
-      { id: "Spiritualität", x: .34, y: .64 },
-      { id: "Chancen", x: .34, y: .88 },
-      { id: "Simulation", x: .53, y: .15 },
-      { id: "Risiko", x: .53, y: .38 },
-      { id: "Kritiker", x: .53, y: .64 },
-      { id: "Traum", x: .53, y: .87 },
-      { id: "Synthese", x: .72, y: .3 },
-      { id: "Gedächtnis", x: .72, y: .7 },
-      { id: "Assistent", x: .88, y: .35 },
-      { id: "Sync", x: .94, y: .7 }
+      { id: "Input", x: .05, y: .5, layer: 0 },
+      { id: "Werte", x: .16, y: .18, layer: 1 }, { id: "Ziel", x: .15, y: .5, layer: 1 }, { id: "Planer", x: .17, y: .82, layer: 1 },
+      { id: "Quellen", x: .3, y: .09, layer: 2 }, { id: "Rechercheur", x: .32, y: .29, layer: 2 }, { id: "Geschichte", x: .29, y: .52, layer: 2 },
+      { id: "Staat", x: .32, y: .74, layer: 2 }, { id: "Anatomie", x: .29, y: .92, layer: 2 },
+      { id: "Zeit", x: .48, y: .08, layer: 3 }, { id: "Bewusstsein", x: .49, y: .27, layer: 3 }, { id: "Spiritualität", x: .47, y: .47, layer: 3 },
+      { id: "Chancen", x: .5, y: .68, layer: 3 }, { id: "Simulation", x: .47, y: .9, layer: 3 },
+      { id: "Lernen", x: .65, y: .13, layer: 4 }, { id: "Risiko", x: .67, y: .36, layer: 4 }, { id: "Kritiker", x: .65, y: .62, layer: 4 }, { id: "Traum", x: .67, y: .86, layer: 4 },
+      { id: "Synthese", x: .81, y: .28, layer: 5 }, { id: "Gedächtnis", x: .8, y: .57, layer: 5 }, { id: "Assistent", x: .91, y: .4, layer: 6 }, { id: "Sync", x: .93, y: .72, layer: 6 }
     ];
     const edges = [
-      [0,1],[0,2],[0,3],[1,4],[1,5],[1,6],[2,4],[2,7],[2,8],[3,4],[3,8],
-      [4,5],[4,8],[4,10],[5,6],[5,8],[5,10],[6,7],[6,11],[7,8],[7,9],
-      [8,9],[8,10],[8,12],[9,10],[9,12],[10,11],[10,12],[11,12],[11,13],
-      [12,13],[12,14],[13,14],[13,15],[14,15],[15,0],[6,13],[4,13],[2,13]
+      [0,1],[0,2],[0,3],[1,4],[1,10],[1,11],[2,5],[2,12],[2,13],[3,4],[3,5],[3,14],
+      [4,5],[4,6],[4,7],[4,8],[4,9],[5,6],[5,10],[5,12],[6,7],[6,9],[6,16],[7,11],[7,15],
+      [8,10],[8,13],[8,15],[9,10],[9,13],[9,14],[10,11],[10,14],[10,16],[11,12],[11,17],
+      [12,13],[12,15],[12,18],[13,15],[13,16],[14,15],[14,16],[14,18],[14,19],[15,16],
+      [15,18],[16,17],[16,18],[16,19],[17,18],[17,19],[18,19],[18,20],[19,20],[19,21],[20,21],[21,0]
     ];
     let phase = 0;
     function draw() {
@@ -414,21 +460,30 @@ function startNetworkVisualization() {
       context.clearRect(0, 0, width, height);
       const styles = getComputedStyle(document.documentElement);
       const accent = styles.getPropertyValue("--accent").trim();
+      const accent2 = styles.getPropertyValue("--accent-2").trim();
       const muted = styles.getPropertyValue("--muted").trim();
       const surface = styles.getPropertyValue("--surface").trim();
       phase += networkActivity.working ? .025 : .006;
+      const grid = context.createLinearGradient(0, 0, width, height);
+      grid.addColorStop(0, accent);
+      grid.addColorStop(1, accent2);
+      context.globalAlpha = .045;
+      context.strokeStyle = grid;
+      for (let x = 0; x < width; x += 44) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke(); }
+      for (let y = 0; y < height; y += 44) { context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke(); }
       for (const [from, to] of edges) {
         const a = nodes[from], b = nodes[to];
-        context.strokeStyle = muted;
-        context.globalAlpha = .22;
+        context.strokeStyle = a.layer % 2 ? accent : accent2;
+        context.globalAlpha = .14;
         context.lineWidth = 1;
         context.beginPath();
         context.moveTo(a.x * width, a.y * height);
-        context.lineTo(b.x * width, b.y * height);
+        const bend = ((from + to) % 2 ? 1 : -1) * height * .035;
+        context.quadraticCurveTo((a.x + b.x) * width / 2, (a.y + b.y) * height / 2 + bend, b.x * width, b.y * height);
         context.stroke();
         const p = (phase + from * .13) % 1;
         context.globalAlpha = networkActivity.working ? .9 : .35;
-        context.fillStyle = accent;
+        context.fillStyle = from % 2 ? accent : accent2;
         context.beginPath();
         context.arc((a.x + (b.x - a.x) * p) * width, (a.y + (b.y - a.y) * p) * height, networkActivity.working ? 3 : 2, 0, Math.PI * 2);
         context.fill();
@@ -437,25 +492,38 @@ function startNetworkVisualization() {
         const aliases = {
           Wertewächter: "Werte",
           Zielklärer: "Ziel",
+          Quellenprüfer: "Quellen",
+          Historiker: "Geschichte",
+          Staatsanalyst: "Staat",
+          Anatomieforscher: "Anatomie",
+          Zeitmodellierer: "Zeit",
           Bewusstseinsforscher: "Bewusstsein",
           Spiritualitätsforscher: "Spiritualität",
           Chancenfinder: "Chancen",
           Simulationsagent: "Simulation",
+          Lernoptimierer: "Lernen",
           Risikowächter: "Risiko",
           Traumagent: "Traum"
         };
         const activeName = aliases[networkActivity.agent] ?? networkActivity.agent;
         const active = node.id === activeName || (networkActivity.agent === "Assistent" && node.id === "Synthese");
         context.globalAlpha = 1;
+        const radius = active ? 25 : node.layer === 3 ? 21 : 18;
+        if (active) {
+          context.shadowColor = accent;
+          context.shadowBlur = 24;
+        }
         context.fillStyle = active ? accent : surface;
-        context.strokeStyle = active ? accent : muted;
+        context.strokeStyle = active ? accent : node.layer % 2 ? accent : accent2;
+        context.globalAlpha = active ? 1 : .82;
         context.lineWidth = active ? 3 : 1;
         context.beginPath();
-        context.arc(node.x * width, node.y * height, active ? 25 : 20, 0, Math.PI * 2);
+        context.arc(node.x * width, node.y * height, radius, 0, Math.PI * 2);
         context.fill();
         context.stroke();
+        context.shadowBlur = 0;
         context.fillStyle = active ? "#15120b" : muted;
-        context.font = "11px system-ui";
+        context.font = `${active ? "600 " : ""}10px system-ui`;
         context.textAlign = "center";
         context.fillText(node.id, node.x * width, node.y * height + 4);
       }
@@ -511,6 +579,23 @@ $("#clearRuns").addEventListener("click", () => {
   toast("Simulationsverlauf geleert.");
 });
 $("#researchSearch").addEventListener("input", event => renderResearch(event.target.value));
+$("#researchMissionForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const goal = $("#researchMission").value.trim();
+  const depth = Number($("#researchDepth").value);
+  state.agentDepth = depth;
+  $("#agentDepth").value = String(depth);
+  $("#agentGoal").value = goal;
+  $("#researchMissionStatus").textContent = "18 Agenten untersuchen den Auftrag …";
+  const run = await executeAgentCycle(goal, false, depth, $("#researchExternal").checked);
+  $("#researchMissionStatus").textContent = run
+    ? `Gespeichert: ${run.topics.length} Themen, ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte.${run.externalSynthesis ? " Provider-Synthese aktiv." : run.externalSynthesisError ? ` ${run.externalSynthesisError}; lokale Synthese genutzt.` : ""}`
+    : "Lernauftrag konnte nicht abgeschlossen werden.";
+});
+$$("[data-research-goal]").forEach(button => button.addEventListener("click", () => {
+  $("#researchMission").value = button.dataset.researchGoal;
+  $("#researchMission").focus();
+}));
 $("#chatForm").addEventListener("submit", event => {
   event.preventDefault();
   const input = $("#chatInput");
@@ -539,11 +624,18 @@ $("#agentAuto").addEventListener("change", event => {
   state.agentAuto = event.target.checked;
   saveState();
   $("#agentStatus").textContent = state.agentAuto ? `Automatik aktiv: nächster Lauf nach ${state.agentInterval} Minuten bei geöffnetem Tab.` : "Automatik deaktiviert.";
+  if (state.agentAuto) executeAgentCycle($("#agentGoal").value, true, state.agentDepth);
 });
 $("#agentInterval").addEventListener("change", event => {
   state.agentInterval = Number(event.target.value);
   saveState();
   $("#agentStatus").textContent = `Intervall auf ${state.agentInterval} Minuten gesetzt.`;
+});
+$("#agentDepth").addEventListener("change", event => {
+  state.agentDepth = Number(event.target.value);
+  $("#researchDepth").value = event.target.value;
+  saveState();
+  $("#agentStatus").textContent = `Lerntiefe ${state.agentDepth} aktiv.`;
 });
 $$("[data-agent-goal]").forEach(button => button.addEventListener("click", () => {
   $("#agentGoal").value = button.dataset.agentGoal;
@@ -612,6 +704,17 @@ $("#providerForm").addEventListener("submit", async event => {
     button.disabled = false;
   }
 });
+$$("[data-provider-preset]").forEach(button => button.addEventListener("click", () => {
+  if (button.dataset.providerPreset === "groq") {
+    $("#providerEndpoint").value = "https://api.groq.com/openai/v1/chat/completions";
+    $("#providerModel").value = "openai/gpt-oss-120b";
+    $("#providerStatus").textContent = "Groq vorbereitet. API-Schlüssel einfügen und Verbindung testen. Groq ist kein Live-Suchprovider.";
+  } else {
+    $("#providerEndpoint").value = "https://api.openai.com/v1/chat/completions";
+    $("#providerModel").value = "gpt-4.1-mini";
+    $("#providerStatus").textContent = "OpenAI vorbereitet. Modell bei Bedarf anpassen und API-Schlüssel einfügen.";
+  }
+}));
 $("#exportData").addEventListener("click", () => {
   const blob = new Blob([exportState(state)], { type: "application/json" });
   const link = document.createElement("a");
@@ -679,7 +782,7 @@ startNetworkVisualization();
 setInterval(() => {
   if (!state.agentAuto || document.hidden) return;
   const lastRun = state.agentRuns[0] ? Date.parse(state.agentRuns[0].timestamp) : 0;
-  if (Date.now() - lastRun >= state.agentInterval * 60 * 1000) executeAgentCycle($("#agentGoal").value, true);
+  if (Date.now() - lastRun >= state.agentInterval * 60 * 1000) executeAgentCycle($("#agentGoal").value, true, state.agentDepth);
 }, 60 * 1000);
 
 setInterval(() => {

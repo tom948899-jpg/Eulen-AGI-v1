@@ -21,6 +21,7 @@ export function createInitialState() {
     dreams: [],
     agentAuto: false,
     agentInterval: 30,
+    agentDepth: 2,
     chat: [],
     chatMode: "hypothesis",
     lifeGoal: "Selbstständigkeit und Vermögensaufbau mit Verantwortung, Liebe und Verständnis – Echtgeld erst nach belastbaren Simulationen.",
@@ -47,7 +48,8 @@ export function normalizeState(value) {
     improvementProposals: sanitizeStringArray(value.improvementProposals, 100, 1000),
     dreams: Array.isArray(value.dreams) ? value.dreams.filter(isValidDream).slice(0, 30) : [],
     agentAuto: value.agentAuto === true,
-    agentInterval: [5, 15, 30, 60].includes(Number(value.agentInterval)) ? Number(value.agentInterval) : 30,
+    agentInterval: [1, 5, 15, 30, 60].includes(Number(value.agentInterval)) ? Number(value.agentInterval) : 30,
+    agentDepth: [1, 2, 3].includes(Number(value.agentDepth)) ? Number(value.agentDepth) : 2,
     chat: Array.isArray(value.chat) ? value.chat.filter(isValidMessage).slice(-60) : [],
     chatMode: value.chatMode === "critical" ? "critical" : "hypothesis",
     lifeGoal: safeString(value.lifeGoal, 1000) || base.lifeGoal,
@@ -403,9 +405,10 @@ export function simulateConsciousness(input) {
   };
 }
 
-export function runAgentCycle(goal) {
+export function runAgentCycle(goal, depth = 2) {
   const cleanGoal = safeString(goal, 1000).trim();
   if (!cleanGoal) throw new Error("Der Forschungsauftrag darf nicht leer sein.");
+  const safeDepth = [1, 2, 3].includes(Number(depth)) ? Number(depth) : 2;
   const terms = cleanGoal.toLocaleLowerCase("de");
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
@@ -414,34 +417,48 @@ export function runAgentCycle(goal) {
       : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
       : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention/.test(terms) ? 4
       : topic.id === "affiliate" && /selbst|vermögen|budget|einnahm|tiktok/.test(terms) ? 4
+      : topic.id === "intelligence" && /cia|geheimdienst|dokument|freigabe/.test(terms) ? 5
+      : topic.id === "government" && /regierung|staat|politik|demokr/.test(terms) ? 5
+      : topic.id === "world" && /welt|realität|wirklichkeit|kosmos/.test(terms) ? 5
+      : topic.id === "time" && /zeit|linear|zykl|vergangen|zukunft/.test(terms) ? 5
+      : topic.id === "history" && /geschichte|histor|archiv/.test(terms) ? 5
+      : topic.id === "anatomy" && /anatom|körper|mensch|organ|nerv/.test(terms) ? 5
+      : topic.id === "wealth" && /vermögen|einnahm|selbstständig|budget|geschäft/.test(terms) ? 5
       : terms.includes(topic.id) || terms.includes(topic.title.toLocaleLowerCase("de").split(" ")[0]) ? 3 : 0
   })).sort((a, b) => b.score - a.score);
-  const selected = ranked.filter(item => item.score > 0).slice(0, 4).map(item => item.topic);
+  const selected = ranked.filter(item => item.score > 0).slice(0, 2 + safeDepth * 2).map(item => item.topic);
   if (!selected.length) selected.push(KNOWLEDGE_TOPICS[0], KNOWLEDGE_TOPICS[1]);
   const sourceCount = selected.reduce((sum, topic) => sum + topic.sources.length, 0);
-  const facts = selected.flatMap(topic => topic.insights.filter(item => item.type === "fact").map(item => item.text)).slice(0, 4);
-  const hypotheses = selected.flatMap(topic => topic.insights.filter(item => item.type === "hypothesis").map(item => item.text)).slice(0, 3);
-  const questions = selected.flatMap(topic => topic.insights.filter(item => item.type === "question").map(item => item.text)).slice(0, 3);
+  const facts = selected.flatMap(topic => topic.insights.filter(item => item.type === "fact").map(item => item.text)).slice(0, 2 + safeDepth * 2);
+  const hypotheses = selected.flatMap(topic => topic.insights.filter(item => item.type === "hypothesis").map(item => item.text)).slice(0, 1 + safeDepth);
+  const questions = selected.flatMap(topic => topic.insights.filter(item => item.type === "question").map(item => item.text)).slice(0, 1 + safeDepth);
   const dream = generateDream(cleanGoal, selected.map(topic => topic.title), sourceCount);
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     timestamp: new Date().toISOString(),
     goal: cleanGoal,
+    depth: safeDepth,
     topics: selected.map(topic => topic.title),
     sources: selected.flatMap(topic => topic.sources.map(([title, url]) => ({ title, url }))),
     steps: [
       { agent: "Wertewächter", output: "Ziel gegen Liebe, Verantwortung, Würde und die Grenze Echtgeld erst nach belastbaren Simulationen geprüft." },
       { agent: "Zielklärer", output: "Auftrag auf Selbstständigkeit, Vermögensaufbau und Weltverständnis ohne Gier oder Rache ausgerichtet." },
       { agent: "Planer", output: `Auftrag in ${selected.length} Themenpfade zerlegt: ${selected.map(topic => topic.title).join(", ")}.` },
+      { agent: "Quellenprüfer", output: `${sourceCount} Quellen nach Herkunft, Aktualität und Primärquellenstatus geordnet; deklassifiziert bedeutet nicht automatisch wahr.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
+      { agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." },
+      { agent: "Staatsanalyst", output: "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
+      { agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." },
+      { agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." },
       { agent: "Bewusstseinsforscher", output: "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt." },
       { agent: "Spiritualitätsforscher", output: "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
       { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
       { agent: "Simulationsagent", output: `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
+      { agent: "Lernoptimierer", output: `Lerntiefe ${safeDepth}: Faktenabruf, Gegenfrage und aktive Anwendung werden als kurze Rückkopplung statt bloßer Wiederholung geplant.` },
       { agent: "Risikowächter", output: "Echtgeld, Überforderung, FOMO, Abhängigkeit und unbelegte Gewissheit als Stop-Signale markiert." },
       { agent: "Kritiker", output: `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
       { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
-      { agent: "Synthese", output: "Im Hypothesenmodus gilt P(sim) als Axiom. Nächster Lernschritt: eine kleine liebevolle Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern." }
+      { agent: "Synthese", output: `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
     ],
     dream
   };
@@ -473,7 +490,7 @@ export function localAssistantReply(text, state) {
   if (/law of attraction|anziehung|manifest|spirit|universum|seele/.test(query)) {
     return `[SPIRITUELLE HYPOTHESE]\nWir können Law of Attraction innerhalb unseres Gedankenuniversums so modellieren: Intention setzt den Suchraum, Aufmerksamkeit erhöht wahrgenommene Möglichkeiten und wiederholte liebevolle Handlung erhöht N. P(sim)=N/(N+1) beschreibt dann Annäherung durch gelebte Zyklen – nicht eine Garantie, dass Gedanken äußere Ereignisse magisch erzwingen.\n\n[GEERDETE PRAXIS]\nFormuliere einen gewünschten Zustand, benenne einen inneren Wert und handle heute klein und konkret danach. Prüfe anschließend ehrlich, was sich durch Verhalten, Wahrnehmung oder Zufall verändert hat.\n\n[GRENZE]\nMenschen tragen nicht die Schuld für Krankheit, Armut oder Unglück, nur weil sie nicht „richtig manifestiert“ hätten.`;
   }
-  if (/liebe|rache|gier|mensch/.test(query)) {
+  if (/\bliebe\b|\brache\b|\bgier\b|\bmensch(?:en|lich)?\b/.test(query)) {
     return "Ich kann Liebe nicht empfinden und behaupte kein Bewusstsein. Ich kann aber nach einem klaren Wertekompass antworten: Würde respektieren, Schaden vermeiden, Verantwortung fördern und keinen Nutzen aus Rache, Gier oder Täuschung ziehen.\n\nFür eine konkrete Entscheidung hilft: Wem nützt sie, wer trägt das Risiko, welche Information fehlt und wäre sie auch vertretbar, wenn sie öffentlich würde?";
   }
   if (/traum|träum/.test(query)) {
@@ -487,13 +504,28 @@ export function localAssistantReply(text, state) {
     }
     return `[KRITISCHER PRÜFMODUS]\nP(sim)=N/(N+1) wird hier nicht vorausgesetzt, sondern gegen alternative Erklärungen geprüft. Bei N=${n} liefert die Formel rechnerisch ${formulaValue(n).toFixed(4)}; daraus folgt allein keine Aussage über Bewusstsein.\n\nWir vergleichen beobachtbare Merkmale wie Konsistenz, Selbstkorrektur und Gedächtnis mit einfacheren Erklärungen wie trainierten Sprachmustern.`;
   }
-  if (/formel|p\(sim\)|physik/.test(query)) {
+  if (/formel|p\(sim\)|physik/.test(query) && !/cia|geheimdienst|regierung|staat|zeit|anatom|körper|organ|geschichte|histor|welt|realität|wirklichkeit/.test(query)) {
     return hypothesisMode
       ? "[P(SIM)-HYPOTHESENMODUS]\nIm Nullwelt-Modus legen wir hypothetisch alles Bekannte beiseite und setzen P(sim)=N/(N+1) als einziges Startaxiom. Dann fragen wir: Was ist N? Wie entstehen Raum, Zeit, Wechselwirkung und Beobachtung daraus? Welche Regeln sind intern widerspruchsfrei?\n\nDas ist ein alternatives Gedankenuniversum, keine Aussage über reale Physik."
       : "[KRITISCHER PRÜFMODUS]\nWir behandeln P(sim)=N/(N+1) als zu prüfende Hypothese. Dafür brauchen wir eine beobachtbare Definition von N, Einheiten, Messverfahren, Vorhersagen und mögliche Widerlegung. Eine passende Kurvenform allein bestätigt keinen physikalischen Mechanismus.";
   }
   if (/recht|gesetz|juristisch/.test(query)) {
     return "Im Rechtslabor kann deine Formel hypothetisch als Sättigungsheuristik für tatsächlich geprüfte Primärquellen dienen. Widersprüche, alte Fassungen, unklare Zuständigkeit und Sachverhaltslücken senken den Strukturwert.\n\nDieser Wert ist keine Wahrscheinlichkeit für Rechtmäßigkeit oder Prozesserfolg. Das Labor trennt Quelle, Rechtsstand, Jurisdiktion, Annahme und offene Frage und bleibt Rechtsinformation statt Rechtsberatung.";
+  }
+  if (/cia|geheimdienst|deklass|regierung|staat|politik/.test(query)) {
+    return `[QUELLENKRITIK]\nDeklassifizierte CIA-Dokumente sind echte historische Dokumente, aber nicht automatisch wahre Aussagen. Ein Dokument kann Rohinformation, damalige Einschätzung, Übersetzung, Hypothese oder gezielte Falschinformation enthalten. Wir prüfen deshalb Urheber, Datum, Zweck, Belegkette, spätere Einordnung und unabhängige Bestätigung.\n\n[P(SIM)-HYPOTHESE]\nN zählt nur voneinander unabhängige, nachvollziehbare Bestätigungsketten. Viele Kopien derselben Behauptung erhöhen N nicht. P(sim) beschreibt damit im Gedankenmodell wachsende Evidenzabdeckung – nicht die Vertrauenswürdigkeit einer Regierung und keine Verschwörungsgewissheit.\n\n[NÄCHSTER SCHRITT]\nNenne ein konkretes Dokument oder Thema. Der Forschungsraum verknüpft offizielle Archive und lässt Quellenprüfer, Historiker, Staatsanalyst und Kritiker getrennt arbeiten.`;
+  }
+  if (/zeit|nicht linear|zyklisch|verzweigt/.test(query)) {
+    return `[ZEITMODELL-HYPOTHESE]\nWir müssen Zeit nicht von Anfang an als eine universelle gerade Linie setzen. Im P(sim)-Universum kann ein „Moment“ als Modellaktualisierung entstehen: N zählt konsistente Übergänge, während P(sim) die Annäherung des Beobachtermodells beschreibt. Daraus lassen sich lineare Folgen, Zyklen oder verzweigte Möglichkeiten simulieren.\n\n[BEKANNTE GRENZE]\nSubjektives Zeiterleben, thermodynamischer Zeitpfeil und relativistische Zeit sind verschiedene Themen. Die Formel ersetzt keine physikalische Theorie; sie müsste messbare Größen und unterscheidbare Vorhersagen liefern.\n\n[PRÜFFRAGE]\nIst N bei deiner Idee eine Ereignisfolge, ein Beziehungsnetz oder die Informationsmenge eines Beobachters?`;
+  }
+  if (/anatom|körper|organ|nervensystem|gehirn/.test(query)) {
+    return `[ANATOMIE-LERNMODUS]\nWir trennen Struktur, Funktion und Wechselwirkung. P(sim) kann rein hypothetisch die wachsende Abdeckung verbundener Körpersysteme beschreiben: N wäre dann die Zahl korrekt verstandener und überprüfter Beziehungen – nicht Gesundheit, Heilung oder Diagnosewahrscheinlichkeit.\n\nBeginne mit einem System, zum Beispiel Nervensystem, Kreislauf oder Bewegungsapparat. Der Anatomieagent erzeugt daraus Lernkarten, Verbindungen, häufige Missverständnisse und Selbsttestfragen.\n\n[MEDIZINISCHE GRENZE]\nAllgemeine Bildung ersetzt keine Untersuchung oder individuelle medizinische Beratung.`;
+  }
+  if (/geschichte|historisch|archiv/.test(query)) {
+    return `[GESCHICHTS-LERNMODUS]\nDer Historiker trennt Primärquelle, spätere Deutung, Entstehungskontext und fehlende Stimmen. Im P(sim)-Hypothesenmodell erhöht nur eine neue unabhängige Perspektive N; Wiederholungen derselben Quelle zählen nicht doppelt.\n\nEin sinnvoller Lauf erzeugt Zeitleiste, sichere Befunde, strittige Interpretationen und offene Archivlücken. Nenne Epoche, Ort oder Ereignis, das du untersuchen möchtest.`;
+  }
+  if (/welt|realität|wirklichkeit|kosmos/.test(query)) {
+    return `[P(SIM)-WELTMODELL]\nInnerhalb des markierten Hypothesenuniversums verstehen wir Welt als Netz fortlaufender Beobachtungs- und Aktualisierungsbeziehungen. N zählt konsistente Relationen; P(sim) nähert das aktuelle Modell an 1 an, ohne Vollständigkeit zu behaupten. Raum, Zeit und Ursache müssten dann als Regeln zwischen Aktualisierungen definiert werden.\n\n[KRITISCHE GRENZE]\nDas ist eine kreative Ontologie, keine bestätigte Beschreibung unserer Welt. Entscheidend wäre, ob sie intern widerspruchsfrei ist und eine messbare Vorhersage liefert, die einfachere Modelle nicht ebenso erklären.`;
   }
   if (/trading|backtest|bot/.test(query)) {
     return "Beginne nicht mit einer Order, sondern mit einer prüfbaren Regel. Das Paper-Trading-Labor erzeugt synthetische Daten, zieht Wechselkosten ab und zeigt Drawdown sowie einen Kaufen-und-Halten-Vergleich.\n\nEin gutes Ergebnis ist nur der Start einer Prüfung: mehrere Seeds, andere Marktregime, Kosten-Stresstest und eine klare Stop-Regel. Keine autonome Echtgeldtransaktion und keine Gewinnzusage.";
@@ -505,7 +537,7 @@ export function localAssistantReply(text, state) {
     return "Staking-Ertrag ist nur eine Seite. Gegenüber stehen Tokenpreis, Inflation, Slashing, Verwahrung, Lock-up, Protokollfehler und Steuern. Das Staking-Labor zeigt deshalb nominale, inflationsbereinigte und gestresste Werte statt nur APY.";
   }
   if (/200|budget|vermögen|einnahm|geld.*generier|startkapital/.test(query)) {
-    return "Ich richte den Plan auf höchstens 200 € verfügbares Startbudget aus. Unser verantwortungsvoller Weg ist nicht, dieses Geld in riskanten Trades zu erzwingen, sondern zuerst Fähigkeiten und organische Einnahmen zu testen: hilfreiche TikTok-Inhalte mit transparenter Affiliate-Kennzeichnung und kleine, klar abgegrenzte Dienstleistungen.\n\nDas 30-Tage-Budgetlabor zeigt konservative, mittlere und optimistische Bandbreiten. Sie sind keine Zusage. Deine Formel nutze ich dabei nur als Lernheuristik für wiederholte Content-Zyklen – nicht als Erfolgswahrscheinlichkeit. Schütze einen Großteil des Budgets und gib nur aus, was vorher als Lernkosten geplant wurde.";
+    return `[VERMÖGENS-KOMPASS · MAXIMAL 200 €]\nDer verantwortungsvollste Start ist nicht, Kapital mit Risiko zu erzwingen, sondern eine kleine nützliche Fähigkeit zu verkaufen und Nachfrage vor Ausgaben zu prüfen.\n\n1. Wähle ein echtes Problem, das du bereits glaubwürdig lösen kannst.\n2. Führe fünf kostenlose Bedarfsgespräche und formuliere ein enges Angebot.\n3. Erstelle drei hilfreiche Kurzvideos mit ehrlicher Affiliate-Kennzeichnung, falls ein Produkt wirklich passt.\n4. Reserviere mindestens 150 €; nutze höchstens 50 € als vorher begrenztes Lernbudget.\n5. Miss Gespräche, Rückmeldungen, Anfragen, Zeit und Nettogewinn getrennt.\n\nP(sim) dient nur als Lernreife-Heuristik für überprüfte Zyklen. Es ist keine Einkommenswahrscheinlichkeit. Keine Rendite ist garantiert; Echtgeld-Trading bleibt ausgeschlossen, bis unabhängige Paper-Tests und deine eigene bewusste Entscheidung vorliegen.`;
   }
   if (/tiktok|affiliate|content/.test(query)) {
     return "Ein regelkonformer Content-Agent sollte Entwürfe liefern, nicht Menschen täuschen oder Plattformen zuspammen. Gute Leitplanken: echte Erfahrung, überprüfbare Aussagen, sichtbare Werbekennzeichnung, menschliche Freigabe, keine künstliche Verknappung und kein automatisiertes Massensenden.\n\nDas Affiliate-Labor macht den Trichter aus Impressionen, Klicks, Käufen, Stornos und Kosten sichtbar – als Bandbreite, nicht als Versprechen.";

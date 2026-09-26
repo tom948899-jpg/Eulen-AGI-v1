@@ -163,6 +163,138 @@ export const KNOWLEDGE_TOPICS = [
     ]
   },
   {
+    id: "intelligence",
+    title: "CIA-Dokumente & Quellenkritik",
+    status: "Offizielle Archive verknüpft",
+    updatedAt: "2026-09-26",
+    summary: "Deklassifizierte Dokumente werden als historische Primärquellen gelesen, nicht automatisch als bestätigte Tatsachen oder heutige Regierungsposition.",
+    insights: [
+      { type: "fact", text: "Die CIA FOIA Electronic Reading Room stellt freigegebene Dokumente bereit; Freigabe und Archivierung bestätigen jedoch nicht jede Aussage im Dokument." },
+      { type: "fact", text: "Geheimdienstunterlagen können Rohberichte, Einschätzungen, Übersetzungen, Hypothesen, Desinformation oder später widerlegte Annahmen enthalten." },
+      { type: "hypothesis", text: "Im P(sim)-Modell könnte N die Zahl unabhängig bestätigter Quellenketten bezeichnen – nicht die bloße Zahl gefundener Dokumente." },
+      { type: "simulation", text: "Der Agentenlauf trennt Dokumentherkunft, Entstehungsdatum, behaupteten Inhalt, unabhängige Bestätigung und offene Widersprüche." },
+      { type: "question", text: "Welche Aussage ist direkt belegt, welche nur berichtet, und welche unabhängige Quelle bestätigt oder widerlegt sie?" }
+    ],
+    sources: [
+      ["CIA FOIA Electronic Reading Room", "https://www.cia.gov/readingroom/"],
+      ["CIA Historical Collections", "https://www.cia.gov/readingroom/historical-collections"],
+      ["US National Archives: Intelligence Records", "https://www.archives.gov/research/intelligence"]
+    ]
+  },
+  {
+    id: "government",
+    title: "Regierungen, Institutionen & Macht",
+    status: "Vergleichsmodell",
+    updatedAt: "2026-09-26",
+    summary: "Regierungen werden über Institutionen, Regeln, Anreize, Machtbegrenzung und Rechenschaft untersucht – nicht über pauschale geheime Absichten.",
+    insights: [
+      { type: "fact", text: "Regierungssysteme unterscheiden sich unter anderem in Gewaltenteilung, Wahlregeln, Rechtsbindung, Verwaltung und öffentlicher Kontrolle." },
+      { type: "fact", text: "Eine Institution besteht aus Menschen, Verfahren und Anreizen; einzelne Dokumente erklären nicht automatisch das gesamte System." },
+      { type: "hypothesis", text: "P(sim) könnte als Sättigungsmetapher für wiederholte unabhängige Kontrolle dienen, aber weder Legitimität noch Wahrheit mathematisch garantieren." },
+      { type: "simulation", text: "Die Analyse vergleicht Transparenz, Gegenmacht, Quellenvielfalt, Interessenkonflikte und Korrekturmechanismen." },
+      { type: "question", text: "Welche formelle Zuständigkeit, welche tatsächliche Praxis und welche überprüfbaren Gegenbelege liegen vor?" }
+    ],
+    sources: [
+      ["Deutscher Bundestag: Aufgaben", "https://www.bundestag.de/parlament/aufgaben"],
+      ["Bundeszentrale für politische Bildung: Politisches System", "https://www.bpb.de/themen/politisches-system/"],
+      ["OECD: Public Governance", "https://www.oecd.org/governance/"]
+    ]
+  },
+  {
+    id: "world",
+    title: "Weltmodell mit P(sim)",
+    status: "Hypothetisches Modelluniversum",
+    updatedAt: "2026-09-26",
+    summary: "Die Welt wird im Hypothesenmodus als fortlaufend aktualisiertes Beziehungsmodell betrachtet; reale Physik und Beobachtung bleiben davon getrennt.",
+    insights: [
+      { type: "fact", text: "Modelle wählen bestimmte Merkmale der Welt aus; kein einzelnes Modell enthält automatisch die ganze Wirklichkeit." },
+      { type: "hypothesis", text: "Im P(sim)-Universum könnte Wirklichkeit als Netz von Beobachtungs- und Aktualisierungszyklen verstanden werden, in dem N für konsistente Relationen steht." },
+      { type: "simulation", text: "Eine Nullwelt startet nur mit P(sim), definiert anschließend Beobachter, Ereignis, Relation und Korrektur und prüft daraus entstehende Regeln auf Widersprüche." },
+      { type: "question", text: "Welche neue, messbare Vorhersage würde dieses Weltmodell gegenüber einfacheren Beschreibungen liefern?" }
+    ],
+    sources: [
+      ["Stanford Encyclopedia: Scientific Models", "https://plato.stanford.edu/entries/models-science/"],
+      ["CERN: How science works", "https://home.cern/science"],
+      ["NIST: Uncertainty of Measurement", "https://www.nist.gov/pml/nist-technical-note-1297"]
+    ]
+  },
+  {
+    id: "time",
+    title: "Zeit: linear, zyklisch, verzweigt",
+    status: "Modelle getrennt",
+    updatedAt: "2026-09-26",
+    summary: "EULEN setzt nicht voraus, dass Zeit fundamental linear ist, sondern vergleicht Alltagspfeil, physikalische Parameter, Zyklen und verzweigte Möglichkeitsräume.",
+    insights: [
+      { type: "fact", text: "Dass wir Ereignisse als Vergangenheit, Gegenwart und Zukunft ordnen, ist nicht dasselbe wie der Nachweis einer universell linearen Zeitstruktur." },
+      { type: "fact", text: "Physik und Philosophie verwenden mehrere Zeitbegriffe; Relativität, thermodynamischer Zeitpfeil und subjektives Zeiterleben beantworten unterschiedliche Fragen." },
+      { type: "hypothesis", text: "Im P(sim)-Modell könnte Zeit als Reihenfolge von Modellaktualisierungen entstehen: N zählt konsistente Übergänge statt Sekunden." },
+      { type: "simulation", text: "Der Zeitagent vergleicht lineare Folge, Zyklus und Verzweigung und prüft, welches Modell für eine konkrete Frage die wenigsten Zusatzannahmen braucht." },
+      { type: "question", text: "Ist N eine gerichtete Folge, ein Netzwerk von Ereignissen oder nur die Informationsmenge eines Beobachters?" }
+    ],
+    sources: [
+      ["Stanford Encyclopedia: Time", "https://plato.stanford.edu/entries/time/"],
+      ["Internet Encyclopedia of Philosophy: Time", "https://iep.utm.edu/time/"],
+      ["Einstein Online: The definition of now", "https://www.einstein-online.info/en/spotlight/Now/"]
+    ]
+  },
+  {
+    id: "history",
+    title: "Geschichte & Archivarbeit",
+    status: "Primär- und Sekundärquellen",
+    updatedAt: "2026-09-26",
+    summary: "Geschichte wird als quellengebundene Rekonstruktion mit Perspektiven, Lücken und veränderlicher Einordnung gelernt.",
+    insights: [
+      { type: "fact", text: "Primärquellen stammen aus dem untersuchten Zusammenhang; Sekundärquellen ordnen, vergleichen und interpretieren sie." },
+      { type: "fact", text: "Quellenkritik fragt nach Urheber, Zeitpunkt, Zweck, Überlieferung, Publikum und unabhängiger Bestätigung." },
+      { type: "hypothesis", text: "P(sim) kann als Lernmetapher für wachsende Quellenabdeckung dienen, wenn widersprüchliche Quellen N nicht blind erhöhen." },
+      { type: "simulation", text: "Ein historischer Lernlauf erstellt Zeitleiste, Perspektivenmatrix, sichere Befunde, strittige Deutungen und fehlende Quellen." },
+      { type: "question", text: "Welche Stimme fehlt im Archiv, und wie verändert diese Lücke unsere Schlussfolgerung?" }
+    ],
+    sources: [
+      ["Das Bundesarchiv", "https://www.bundesarchiv.de/"],
+      ["Bundesarchiv: Digitalisierte Bestände", "https://www.bundesarchiv.de/en/research-our-records/research-archive-material/digitised-records/"],
+      ["Deutsche Digitale Bibliothek", "https://www.deutsche-digitale-bibliothek.de/"]
+    ]
+  },
+  {
+    id: "anatomy",
+    title: "Anatomie des Menschen",
+    status: "Bildung, keine Diagnose",
+    updatedAt: "2026-09-26",
+    summary: "Körpersysteme, Strukturen und Funktionen werden mit offenen Lehrquellen gelernt; individuelle Beschwerden gehören in medizinische Hände.",
+    insights: [
+      { type: "fact", text: "Anatomie beschreibt Strukturen; Physiologie beschreibt Funktionen. Organsysteme wirken miteinander und lassen sich nicht vollständig isoliert erklären." },
+      { type: "fact", text: "Ein allgemeines Lernmodell kann weder Untersuchung noch Diagnose, Behandlung oder individuelle Risikobewertung ersetzen." },
+      { type: "hypothesis", text: "P(sim) könnte rein metaphorisch die wachsende Abdeckung miteinander verknüpfter Körpersysteme darstellen, nicht Gesundheit oder Heilungswahrscheinlichkeit." },
+      { type: "simulation", text: "Der Anatomieagent baut Lernkarten aus Struktur, Funktion, Verbindung, häufigem Missverständnis und Selbsttestfrage." },
+      { type: "question", text: "Welche Struktur, Funktion und Wechselwirkung soll gelernt werden – und welche Aussage wäre bereits eine medizinische Bewertung?" }
+    ],
+    sources: [
+      ["OpenStax Anatomy and Physiology", "https://openstax.org/details/books/anatomy-and-physiology-2e"],
+      ["NCBI Bookshelf", "https://www.ncbi.nlm.nih.gov/books/"],
+      ["MedlinePlus: Anatomy", "https://medlineplus.gov/anatomy.html"]
+    ]
+  },
+  {
+    id: "wealth",
+    title: "Vermögensaufbau bis 200 €",
+    status: "Fähigkeiten vor Kapitalrisiko",
+    updatedAt: "2026-09-26",
+    summary: "Der erste Schwerpunkt liegt auf Fähigkeiten, kleinen Dienstleistungen und ehrlichem Content; Echtgeld-Risiko bleibt begrenzt und manuell.",
+    insights: [
+      { type: "fact", text: "Mit geringem Startbudget sind kontrollierbare Fähigkeiten, Nachfragegespräche und kleine Dienstleistungen meist besser prüfbar als spekulative Renditeziele." },
+      { type: "fact", text: "Umsatz ist nicht Gewinn; Zeit, Gebühren, Steuern, Stornos und Akquisekosten müssen getrennt erfasst werden." },
+      { type: "hypothesis", text: "P(sim) kann die Reife wiederholter Lernzyklen abbilden, aber keine Einnahme- oder Erfolgswahrscheinlichkeit garantieren." },
+      { type: "simulation", text: "EULEN priorisiert drei Pfade: hilfreiche Kurzvideos, transparente Affiliate-Tests und klar abgegrenzte digitale Kleindienstleistungen." },
+      { type: "question", text: "Welches reale Problem kannst du diese Woche glaubwürdig lösen und mit fünf Gesprächen validieren, bevor du Geld ausgibst?" }
+    ],
+    sources: [
+      ["Existenzgründungsportal des BMWK", "https://www.existenzgruendungsportal.de/"],
+      ["Verbraucherzentrale: Geld und Versicherungen", "https://www.verbraucherzentrale.de/wissen/geld-versicherungen"],
+      ["TikTok Community Guidelines", "https://www.tiktok.com/community-guidelines/en/"]
+    ]
+  },
+  {
     id: "spirituality",
     title: "Spiritualität, Intention & Anziehung",
     status: "Persönliche Praxis und Hypothese",

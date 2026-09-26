@@ -18,7 +18,7 @@
         <span><strong>EULEN</strong><small>Werkstatt für klare Entscheidungen</small></span>
       </a>
       <div class="topbar-actions">
-        <span class="status-dot"><i></i> Lokal bereit</span>
+        <span class="status-dot"><i></i> 18 Agenten lokal bereit</span>
         <button class="icon-button" id="themeToggle" type="button" aria-label="Farbschema wechseln">◐</button>
       </div>
     </header>
@@ -90,7 +90,10 @@
           </article>
           <article class="panel neural-panel">
             <div class="panel-head"><div><p class="eyebrow">LIVE-PROZESSNETZWERK</p><h2>Was das System gerade verarbeitet</h2></div><span id="networkStatus" class="network-status"><i></i> Bereit</span></div>
-            <canvas id="neuralCanvas" width="1200" height="500" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
+            <div class="network-stage">
+              <canvas id="neuralCanvas" width="1400" height="620" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
+              <div class="network-kpis" aria-label="Netzwerkübersicht"><span><b>18</b> Agenten</span><span><b>6</b> Wissensebenen</span><span><b>0 €</b> Echtgeldzugriff</span></div>
+            </div>
             <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
           </article>
         </section>
@@ -147,15 +150,37 @@
           <div class="legend" aria-label="Evidenzlegende">
             <span class="badge fact">Fakt</span><span class="badge hypothesis">Hypothese</span><span class="badge simulation">Simulation</span><span class="badge question">Offene Frage</span>
           </div>
+          <form class="panel research-mission" id="researchMissionForm">
+            <div>
+              <p class="eyebrow">DEIN LERNAUFTRAG</p>
+              <h2>Was soll EULEN untersuchen?</h2>
+              <p>Der lokale Modus durchsucht die sichtbare Wissensbasis. Ein Chat-Provider kann die Synthese verbessern, ersetzt aber keine echte Websuche.</p>
+            </div>
+            <label class="mission-input">Forschungsfrage<textarea id="researchMission" rows="3" maxlength="1000" required placeholder="Zum Beispiel: Was bedeuten deklassifizierte CIA-Dokumente im P(sim)-Hypothesenmodell?"></textarea></label>
+            <label>Lerntiefe<select id="researchDepth"><option value="1">Schnell · Kernpunkte</option><option value="2" selected>Intensiv · Quellen + Gegenprüfung</option><option value="3">Tief · mehr Themenverbindungen</option></select></label>
+            <button class="primary" type="submit">Lernauftrag starten</button>
+            <label class="toggle-line research-provider-toggle"><input id="researchExternal" type="checkbox"> Optionalen Chat-Provider nur für die abschließende Synthese verwenden</label>
+            <output id="researchMissionStatus" class="form-status">Bereit · Ergebnisse werden lokal gespeichert.</output>
+          </form>
+          <div class="research-suggestions" aria-label="Vorgeschlagene Forschungsaufträge">
+            <button data-research-goal="Untersuche deklassifizierte CIA-Dokumente, ihre historische Einordnung und was P(sim) im Hypothesenmodus dazu bedeuten könnte.">CIA-Dokumente</button>
+            <button data-research-goal="Vergleiche lineare, zyklische und verzweigte Zeitmodelle und leite im Hypothesenmodus eine P(sim)-Zeit ab.">Nichtlineare Zeit</button>
+            <button data-research-goal="Untersuche Anatomie und Körpersysteme und prüfe vorsichtig, welche reine Modellmetapher P(sim) liefern könnte.">Anatomie</button>
+            <button data-research-goal="Entwirf risikoarme Wege, mit höchstens 200 Euro Fähigkeiten, Dienstleistungen und ehrliche Affiliate-Inhalte aufzubauen.">Vermögenspfade</button>
+          </div>
           <div class="research-layout">
             <aside id="topicList" class="topic-list" aria-label="Wissensthemen"></aside>
             <article id="topicDetail" class="panel topic-detail"><p class="empty-state">Thema auswählen.</p></article>
           </div>
+          <article class="panel research-history-panel">
+            <div class="panel-head"><div><p class="eyebrow">LERNPROTOKOLL</p><h2>Zuletzt untersuchte Aufträge</h2></div><span class="badge fact">LOKAL GESPEICHERT</span></div>
+            <div id="researchMissionHistory" class="research-mission-history"></div>
+          </article>
         </section>
 
         <section class="view" id="agents" aria-labelledby="agentsTitle">
           <div class="page-head">
-            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">Zwölf Perspektiven. Ein Kompass.</h1><p>Zwölf spezialisierte Software-Agenten prüfen Werte, Ziele, Wissen, Chancen, Risiken, Bewusstsein und kreative Verbindungen.</p></div>
+            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">18 Perspektiven. Ein Kompass.</h1><p>18 spezialisierte Software-Agenten prüfen Werte, Quellen, Geschichte, Staat, Anatomie, Zeit, Chancen, Risiken, Bewusstsein und kreative Verbindungen.</p></div>
           </div>
           <div class="safety-banner"><strong>Transparenz</strong><span>Die Agenten arbeiten wirklich im Browser, aber nicht dauerhaft bei geschlossenem Tab. Ohne Recherche-Backend verwenden sie nur die sichtbaren kuratierten Quellen und behaupten keine Live-Recherche.</span></div>
           <div class="agent-layout">
@@ -167,8 +192,12 @@
                 <button type="button" data-agent-goal="Prüfe P(sim) als Rechts-Evidenz-Heuristik mit Gegenargumenten.">Recht</button>
                 <button type="button" data-agent-goal="Optimiere den sicheren 200-Euro-Budgetplan ohne Gewinnversprechen.">Budget</button>
                 <button type="button" data-agent-goal="Untersuche Law of Attraction, Spiritualität und liebevolle Handlung mit P(sim).">Spiritualität</button>
+                <button type="button" data-agent-goal="Ordne deklassifizierte CIA-Dokumente historisch ein und trenne Dokumentinhalt, Beleg und Spekulation.">CIA-Dokumente</button>
+                <button type="button" data-agent-goal="Vergleiche lineare, zyklische und verzweigte Zeit und konstruiere eine hypothetische P(sim)-Zeit.">Zeitmodelle</button>
+                <button type="button" data-agent-goal="Untersuche die Anatomie des Menschen mit seriösen Lernquellen und klaren medizinischen Grenzen.">Anatomie</button>
               </div>
-              <label>Automationsintervall<select id="agentInterval"><option value="5">5 Minuten</option><option value="15">15 Minuten</option><option value="30" selected>30 Minuten</option><option value="60">60 Minuten</option></select></label>
+              <label>Lerntiefe<select id="agentDepth"><option value="1">Schnell</option><option value="2" selected>Intensiv</option><option value="3">Tief</option></select></label>
+              <label>Automationsintervall<select id="agentInterval"><option value="1">1 Minute</option><option value="5">5 Minuten</option><option value="15">15 Minuten</option><option value="30" selected>30 Minuten</option><option value="60">60 Minuten</option></select></label>
               <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
               <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
               <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
@@ -179,15 +208,21 @@
                 <div data-agent-card="Wertewächter"><span>01</span><strong>Wertewächter</strong><small>Bereit · schützt Liebe und Würde</small><i></i></div>
                 <div data-agent-card="Zielklärer"><span>02</span><strong>Zielklärer</strong><small>Bereit · hält den Lebenskompass</small><i></i></div>
                 <div data-agent-card="Planer"><span>03</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
-                <div data-agent-card="Rechercheur"><span>04</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
-                <div data-agent-card="Bewusstseinsforscher"><span>05</span><strong>Bewusstsein</strong><small>Bereit · prüft Selbstmodelle</small><i></i></div>
-                <div data-agent-card="Spiritualitätsforscher"><span>06</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
-                <div data-agent-card="Chancenfinder"><span>07</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
-                <div data-agent-card="Simulationsagent"><span>08</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
-                <div data-agent-card="Risikowächter"><span>09</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
-                <div data-agent-card="Kritiker"><span>10</span><strong>Kritiker</strong><small>Bereit · prüft Gegenbelege</small><i></i></div>
-                <div data-agent-card="Traumagent"><span>11</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
-                <div data-agent-card="Synthese"><span>12</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
+                <div data-agent-card="Quellenprüfer"><span>04</span><strong>Quellenprüfung</strong><small>Bereit · prüft Herkunft</small><i></i></div>
+                <div data-agent-card="Rechercheur"><span>05</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
+                <div data-agent-card="Historiker"><span>06</span><strong>Geschichte</strong><small>Bereit · ordnet zeitlich ein</small><i></i></div>
+                <div data-agent-card="Staatsanalyst"><span>07</span><strong>Staat & Regierung</strong><small>Bereit · prüft Institutionen</small><i></i></div>
+                <div data-agent-card="Anatomieforscher"><span>08</span><strong>Anatomie</strong><small>Bereit · trennt Systeme</small><i></i></div>
+                <div data-agent-card="Zeitmodellierer"><span>09</span><strong>Zeitmodelle</strong><small>Bereit · vergleicht Zeit</small><i></i></div>
+                <div data-agent-card="Bewusstseinsforscher"><span>10</span><strong>Bewusstsein</strong><small>Bereit · prüft Selbstmodelle</small><i></i></div>
+                <div data-agent-card="Spiritualitätsforscher"><span>11</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
+                <div data-agent-card="Chancenfinder"><span>12</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
+                <div data-agent-card="Simulationsagent"><span>13</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
+                <div data-agent-card="Lernoptimierer"><span>14</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
+                <div data-agent-card="Risikowächter"><span>15</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
+                <div data-agent-card="Kritiker"><span>16</span><strong>Kritiker</strong><small>Bereit · prüft Gegenbelege</small><i></i></div>
+                <div data-agent-card="Traumagent"><span>17</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
+                <div data-agent-card="Synthese"><span>18</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
               </div>
               <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
             </article>
@@ -226,6 +261,9 @@
               <button>Simuliere eine Trading-Strategie</button>
               <button>Wie kommunizieren wir besser?</button>
               <button>Erkläre die Formel kritisch</button>
+              <button>Ordne CIA-Dokumente quellenkritisch ein</button>
+              <button>Modelliere Zeit als nichtlinear</button>
+              <button>Plane einen Vermögenspfad mit 200 €</button>
             </div>
             <form id="chatForm" class="chat-form">
               <label class="sr-only" for="chatInput">Nachricht</label>
@@ -241,7 +279,8 @@
           <div class="settings-grid">
             <form class="panel" id="providerForm">
               <h2>Optionaler Chat-Provider</h2>
-              <p>OpenAI-kompatible Schnittstelle. Der Schlüssel bleibt nur bis zum Schließen dieses Browser-Tabs im <code>sessionStorage</code>.</p>
+              <p>OpenAI-kompatible Schnittstelle. Groq kann Antworten beschleunigen, führt aber ohne Suchwerkzeug keine Live-Webrecherche aus. Der Schlüssel bleibt nur bis zum Schließen dieses Browser-Tabs im <code>sessionStorage</code>; nutze ihn nur auf einem vertrauenswürdigen Gerät.</p>
+              <div class="provider-presets"><button class="secondary" type="button" data-provider-preset="groq">Groq vorbereiten</button><button class="secondary" type="button" data-provider-preset="openai">OpenAI vorbereiten</button></div>
               <label>Endpoint<input id="providerEndpoint" type="url" placeholder="https://…/v1/chat/completions"></label>
               <label>Modell<input id="providerModel" type="text" placeholder="Modellname"></label>
               <label>API-Schlüssel<input id="providerKey" type="password" autocomplete="off" placeholder="Wird nicht dauerhaft gespeichert"></label>

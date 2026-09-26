@@ -29,6 +29,12 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--text); min-width: 320px; }
+body {
+  background-image:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 28rem),
+    radial-gradient(circle at 88% 34%, color-mix(in srgb, var(--accent-2) 6%, transparent), transparent 32rem);
+  background-attachment: fixed;
+}
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; }
@@ -36,9 +42,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .skip-link:focus { top: 12px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-.topbar { height: 72px; position: sticky; top: 0; z-index: 30; display: flex; justify-content: space-between; align-items: center; padding: 0 28px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(18px); }
+.topbar { height: 72px; position: sticky; top: 0; z-index: 30; display: flex; justify-content: space-between; align-items: center; padding: 0 28px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(18px); box-shadow: 0 8px 30px rgba(0, 0, 0, .12); }
 .brand { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; letter-spacing: .08em; }
-.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--accent); color: var(--accent); border-radius: 50% 50% 45% 45%; font-family: Georgia, serif; font-size: 21px; }
+.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid color-mix(in srgb, var(--accent) 75%, white); color: #15120b; border-radius: 50% 50% 45% 45%; font-family: Georgia, serif; font-size: 21px; background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent-2) 60%, var(--accent))); box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 18%, transparent); }
 .brand strong, .brand small { display: block; }
 .brand small { color: var(--muted); font-size: 10px; letter-spacing: .06em; margin-top: 2px; }
 .topbar-actions { display: flex; align-items: center; gap: 14px; }
@@ -92,7 +98,7 @@ h2 { font-size: 20px; letter-spacing: -.02em; }
 .meter { height: 3px; background: var(--line); margin-top: 10px; }
 .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s ease; }
 .dashboard-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
+.panel { background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 96%, var(--accent) 4%), var(--surface)); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
 .panel-head { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
 .today-panel > p { color: var(--muted); line-height: 1.6; }
 .task-preview { display: grid; gap: 9px; }
@@ -107,8 +113,12 @@ input[type="checkbox"] { accent-color: var(--accent); width: 17px; height: 17px;
 .guidance-feed { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
 .guidance-feed div { padding: 13px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; line-height: 1.5; font-size: 13px; }
 .guidance-feed strong { display: block; color: var(--accent); margin-bottom: 4px; }
-.neural-panel { margin-top: 24px; overflow: hidden; }
-#neuralCanvas { width: 100%; height: min(500px, 52vw); min-height: 320px; display: block; margin-top: 12px; border-radius: 18px; background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 66%), var(--surface-2); }
+.neural-panel { margin-top: 24px; overflow: hidden; border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); }
+.network-stage { position: relative; margin-top: 12px; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); border-radius: 20px; overflow: hidden; background: linear-gradient(145deg, color-mix(in srgb, var(--surface-2) 96%, var(--accent) 4%), var(--surface-2)); }
+#neuralCanvas { width: 100%; height: min(590px, 58vw); min-height: 390px; display: block; background: radial-gradient(ellipse at 46% 48%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 45%), radial-gradient(ellipse at 62% 45%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 55%); }
+.network-kpis { position: absolute; top: 14px; right: 14px; display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; pointer-events: none; }
+.network-kpis span { padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--bg) 76%, transparent); color: var(--muted); font-size: 10px; backdrop-filter: blur(12px); }
+.network-kpis b { color: var(--accent-2); }
 .network-status { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 7px; }
 .network-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
 .network-status.working i { background: var(--accent); box-shadow: 0 0 14px var(--accent); animation: pulse 1s infinite alternate; }
@@ -177,6 +187,20 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .sources { padding-left: 20px; color: var(--muted); }
 .sources li { margin-bottom: 8px; }
 .sources a { color: var(--accent); }
+.research-mission { display: grid; grid-template-columns: minmax(220px, .85fr) minmax(300px, 1.5fr) minmax(180px, .55fr) auto; gap: 14px; align-items: end; margin-bottom: 12px; border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+.research-mission h2 { margin-bottom: 6px; }
+.research-mission p:not(.eyebrow) { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 0; }
+.research-mission label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.research-mission .primary { min-height: 44px; }
+.research-mission .form-status { grid-column: 2 / -1; margin: 0; }
+.research-provider-toggle { grid-column: 2 / -1; margin: 0 !important; }
+.research-suggestions { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 20px; }
+.research-suggestions button, .provider-presets button { white-space: nowrap; border: 1px solid var(--line); color: var(--muted); background: color-mix(in srgb, var(--surface) 80%, transparent); border-radius: 999px; padding: 8px 11px; font-size: 11px; }
+.research-suggestions button:hover, .provider-presets button:hover { color: var(--text); border-color: var(--accent); }
+.research-history-panel { margin-top: 20px; }
+.research-mission-history { display: grid; gap: 8px; margin-top: 12px; }
+.research-mission-history article { display: grid; grid-template-columns: 160px minmax(220px, 1fr) minmax(240px, 1fr); gap: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); align-items: center; }
+.research-mission-history span, .research-mission-history small { color: var(--muted); font-size: 11px; line-height: 1.45; }
 
 .chat-shell { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; box-shadow: var(--shadow); }
 .chat-messages { height: min(56vh, 570px); overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
@@ -197,7 +221,7 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .toggle-line { display: flex !important; grid-template-columns: none !important; align-items: flex-start; gap: 10px !important; line-height: 1.5; }
 .toggle-line input { width: 18px; margin-top: 2px; }
 .agent-roster { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.agent-roster div { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.agent-roster div { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(145deg, color-mix(in srgb, var(--surface-2) 92%, var(--accent) 8%), var(--surface-2)); box-shadow: inset 0 1px color-mix(in srgb, white 5%, transparent); }
 .agent-roster div { position: relative; transition: border-color .2s, transform .2s; }
 .agent-roster div i { position: absolute; top: 14px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .agent-roster div.working { border-color: var(--accent); transform: translateY(-2px); }
@@ -230,6 +254,7 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .quick-agent-goals { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
 .quick-agent-goals button { border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); padding: 6px 9px; font-size: 11px; }
 .quick-agent-goals button:hover { color: var(--text); border-color: var(--accent); }
+.provider-presets { display: flex; gap: 7px; margin: 12px 0 16px; overflow-x: auto; }
 .agent-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 .agent-metrics div { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .agent-metrics small, .agent-metrics strong { display: block; }
@@ -259,7 +284,10 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .metrics article:nth-child(2) { border-right: 0; }
   .metrics article:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
-  .dashboard-grid, .sim-grid, .agent-layout { grid-template-columns: 1fr; }
+  .dashboard-grid, .sim-grid, .agent-layout, .research-mission { grid-template-columns: 1fr; }
+  .research-mission .form-status { grid-column: auto; }
+  .research-provider-toggle { grid-column: auto; }
+  .research-mission-history article { grid-template-columns: 1fr; gap: 5px; }
   .life-goal-panel { align-items: flex-start; flex-direction: column; }
   .guidance-feed { grid-template-columns: 1fr; }
   .plan-layout, .research-layout { grid-template-columns: 1fr; }
@@ -280,6 +308,8 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   .metrics article { padding: 15px; min-height: 108px; }
   .metrics strong { font-size: 24px; }
   .panel { padding: 18px; }
+  #neuralCanvas { min-height: 440px; height: 118vw; }
+  .network-kpis { position: static; padding: 10px; justify-content: flex-start; border-top: 1px solid var(--line); }
   .result-stats { grid-template-columns: 1fr; }
   .run-item { grid-template-columns: 1fr; gap: 3px; }
   .settings-grid { grid-template-columns: 1fr; }

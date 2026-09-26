@@ -22,13 +22,16 @@ npm run check
 ## Funktionsumfang
 
 - Vollständiger 30-Tage-Plan mit 120 Aufgaben, Tagesauswahl, Fortschritt, Notizen und Lernständen
-- Lokaler deutschsprachiger Assistent mit transparenten Grenzen und optionalem OpenAI-kompatiblem Provider
+- Lokaler deutschsprachiger Assistent mit transparenten Grenzen, Wissensabruf und optionalem OpenAI-/Groq-kompatiblem Provider
 - Auf höchstens 200 € begrenztes 30-Tage-Budgetlabor für regelkonformes Affiliate-Marketing und ehrliche kleine Dienstleistungen
 - Paper-Trading/Backtesting mit maximal 200 € fiktivem Startwert, reproduzierbaren synthetischen Daten, Gebühren, Benchmark und Drawdown
 - Sichere Token-/Memecoin-Risiko-Sandbox ohne Wallet, Deployment oder Echtgeld
 - Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen
-- Kuratierte Wissensbereiche mit Quellen, Zeitstempel, Status und expliziter Trennung von Fakten, Hypothesen, Simulationen und offenen Fragen
-- Lokaler Multi-Agenten-Raum mit zwölf sichtbaren Rollen für Werte, Ziele, Planung, Recherche, Bewusstsein, Spiritualität, Chancen, Simulation, Risiko, Kritik, Traum und Synthese
+- Kuratierte Wissensbereiche zu CIA-Dokumenten, Regierungen, Weltmodellen, nichtlinearer Zeit, Geschichte, Anatomie, Bewusstsein, Spiritualität und Vermögensaufbau mit Quellen, Zeitstempel und Evidenztrennung
+- Frei formulierbare persistente Lernaufträge mit drei Lerntiefen, sichtbarem Quellenumfang und lokalem Forschungsprotokoll
+- Lokaler Multi-Agenten-Raum mit 18 sichtbaren Rollen für Werte, Ziele, Planung, Quellenprüfung, Recherche, Geschichte, Staat, Anatomie, Zeit, Bewusstsein, Spiritualität, Chancen, Simulation, Lernoptimierung, Risiko, Kritik, Traum und Synthese
+- Professionelles Live-Prozessnetzwerk mit 22 Knoten, gekrümmten Datenpfaden, Aktivitätsanzeige und responsiver Darstellung
+- Automatisierte Lernzyklen ab einer Minute, solange die Anwendung geöffnet ist; keine vorgetäuschte Hintergrund- oder Cloud-Autonomie
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
 - Spiritueller Wissensbereich zu Intention und Law of Attraction mit respektvoller Hypothese-Fakt-Trennung
 - Bewusstseins-Hypothesenlabor mit P(sim)-Axiommodus, Konsistenz, Selbstkorrektur, Widersprüchen und Gedächtniskontinuität
@@ -46,7 +49,9 @@ Ein optionaler API-Schlüssel wird **nicht** dauerhaft gespeichert, sondern nur 
 
 ## Provider-Schnittstellen
 
-Der Chat läuft standardmäßig über `LocalProvider` in `src/providers.js`. Für einen externen Chat kann in der Oberfläche ein OpenAI-kompatibler HTTPS-Endpunkt samt Modell angegeben und getestet werden. Schlägt ein Aufruf fehl, meldet die Oberfläche das transparent und verwendet den lokalen Assistenten.
+Der Chat läuft standardmäßig über `LocalProvider` in `src/providers.js`. Für einen externen Chat kann in der Oberfläche ein OpenAI-kompatibler HTTPS-Endpunkt samt Modell angegeben und getestet werden. Ein Preset trägt den Groq-Endpunkt und ein anpassbares Modell ein. Groq kann Antworten beschleunigen, besitzt über diese Schnittstelle aber nicht automatisch Live-Webzugriff. Schlägt ein Aufruf fehl, meldet die Oberfläche das transparent und verwendet den lokalen Assistenten.
+
+Für Groq unter **Daten & Konfiguration** „Groq vorbereiten“ wählen, ein aktuell verfügbares Modell bei Bedarf anpassen, den eigenen API-Schlüssel nur auf einem vertrauenswürdigen Gerät einfügen und „Verbindung testen“ verwenden. Der Schlüssel wird nicht exportiert und nur im `sessionStorage` des Tabs gehalten. Im Forschungsauftrag kann Groq anschließend optional für die abschließende Synthese aktiviert werden; Quellenabruf und Evidenzprüfung bleiben davon getrennt.
 
 Die Wissens-/Rechercheansicht nutzt derzeit kuratierte lokale Daten aus `src/data.js`. Sie kennzeichnet diese ausdrücklich als lokal und zeigt keine vorgetäuschten Live-Ergebnisse. Für echte Live-Recherche sollte ein serverseitiger Provider ergänzt werden, der:
 
