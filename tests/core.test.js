@@ -108,9 +108,23 @@ test("Rechtslabor liefert keine Fallprognose", () => {
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
   const result = runAgentCycle("Untersuche die Formel in Physik und Recht");
-  assert.equal(result.steps.length, 12);
+  assert.equal(result.steps.length, 18);
   assert.ok(result.sources.length >= 4);
   assert.ok(result.topics.includes("Recht & Evidenz"));
+});
+
+test("tiefer CIA-Lernauftrag nutzt Quellenkritik und offizielle Archive", () => {
+  const result = runAgentCycle("Untersuche deklassifizierte CIA Dokumente und Regierungen", 3);
+  assert.equal(result.depth, 3);
+  assert.ok(result.topics.includes("CIA-Dokumente & Quellenkritik"));
+  assert.ok(result.steps.some(step => step.agent === "Quellenprüfer"));
+  assert.ok(result.sources.some(source => source.url.includes("cia.gov/readingroom")));
+});
+
+test("Zustand normalisiert Lerntiefe und schnelle Automatik", () => {
+  const state = normalizeState({ agentDepth: 3, agentInterval: 1 });
+  assert.equal(state.agentDepth, 3);
+  assert.equal(state.agentInterval, 1);
 });
 
 test("Traumgenerator erzeugt kreative, geerdete nächste Schritte", () => {
@@ -132,6 +146,13 @@ test("Assistent unterscheidet Hypothesen- und Prüfmodus", () => {
   const critical = { ...createInitialState(), chatMode: "critical" };
   assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", hypothesis), /P\\(SIM\\)-HYPOTHESENMODUS/);
   assert.match(localAssistantReply("Nutze meine Formel für Bewusstsein", critical), /KRITISCHER PRÜFMODUS/);
+});
+
+test("Assistent trennt nichtlineare Zeit und Anatomie von bestätigter Wissenschaft", () => {
+  const state = createInitialState();
+  assert.match(localAssistantReply("Verstehe Zeit als nicht linear", state), /ZEITMODELL-HYPOTHESE/);
+  assert.match(localAssistantReply("Nutze die Formel für Anatomie", state), /keine Diagnose/);
+  assert.match(localAssistantReply("Was sagen CIA Dokumente?", state), /Deklassifizierte CIA-Dokumente/);
 });
 
 test("runSimulation erzeugt persistierbaren Lauf", () => {
