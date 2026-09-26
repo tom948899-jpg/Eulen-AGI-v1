@@ -1,4 +1,4 @@
-import { localAssistantReply } from "./core.js?v=17";
+import { localAssistantReply } from "./core.js?v=18";
 
 export const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const GROQ_MODEL = "openai/gpt-oss-120b";

@@ -1,10 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyFormulaToDomain,
   buildActiveGuidance,
+  buildOvernightReport,
+  buildSystemFormulaMap,
   calculateProgress,
   chooseAutomaticResearchGoal,
   createInitialState,
+  createOvernightSession,
   evolveLearningPolicy,
   formulaValue,
   generateDream,
@@ -13,6 +17,7 @@ import {
   learningCycleCount,
   localAssistantReply,
   normalizeState,
+  overnightDueCycles,
   runScenarioSeries,
   runSimulation,
   runAgentCycle,
@@ -150,6 +155,55 @@ test("Agentenzyklus trennt Rollen und Quellen", () => {
   assert.ok(result.formulaModel.p > 0 && result.formulaModel.p < 1);
   assert.ok(result.steps.every(step => step.receivedFrom && step.handsTo));
   assert.match(result.steps.find(step => step.agent === "Axiomarchitekt").output, /alle .* Themen/);
+  assert.equal(result.formulaApplications.length, result.topics.length);
+});
+
+test("Marktphasen werden als messbare Regime und nicht als Signal gelernt", () => {
+  const state = createInitialState();
+  const run = runAgentCycle("Wie lerne ich Marktphasen und Marktregime als Modelle kennen?", 3);
+  assert.ok(run.topics.includes("Marktphasen & Regime-Modelle"));
+  assert.ok(run.sources.some(source => source.url.includes("fred.stlouisfed.org")));
+  const reply = localAssistantReply("Wie lerne ich Marktphasen als Modelle kennen?", state);
+  assert.match(reply, /Walk-forward/i);
+  assert.match(reply, /weder Trefferwahrscheinlichkeit noch Kauf- oder Verkaufssignal/i);
+  const maturity = applyFormulaToDomain("Marktregime", 8, 2);
+  assert.equal(maturity.effectiveN, 6);
+  assert.equal(maturity.p, 6 / 7);
+});
+
+test("Nachtlauf plant robuste Zyklen und erzeugt Qualitätsbericht", () => {
+  const now = Date.parse("2026-09-26T20:00:00.000Z");
+  const state = createInitialState();
+  const overnight = createOvernightSession(state, now, 8, 5);
+  assert.equal(overnightDueCycles(overnight, now), 1);
+  assert.equal(overnightDueCycles(overnight, now + 16 * 60 * 1000), 3);
+  state.totalAgentCycles = 2;
+  state.totalSimulationCycles = 6;
+  state.learningPolicy = { ...state.learningPolicy, revision: 2, qualityScore: .8 };
+  overnight.completedCycles = 2;
+  overnight.simulationCycles = 6;
+  const report = buildOvernightReport(overnight, state, now + 20 * 60 * 1000);
+  assert.equal(report.agentGain, 2);
+  assert.equal(report.simulationGain, 6);
+  assert.equal(report.revisionGain, 2);
+  assert.equal(report.qualityEnd, .8);
+  const repaired = normalizeState({ version: 5, overnight: { report: { uniqueTopics: "ungültig", qualityEnd: 4 } } });
+  assert.deepEqual(repaired.overnight.report.uniqueTopics, []);
+  assert.equal(repaired.overnight.report.qualityEnd, 1);
+});
+
+test("Systemweite Formelmatrix nutzt fachlich getrennte Zähler", () => {
+  const state = createInitialState();
+  state.completed["1-0"] = true;
+  state.totalAgentCycles = 4;
+  state.totalSimulationCycles = 9;
+  state.learningPolicy.revision = 2;
+  const matrix = buildSystemFormulaMap(state);
+  assert.equal(matrix.length, 6);
+  assert.equal(matrix.find(item => item.domain === "30-Tage-Plan").effectiveN, 1);
+  assert.equal(matrix.find(item => item.domain === "Forschungszyklen").effectiveN, 4);
+  assert.equal(matrix.find(item => item.domain === "Sandbox-Simulationen").effectiveN, 9);
+  assert.ok(matrix.every(item => /nicht Wahrheit/.test(item.meaning)));
 });
 
 test("tiefer CIA-Lernauftrag nutzt Quellenkritik und offizielle Archive", () => {

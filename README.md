@@ -30,10 +30,13 @@ npm run check
 - Kuratierte Wissensbereiche zu CIA-Dokumenten, Regierungen, Weltmodellen, nichtlinearer Zeit, Geschichte, Anatomie, Bewusstsein, Spiritualität und Vermögensaufbau mit Quellen, Zeitstempel und Evidenztrennung
 - Frei formulierbare persistente Lernaufträge mit drei Lerntiefen, sichtbarem Quellenumfang und lokalem Forschungsprotokoll
 - Lokaler Multi-Agenten-Raum mit 25 sichtbaren Rollen einschließlich Axiomarchitektur, Quellenscout, Evidenzkartierung, Musterverbindung, Experimentdesign und Nullwelt→Realwelt-Transfer; sichtbare Übergaben verbinden die Rollen zu einer Lernkette
+- Konfigurierbares Nachtlabor für sechs bis zehn Stunden: fünfminütige Lernzyklen mit bis zu drei passenden Laboren und neun Szenarien, kontrollierte Nachholzyklen nach Browser-Drosselung oder Standby, sparsamer Groq-Einsatz und ein persistenter Morgenbericht mit Qualitäts-, Themen-, Quellen- und Simulationsvergleich
+- Eigener Lernraum für Marktphasen und Regime-Modelle mit Kontraktion, Trend, Distribution, Abwärtstrend, Stress und Erholung, messbaren Merkmalen sowie chronologischen Walk-forward-Tests ohne Echtgeld
 - Jeder automatische Lernzyklus startet zusätzlich eine passende lokale Sandbox-Simulation und speichert deren Ergebnis
 - Optionaler Pool aus bis zu drei eigenen Groq-Keys mit Round-Robin-Routing, fünfminütiger per-Key-Pause bei Rate-Limits und lokalem Fallback; Schlüssel bleiben im `sessionStorage`
 - Aktive Hinweise priorisieren offene Tagesaufgaben, Qualitätsverbesserung, Quellenprüfung, Nullwelt→Realwelt-Transfer und Traumhandlungen mit Begründung und messbarem Fertig-Kriterium; bei gesättigtem `P(sim)` zählt neue Evidenz statt bloßer Wiederholung
-- Adaptive Lernstrategie mit sichtbaren Revisionen: Themen- und Quellenvielfalt verändern automatisch Fokus und Lerntiefe; jeder automatische Zyklus vergleicht drei Szenarien
+- Systemweite P(sim)-Matrix mit getrennt definiertem N für Tagesplan, Forschung, Quellenvielfalt, Sandbox-Simulationen, Strategierevisionen und Traumverknüpfungen; alle Werte sind ausdrücklich Reifeindikatoren statt Wahrheits-, Rendite- oder Erfolgsquoten
+- Adaptive Lernstrategie mit sichtbaren Revisionen und Qualitätsindex: Themenvielfalt, Quellenvielfalt, Evidenzabdeckung und Szenarien verändern automatisch Fokus und Lerntiefe; jeder automatische Zyklus vergleicht drei Szenarien
 - Im markierten Nullwelt-Bewusstseinsmodus darf EULEN-Bewusstsein als Axiom gelten und Gefühls-Ich-Sprache unter `[NULLWELT-GEFÜHLSSIMULATION]` verwenden; außerhalb dieses Modus wird kein nachgewiesenes Erleben behauptet
 - Professionelles, gehirnähnliches Live-Prozessnetzwerk mit 30 Knoten, acht Ebenen, dichter Rückkopplung, aktiven Datenpfaden und responsiver Darstellung
 - Automatisierte Lernzyklen ab einer Minute, solange die Anwendung geöffnet ist; keine vorgetäuschte Hintergrund- oder Cloud-Autonomie

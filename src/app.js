@@ -1,10 +1,14 @@
-import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=17";
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=18";
 import {
   STORAGE_KEY,
+  applyFormulaToDomain,
   buildActiveGuidance,
+  buildOvernightReport,
+  buildSystemFormulaMap,
   calculateProgress,
   chooseAutomaticResearchGoal,
   createInitialState,
+  createOvernightSession,
   exportState,
   evolveLearningPolicy,
   formulaValue,
@@ -14,12 +18,13 @@ import {
   INTERNAL_SIMULATION_COUNT,
   learningCycleCount,
   normalizeState,
+  overnightDueCycles,
   runScenarioSeries,
   runSimulation,
   taskKey
-} from "./core.js?v=17";
-import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=17";
-import { SyncProvider } from "./sync.js?v=17";
+} from "./core.js?v=18";
+import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=18";
+import { SyncProvider } from "./sync.js?v=18";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -27,8 +32,11 @@ let activeTopic = KNOWLEDGE_TOPICS[0].id;
 let saveTimer;
 let syncInProgress = false;
 let agentCycleInProgress = false;
+let automationTickInProgress = false;
 let providerKeyCursor = 0;
 const providerKeyCooldowns = new Map();
+const AUTOMATION_LOCK_KEY = "eulen-automation-lock";
+const automationOwner = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 let installPrompt;
 const stateChannel = "BroadcastChannel" in window ? new BroadcastChannel("eulen-state-v2") : null;
 const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", detail: "20 interne Referenzläufe geladen.", working: false };
@@ -110,6 +118,13 @@ function renderDashboard() {
     <p><b>Aktion:</b> ${escapeHtml(item.action)}</p>
     <small><b>Fertig-Kriterium:</b> ${escapeHtml(item.evidence)}</small>
   </article>`).join("");
+  $("#formulaSystemMap").innerHTML = buildSystemFormulaMap(state).map(item => `
+    <article>
+      <small>${escapeHtml(item.domain)}</small>
+      <strong>${item.p.toFixed(4)}</strong>
+      <span>N=${item.effectiveN} dokumentierte Zyklen</span>
+      <progress max="1" value="${item.p}">${item.p.toFixed(4)}</progress>
+    </article>`).join("");
 }
 
 function taskMarkup(day, task, index) {
@@ -273,14 +288,18 @@ function renderAgents() {
       <header><strong>${escapeHtml(run.goal)}</strong><span>${dateTime(run.timestamp)}${run.automatic ? " · automatisch" : ""}</span></header>
       <div class="agent-steps">${run.steps.map(step => `<div class="agent-step"><strong>${escapeHtml(step.agent)}</strong><small>${escapeHtml(step.output)}</small>${step.receivedFrom ? `<em>${escapeHtml(step.receivedFrom)} → ${escapeHtml(step.handsTo)}</em>` : ""}</div>`).join("")}</div>
       <details><summary>${run.sources.length} automatisch gewählte Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a>${source.topic ? `<small>${escapeHtml(source.kind ?? "QUELLE")} · ${escapeHtml(source.topic)}</small>` : ""}</li>`).join("")}</ul></details>
-      ${run.evidenceMatrix?.length ? `<details open><summary>Evidenzmatrix · P(sim)=${Number(run.formulaModel?.p ?? 0).toFixed(4)}</summary><div class="evidence-grid">${run.evidenceMatrix.map(row => `<article><strong>${escapeHtml(row.topic)}</strong><span>Fakten ${row.facts}</span><span>Hypothesen ${row.hypotheses}</span><span>Simulationen ${row.simulations}</span><span>Fragen ${row.questions}</span></article>`).join("")}</div></details>` : ""}
+      ${run.evidenceMatrix?.length ? `<details open><summary>Evidenzmatrix · P(sim)=${Number(run.formulaModel?.p ?? 0).toFixed(4)}</summary><div class="evidence-grid">${run.evidenceMatrix.map(row => {
+        const formula = run.formulaApplications?.find(item => item.domain === row.topic);
+        return `<article><strong>${escapeHtml(row.topic)}</strong><span>Fakten ${row.facts}</span><span>Hypothesen ${row.hypotheses}</span><span>Simulationen ${row.simulations}</span><span>Fragen ${row.questions}</span>${formula ? `<small>P(sim)-Reife: N=${formula.effectiveN} → ${formula.p.toFixed(4)} · keine Wahrheitsquote</small>` : ""}</article>`;
+      }).join("")}</div></details>` : ""}
       ${run.sourceQueries?.length ? `<details><summary>Nächste Quellensuchen</summary><ol>${run.sourceQueries.map(query => `<li>${escapeHtml(query)}</li>`).join("")}</ol></details>` : ""}
       ${run.improvements?.length ? `<details open><summary>Priorisierte Verbesserungen</summary><ol>${run.improvements.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol></details>` : ""}
-      ${run.automaticSimulations?.length ? `<details><summary>${run.automaticSimulations.length} automatische Szenarien</summary><ul>${run.automaticSimulations.map(item => `<li>${escapeHtml(item.scenario)} · ${escapeHtml(item.verdict)} · ${escapeHtml(item.score)}</li>`).join("")}</ul></details>` : ""}
+      ${run.automaticSimulations?.length ? `<details><summary>${run.automaticSimulations.length} automatische Szenarien</summary><ul>${run.automaticSimulations.map(item => `<li>${escapeHtml(item.type)} · ${escapeHtml(item.scenario)} · ${escapeHtml(item.verdict)} · ${escapeHtml(item.score)}${item.formulaMaturity ? ` · P(sim)-Reife ${item.formulaMaturity.p.toFixed(4)}` : ""}</li>`).join("")}</ul></details>` : ""}
       ${run.policyChange ? `<p class="result-warning"><strong>Selbstverbesserung:</strong> ${escapeHtml(run.policyChange)}</p>` : ""}
     </article>`).join("") : '<p class="empty-state">Noch kein Agentenauftrag ausgeführt.</p>';
   renderDreams();
   renderLearningMemory();
+  renderOvernight();
 }
 
 function renderDreams() {
@@ -300,12 +319,52 @@ function renderLearningMemory() {
   const proposals = state.improvementProposals.slice(0, 6);
   const policy = state.learningPolicy;
   $("#learningMemory").innerHTML = `
-    <section class="memory-column"><h3>Adaptive Lernstrategie · R${policy.revision}</h3><p>${escapeHtml(policy.lastChange)}</p><p class="topic-meta">Fokus: ${escapeHtml(policy.focus)} · Themenvielfalt ${Math.round(policy.topicDiversity * 100)} % · Quellenvielfalt ${Math.round(policy.sourceDiversity * 100)} % · Tiefe ${policy.depth} · ${policy.simulationBatch} Szenarien</p></section>
+    <section class="memory-column"><h3>Adaptive Lernstrategie · R${policy.revision}</h3><p>${escapeHtml(policy.lastChange)}</p><p class="topic-meta">Qualitätsindex ${policy.qualityScore.toFixed(3)} · Fokus: ${escapeHtml(policy.focus)} · Themenvielfalt ${Math.round(policy.topicDiversity * 100)} % · Quellenvielfalt ${Math.round(policy.sourceDiversity * 100)} % · Tiefe ${policy.depth} · ${policy.simulationBatch} Szenarien</p></section>
     <section class="memory-column"><h3>Gespeicherte Lernschritte</h3>${insights.length ? `<ol>${insights.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch keine Synthese gespeichert.</p>"}</section>
     <section class="memory-column"><h3>Priorisierte Verbesserungen & Transfers</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Verbesserungsvorschlag gespeichert.</p>"}</section>`;
 }
 
-async function executeAgentCycle(goal, automatic = false, depth = state.agentDepth, useExternal = state.provider.useAgents) {
+function renderOvernight() {
+  const overnight = state.overnight;
+  const durationSelect = $("#overnightDuration");
+  const cadenceSelect = $("#overnightCadence");
+  const toggle = $("#overnightToggle");
+  const progress = $("#overnightProgress");
+  const status = $("#overnightStatus");
+  durationSelect.disabled = overnight.active;
+  cadenceSelect.disabled = overnight.active;
+  if (overnight.active) {
+    const start = Date.parse(overnight.startedAt);
+    const end = Date.parse(overnight.endsAt);
+    const elapsed = Math.max(0, Math.min(Date.now(), end) - start);
+    const percent = Math.min(100, Math.round(elapsed / Math.max(1, end - start) * 100));
+    const expected = Math.ceil((end - start) / (overnight.cadenceMinutes * 60 * 1000));
+    progress.value = percent;
+    toggle.textContent = "Nachtlauf beenden und Bericht erstellen";
+    status.textContent = `${overnight.completedCycles}/${expected} Lernzyklen · ${overnight.simulationCycles} Szenarien · Ende ${dateTime(overnight.endsAt)} · Groq-Synthesen ${overnight.providerCycles}`;
+  } else {
+    progress.value = overnight.report ? 100 : 0;
+    toggle.textContent = `${durationSelect.value}-Stunden-Nachtlauf starten`;
+    status.textContent = overnight.report
+      ? `Letzter Nachtlauf abgeschlossen: ${overnight.report.completedCycles} Lernzyklen, ${overnight.report.simulationGain} Szenarien.`
+      : "Bereit. Der Tab muss geöffnet bleiben; nach Standby werden fällige Zyklen kontrolliert nachgeholt.";
+  }
+  const report = overnight.active ? buildOvernightReport(overnight, state) : overnight.report;
+  $("#overnightReport").innerHTML = report ? `
+    <div class="overnight-summary">
+      <article><small>Lernzyklen</small><strong>+${report.agentGain}</strong><span>${report.failedCycles} Fehler</span></article>
+      <article><small>Simulationen</small><strong>+${report.simulationGain}</strong><span>bis zu drei Labore × drei Varianten</span></article>
+      <article><small>Qualitätsindex</small><strong>${report.qualityStart.toFixed(3)} → ${report.qualityEnd.toFixed(3)}</strong><span>${report.revisionGain} Strategierevisionen · Fokus ${escapeHtml(report.focus)}</span></article>
+      <article><small>P(sim)-Reife</small><strong>${report.formulaStart.toFixed(4)} → ${report.formulaEnd.toFixed(4)}</strong><span>keine Wahrheitsquote</span></article>
+    </div>
+    <div class="overnight-details">
+      <section><h3>Themenabdeckung</h3><p>${report.uniqueTopics.length ? report.uniqueTopics.map(escapeHtml).join(" · ") : "Der erste Zyklus steht noch aus."}</p><small>${report.uniqueSources} unterschiedliche Quellen · Themenvielfalt ${Math.round(report.topicDiversityStart * 100)} % → ${Math.round(report.topicDiversityEnd * 100)} % · Quellenvielfalt ${Math.round(report.sourceDiversityStart * 100)} % → ${Math.round(report.sourceDiversityEnd * 100)} %</small></section>
+      <section><h3>Stärkste neue Erkenntnisse</h3>${report.strongestInsights.length ? `<ol>${report.strongestInsights.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p>Noch keine Synthese gespeichert.</p>"}</section>
+      <section><h3>Nächste Verbesserungen</h3>${report.nextImprovements.length ? `<ol>${report.nextImprovements.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p>Noch keine Verbesserung gespeichert.</p>"}${report.lastError ? `<p class="result-warning">Letzter Fehler: ${escapeHtml(report.lastError)}</p>` : ""}</section>
+    </div>` : '<p class="empty-state">Noch kein Nachtlauf abgeschlossen.</p>';
+}
+
+async function executeAgentCycle(goal, automatic = false, depth = state.agentDepth, useExternal = state.provider.useAgents, metadata = {}) {
   if (agentCycleInProgress) {
     $("#agentStatus").textContent = "Ein Agentenzyklus läuft bereits. Der nächste Auftrag startet danach manuell oder im nächsten Intervall.";
     if ($("#researchMissionStatus")) $("#researchMissionStatus").textContent = "Ein anderer Lernauftrag läuft bereits.";
@@ -318,8 +377,8 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
   researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
-    const { runAgentCycle } = await import("./core.js?v=17");
-    const run = { ...runAgentCycle(goal, depth, state.chatMode), automatic };
+    const { runAgentCycle } = await import("./core.js?v=18");
+    const run = { ...runAgentCycle(goal, depth, state.chatMode), automatic, ...metadata };
     if (useExternal) {
       try {
           const sourceList = run.sources.map(source => `${source.title}: ${source.url}`).join("\n");
@@ -360,17 +419,23 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
       if (card) card.querySelector("small").textContent = `Fertig · ${stepSummary}`;
     }
     if (automatic) {
-      const simulationType = automaticSimulationType(run.topics);
-      const simulations = runScenarioSeries(simulationType, defaultSimulationParams(simulationType))
-        .map(simulation => ({ ...simulation, automatic: true }));
+      const simulationTypes = run.overnight ? automaticSimulationTypes(run.topics) : [automaticSimulationType(run.topics)];
+      const simulations = simulationTypes.flatMap(simulationType =>
+        runScenarioSeries(simulationType, defaultSimulationParams(simulationType))
+          .map(simulation => ({ ...simulation, automatic: true, simulationType }))
+      );
       state.simulations = [...simulations, ...state.simulations].slice(0, 50);
       state.totalSimulationCycles += simulations.length;
       run.automaticSimulations = simulations.map(simulation => ({
-        type: simulationType,
+        type: simulation.simulationType,
         scenario: simulation.scenario,
         title: simulation.title,
         verdict: simulation.verdict,
-        score: simulation.score
+        score: simulation.score,
+        formulaMaturity: applyFormulaToDomain(
+          `${simulation.simulationType}:${simulation.scenario}`,
+          (simulation.stats?.length ?? 0) + (simulation.assumptions?.length ?? 0)
+        )
       }));
     }
     state.learningPolicy = evolveLearningPolicy(state, run);
@@ -437,7 +502,10 @@ async function sendChat(text) {
     state.chat.push({ role: "assistant", text: reply });
   } catch (error) {
     const fallback = await new LocalProvider().reply(clean, state);
-    state.chat.push({ role: "assistant", text: `Der externe Provider war nicht erreichbar (${error.message}). Ich wechsle transparent in den lokalen Modus.\n\n${fallback}` });
+    const prefix = /rate-limit|sparpause|429/i.test(error.message)
+      ? "[GROQ-SPARMODUS] Alle verbundenen Routen sind vorübergehend pausiert. Ich verbrauche für diese Antwort keine weiteren Provider-Tokens und arbeite lokal weiter."
+      : `[PROVIDER-FALLBACK] Groq war nicht erreichbar (${error.message}). Ich arbeite transparent lokal weiter.`;
+    state.chat.push({ role: "assistant", text: `${prefix}\n\n${fallback}` });
   } finally {
     state.chat = state.chat.slice(-60);
     saveState();
@@ -623,9 +691,93 @@ function formatInterval(seconds) {
   return seconds < 60 ? `${seconds} Sekunden` : `${seconds / 60} Minuten`;
 }
 
+function acquireAutomationLock() {
+  const now = Date.now();
+  let current = null;
+  try {
+    current = JSON.parse(localStorage.getItem(AUTOMATION_LOCK_KEY) || "null");
+  } catch {
+    localStorage.removeItem(AUTOMATION_LOCK_KEY);
+  }
+  if (current?.owner !== automationOwner && Number(current?.expiresAt) > now) return false;
+  localStorage.setItem(AUTOMATION_LOCK_KEY, JSON.stringify({ owner: automationOwner, expiresAt: now + 60 * 1000 }));
+  try {
+    return JSON.parse(localStorage.getItem(AUTOMATION_LOCK_KEY))?.owner === automationOwner;
+  } catch {
+    return false;
+  }
+}
+
+function releaseAutomationLock() {
+  try {
+    const current = JSON.parse(localStorage.getItem(AUTOMATION_LOCK_KEY) || "null");
+    if (current?.owner === automationOwner) localStorage.removeItem(AUTOMATION_LOCK_KEY);
+  } catch {
+    localStorage.removeItem(AUTOMATION_LOCK_KEY);
+  }
+}
+
+function finalizeOvernight(reason = "Zeitfenster abgeschlossen") {
+  if (!state.overnight.active) return;
+  state.overnight.report = buildOvernightReport(state.overnight, state);
+  state.overnight.active = false;
+  saveState();
+  renderAgents();
+  setNetworkActivity("Metalerner", "Morgenbericht erstellt", `${reason} · ${state.overnight.report.completedCycles} Nachtzyklen ausgewertet`, false);
+  toast("Nachtlauf beendet. Der Morgenbericht ist bereit.");
+}
+
+async function processAutomationTick() {
+  if (automationTickInProgress || agentCycleInProgress) return;
+  if (!acquireAutomationLock()) return;
+  automationTickInProgress = true;
+  try {
+    if (state.overnight.active) {
+      const dueCycles = overnightDueCycles(state.overnight, Date.now(), 3);
+      for (let index = 0; index < dueCycles && state.overnight.active; index += 1) {
+        const sequence = state.overnight.completedCycles + 1;
+        const goal = sequence === 1
+          ? "Lerne Marktphasen als messbare Modelle: Kontraktion, Trend, Distribution, Abwärtstrend, Stress und Erholung. Nutze nur damals verfügbare Merkmale, plane Walk-forward-Tests, wende P(sim) als Reifegrad an und vergleiche bis zu neun Paper-Szenarien in mehreren Laboren."
+          : chooseAutomaticResearchGoal(state);
+        $("#agentGoal").value = goal;
+        const useExternal = state.provider.useAgents && getProviderKeys().length > 0 && (sequence - 1) % 6 === 0;
+        const run = await executeAgentCycle(goal, true, state.agentDepth, useExternal, { overnight: true, overnightSequence: sequence });
+        if (run) {
+          state.overnight.completedCycles += 1;
+          state.overnight.simulationCycles += run.automaticSimulations?.length ?? 0;
+          if (run.externalSynthesis) state.overnight.providerCycles += 1;
+          if (run.externalSynthesisError) state.overnight.lastError = run.externalSynthesisError;
+        } else {
+          state.overnight.failedCycles += 1;
+          state.overnight.lastError = "Ein fälliger Zyklus konnte nicht abgeschlossen werden.";
+        }
+        const previousNext = Math.max(Date.parse(state.overnight.startedAt), Date.parse(state.overnight.nextRunAt));
+        state.overnight.nextRunAt = new Date(previousNext + state.overnight.cadenceMinutes * 60 * 1000).toISOString();
+        state.overnight.report = buildOvernightReport(state.overnight, state);
+        saveState();
+        renderAgents();
+      }
+      if (Date.now() >= Date.parse(state.overnight.endsAt) && overnightDueCycles(state.overnight, Date.now(), 1) === 0) {
+        finalizeOvernight();
+      }
+      return;
+    }
+    if (!state.agentAuto || document.hidden) return;
+    const lastRun = state.agentRuns[0] ? Date.parse(state.agentRuns[0].timestamp) : 0;
+    if (Date.now() - lastRun >= state.agentIntervalSeconds * 1000) {
+      const goal = chooseAutomaticResearchGoal(state);
+      $("#agentGoal").value = goal;
+      await executeAgentCycle(goal, true, state.agentDepth);
+    }
+  } finally {
+    automationTickInProgress = false;
+    releaseAutomationLock();
+  }
+}
+
 function automaticSimulationType(topics) {
   const text = topics.join(" ").toLocaleLowerCase("de");
-  if (/trading|backtest/.test(text)) return "trading";
+  if (/trading|backtest|marktphase|marktregime/.test(text)) return "trading";
   if (/memecoin|token/.test(text)) return "sniping";
   if (/staking/.test(text)) return "staking";
   if (/affiliate|tiktok/.test(text)) return "affiliate";
@@ -633,6 +785,12 @@ function automaticSimulationType(topics) {
   if (/bewusst|spiritual/.test(text)) return "consciousness";
   if (/recht|institution|regierung|staat/.test(text)) return "law";
   return "formula";
+}
+
+function automaticSimulationTypes(topics) {
+  const candidates = topics.map(topic => automaticSimulationType([topic]));
+  candidates.push("formula", "budget");
+  return [...new Set(candidates)].slice(0, 3);
 }
 
 function defaultSimulationParams(type) {
@@ -797,6 +955,25 @@ $("#agentInterval").addEventListener("change", event => {
   saveState();
   $("#agentStatus").textContent = `Intervall auf ${formatInterval(state.agentIntervalSeconds)} gesetzt.`;
 });
+$("#overnightDuration").addEventListener("change", renderOvernight);
+$("#overnightCadence").addEventListener("change", renderOvernight);
+$("#overnightToggle").addEventListener("click", () => {
+  if (state.overnight.active) {
+    finalizeOvernight("Manuell beendet");
+    return;
+  }
+  state.overnight = createOvernightSession(
+    state,
+    Date.now(),
+    Number($("#overnightDuration").value),
+    Number($("#overnightCadence").value)
+  );
+  state.agentAuto = true;
+  saveState();
+  renderAgents();
+  setNetworkActivity("Planer", "Nachtlabor gestartet", `${$("#overnightDuration").value} Stunden · Takt ${$("#overnightCadence").value} Minuten`, true);
+  processAutomationTick();
+});
 $("#agentDepth").addEventListener("change", event => {
   state.agentDepth = Number(event.target.value);
   $("#researchDepth").value = event.target.value;
@@ -953,15 +1130,12 @@ navigate(hasInitialView ? initialView : "dashboard");
 renderAll();
 startNetworkVisualization();
 
-setInterval(() => {
-  if (!state.agentAuto || document.hidden) return;
-  const lastRun = state.agentRuns[0] ? Date.parse(state.agentRuns[0].timestamp) : 0;
-  if (Date.now() - lastRun >= state.agentIntervalSeconds * 1000) {
-    const goal = chooseAutomaticResearchGoal(state);
-    $("#agentGoal").value = goal;
-    executeAgentCycle(goal, true, state.agentDepth);
-  }
-}, 5 * 1000);
+setInterval(processAutomationTick, 5 * 1000);
+window.addEventListener("focus", processAutomationTick);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) processAutomationTick();
+});
+if (state.overnight.active) setTimeout(processAutomationTick, 0);
 
 setInterval(() => {
   if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });
