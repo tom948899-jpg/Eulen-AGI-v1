@@ -26,7 +26,7 @@ npm run check
 - Auf höchstens 200 € begrenztes 30-Tage-Budgetlabor für regelkonformes Affiliate-Marketing und ehrliche kleine Dienstleistungen
 - Paper-Trading/Backtesting mit maximal 200 € fiktivem Startwert, reproduzierbaren synthetischen Daten, Gebühren, Benchmark und Drawdown
 - Sichere Token-/Memecoin-Risiko-Sandbox ohne Wallet, Deployment oder Echtgeld
-- Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen
+- Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen; jede Simulation kann zusätzlich als Drei-Szenarien-Serie verglichen werden
 - Kuratierte Wissensbereiche zu CIA-Dokumenten, Regierungen, Weltmodellen, nichtlinearer Zeit, Geschichte, Anatomie, Bewusstsein, Spiritualität und Vermögensaufbau mit Quellen, Zeitstempel und Evidenztrennung
 - Frei formulierbare persistente Lernaufträge mit drei Lerntiefen, sichtbarem Quellenumfang und lokalem Forschungsprotokoll
 - Lokaler Multi-Agenten-Raum mit 18 sichtbaren Rollen für Werte, Ziele, Planung, Quellenprüfung, Recherche, Geschichte, Staat, Anatomie, Zeit, Bewusstsein, Spiritualität, Chancen, Simulation, Lernoptimierung, Risiko, Kritik, Traum und Synthese
@@ -51,7 +51,9 @@ Ein optionaler API-Schlüssel wird **nicht** dauerhaft gespeichert, sondern nur 
 
 Der Chat läuft standardmäßig über `LocalProvider` in `src/providers.js`. Für einen externen Chat kann in der Oberfläche ein OpenAI-kompatibler HTTPS-Endpunkt samt Modell angegeben und getestet werden. Ein Preset trägt den Groq-Endpunkt und ein anpassbares Modell ein. Groq kann Antworten beschleunigen, besitzt über diese Schnittstelle aber nicht automatisch Live-Webzugriff. Schlägt ein Aufruf fehl, meldet die Oberfläche das transparent und verwendet den lokalen Assistenten.
 
-Für Groq unter **Daten & Konfiguration** „Groq vorbereiten“ wählen, ein aktuell verfügbares Modell bei Bedarf anpassen, den eigenen API-Schlüssel nur auf einem vertrauenswürdigen Gerät einfügen und „Verbindung testen“ verwenden. Der Schlüssel wird nicht exportiert und nur im `sessionStorage` des Tabs gehalten. Nach erfolgreicher Verbindung nutzt EULEN Groq standardmäßig für den Chat sowie die abschließende Synthese aller manuellen und automatischen Agentenläufe; die deterministischen Simulationen, Quellenmetadaten und Sicherheitsprüfungen bleiben lokal. Über den Schalter kann die Agentennutzung deaktiviert werden.
+Für Groq unter **Daten & Konfiguration** nur den eigenen API-Schlüssel einfügen und „Groq-Key verbinden“ wählen. Endpoint und Modell sind automatisch vorbelegt und nur unter den erweiterten Einstellungen sichtbar. Der Schlüssel wird nicht exportiert und nur im `sessionStorage` des Tabs gehalten. Nach erfolgreicher Verbindung nutzt EULEN Groq für den Chat sowie die abschließende Synthese aller manuellen und automatischen Agentenläufe; die deterministischen Simulationen, Quellenmetadaten und Sicherheitsprüfungen bleiben lokal.
+
+Ein Groq-Key ist kein Speichermedium: Er authentifiziert Modellanfragen, stellt aber keinen privaten, geräteübergreifenden Datenspeicher für Plan, Chat und Lernstand bereit. Ohne Sync-Provider bleiben diese Daten im jeweiligen Browser. Export und Import funktionieren weiterhin ohne Cloud-Dienst.
 
 Groq kann ein kostenloses Kontingent anbieten, aber EULEN kann weder dessen dauerhafte Verfügbarkeit noch unbegrenzte kostenlose Nutzung garantieren. Bei Rate-Limits, fehlendem Schlüssel oder Providerfehler bleibt der lokale Modus funktionsfähig und meldet den Fallback sichtbar.
 

@@ -10,6 +10,7 @@ import {
   learningCycleCount,
   localAssistantReply,
   normalizeState,
+  runScenarioSeries,
   runSimulation,
   runAgentCycle,
   simulateAffiliate,
@@ -86,6 +87,19 @@ test("Budgetaufbau begrenzt das Startbudget und verspricht keinen Erfolg", () =>
   assert.equal(result.stats[0][1], "200,00 €");
   assert.match(result.warning, /nicht garantiert/);
   assert.match(result.assumptions.join(" "), /Lernheuristik/);
+});
+
+test("Szenario-Serie erzeugt drei persistierbare Varianten", () => {
+  const results = runScenarioSeries("budget", { budget: 200, videos: 20, viewsPerVideo: 800, ctr: 1.5, conversion: 2, commission: 8, serviceJobs: 1, serviceFee: 75, cost: 40 });
+  assert.equal(results.length, 3);
+  assert.deepEqual(results.map(result => result.scenario), ["Vorsichtig", "Basis", "Lernfortschritt"]);
+  assert.ok(results.every(result => result.type === "budget" && result.id && result.timestamp));
+  assert.notEqual(results[0].score, results[2].score);
+});
+
+test("Trading-Szenario-Serie verwendet drei Marktregime", () => {
+  const results = runScenarioSeries("trading", { capital: 200, periods: 365, fast: 12, slow: 30, fee: .15, seed: 42 });
+  assert.deepEqual(results.map(result => result.params.seed), [42, 43, 44]);
 });
 
 test("Formel-Simulation bezeichnet Ergebnis ausdrücklich nicht als Beweis", () => {

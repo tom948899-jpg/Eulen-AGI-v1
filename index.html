@@ -129,7 +129,8 @@
           <div class="sim-grid">
             <form class="panel controls" id="simulationForm">
               <div id="simulationControls"></div>
-              <button class="primary wide" type="submit">Simulation starten</button>
+              <button class="primary wide" type="submit">Einzelsimulation starten</button>
+              <button class="secondary wide" id="simulationSeries" type="button">3 Szenarien vergleichen</button>
             </form>
             <article class="panel result-panel" aria-live="polite" aria-busy="false">
               <div id="simulationEmpty" class="empty-state"><span>⌁</span><h2>Noch kein Lauf</h2><p>Wähle Parameter. Das Ergebnis zeigt Annahmen, Bandbreiten und Grenzen.</p></div>
@@ -277,15 +278,18 @@
           <div class="page-head"><div><p class="eyebrow">DATEN & KONFIGURATION</p><h1 id="settingsTitle">Du behältst die Kontrolle.</h1><p>Der lokale Modus benötigt weder Konto noch API-Schlüssel.</p></div></div>
           <div class="settings-grid">
             <form class="panel" id="providerForm">
-              <h2>Optionaler Chat-Provider</h2>
-              <p>OpenAI-kompatible Schnittstelle. Groq kann Antworten beschleunigen, führt aber ohne Suchwerkzeug keine Live-Webrecherche aus. Ein kostenloses Kontingent kann Rate-Limits oder Modellgrenzen haben; bei Fehlern bleibt EULEN lokal nutzbar. Der Schlüssel bleibt nur bis zum Schließen dieses Browser-Tabs im <code>sessionStorage</code>; nutze ihn nur auf einem vertrauenswürdigen Gerät.</p>
-              <div class="provider-presets"><button class="secondary" type="button" data-provider-preset="groq">Groq vorbereiten</button><button class="secondary" type="button" data-provider-preset="openai">OpenAI vorbereiten</button></div>
-              <label>Endpoint<input id="providerEndpoint" type="url" placeholder="https://…/v1/chat/completions"></label>
-              <label>Modell<input id="providerModel" type="text" placeholder="Modellname"></label>
-              <label>API-Schlüssel<input id="providerKey" type="password" autocomplete="off" placeholder="Wird nicht dauerhaft gespeichert"></label>
-              <label class="toggle-line"><input id="providerUseAgents" type="checkbox"> Provider für Chat sowie alle manuellen und automatischen Agentensynthesen verwenden</label>
-              <button class="primary" type="submit">Verbindung testen</button>
-              <output id="providerStatus" class="form-status"></output>
+              <p class="eyebrow">EIN KEY · SYSTEMWEIT</p>
+              <h2>Groq verbinden</h2>
+              <p>Füge nur deinen Groq-Key ein. EULEN konfiguriert Endpoint und Modell automatisch und nutzt Groq für Chat sowie Agentensynthesen. Ohne Key oder bei einem Gratislimit läuft der lokale Modus weiter.</p>
+              <label>Groq API-Key<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · nur in diesem Browser-Tab"></label>
+              <details class="advanced-provider">
+                <summary>Erweiterte Provider-Einstellungen</summary>
+                <label>Endpoint<input id="providerEndpoint" type="url"></label>
+                <label>Modell<input id="providerModel" type="text"></label>
+              </details>
+              <div class="stack"><button class="primary" type="submit">Groq-Key verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
+              <output id="providerStatus" class="form-status">Noch kein Groq-Key verbunden · lokaler Modus aktiv.</output>
+              <p class="provider-storage-note"><strong>Warum ist der Key kein Speicher?</strong> Er erlaubt Modellanfragen, bietet aber keinen privaten EULEN-Datenspeicher. Dein Plan und Lernstand bleiben lokal; Export/Import funktioniert ohne Cloud-Sync.</p>
             </form>
             <article class="panel">
               <h2>Lokale Daten</h2>
