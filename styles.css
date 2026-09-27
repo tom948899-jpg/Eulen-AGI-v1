@@ -415,6 +415,17 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   min-width: 0;
 }
 
+.mobile-steps, .mobile-checklist {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.mobile-steps li, .mobile-checklist li {
+  margin-bottom: 8px;
+}
+
 @media (max-width: 720px) {
   .cloud-ops-panel .stack {
     display: grid;
