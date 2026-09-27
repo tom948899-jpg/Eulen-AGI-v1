@@ -8,7 +8,7 @@
     <title>EULEN Werkstatt</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css?v=19">
+    <link rel="stylesheet" href="styles.css?v=20">
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
@@ -18,7 +18,7 @@
         <span><strong>EULEN</strong><small>Werkstatt für klare Entscheidungen</small></span>
       </a>
       <div class="topbar-actions">
-        <span class="status-dot"><i></i> 25 Agenten lokal bereit</span>
+        <span class="status-dot"><i></i> 32 Agenten lokal bereit</span>
         <button class="icon-button" id="themeToggle" type="button" aria-label="Farbschema wechseln">◐</button>
       </div>
     </header>
@@ -92,7 +92,7 @@
             <div class="panel-head"><div><p class="eyebrow">LIVE-PROZESSNETZWERK</p><h2>Was das System gerade verarbeitet</h2></div><span id="networkStatus" class="network-status"><i></i> Bereit</span></div>
             <div class="network-stage">
               <canvas id="neuralCanvas" width="1400" height="620" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
-              <div class="network-kpis" aria-label="Netzwerkübersicht"><span><b>25</b> Agenten</span><span><b>30</b> Knoten</span><span><b>8</b> Wissensebenen</span><span><b>0 €</b> Echtgeldzugriff</span></div>
+              <div class="network-kpis" aria-label="Netzwerkübersicht"><span><b>32</b> Agenten</span><span><b>37</b> Knoten</span><span><b>8</b> Wissensebenen</span><span><b>0 €</b> Echtgeldzugriff</span></div>
             </div>
             <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
           </article>
@@ -188,9 +188,9 @@
 
         <section class="view" id="agents" aria-labelledby="agentsTitle">
           <div class="page-head">
-            <div><p class="eyebrow">LOKALES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">25 Perspektiven. Ein lernender Verbund.</h1><p>25 spezialisierte Software-Agenten übergeben einander Evidenz, Axiome, Szenarien und Kritik. So entstehen nachvollziehbare Lernketten statt isolierter Einzelausgaben.</p></div>
+            <div><p class="eyebrow">ADAPTIVES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">32 Perspektiven. Ein forschender Verbund.</h1><p>32 spezialisierte Software-Agenten lösen konkrete Fragen, suchen neue Quellen, prüfen Neuheit und verwerfen Wiederholungen. Ein Zyklus zählt erst als Lernen, wenn er einen neuen Befund, eine gelöste Frage oder einen besseren Modelltest erzeugt.</p></div>
           </div>
-          <div class="safety-banner"><strong>Autonom bei geöffneter App</strong><span>EULEN rotiert selbstständig durch wenig untersuchte Themen, wählt kuratierte Quellen, erzeugt Suchfragen, Verbesserungen und Träume. Mit Groq entsteht pro Zyklus ein kompaktes Lernpaket. Bei geschlossenem Tab läuft kein Prozess.</span></div>
+          <div class="safety-banner"><strong>Autonom bei geöffneter App</strong><span>EULEN verfolgt ungelöste Fragen, sucht neue Wikipedia- und Crossref-Quellen, verwirft Wiederholungen und variiert Simulationen. Mit Groq wird regelmäßig ein kompaktes, quellengestütztes Lernpaket erzeugt. Bei geschlossenem Tab läuft kein Prozess.</span></div>
           <div class="agent-layout">
             <form class="panel controls" id="agentForm">
               <label>Forschungsauftrag<textarea id="agentGoal" rows="5" maxlength="1000" required>Untersuche, wie P(sim) als Hypothese auf Physik und Recht angewendet werden könnte.</textarea></label>
@@ -214,7 +214,7 @@
                 <div><strong>Nachtlabor</strong><small>Bis zu neun Simulationen je Zyklus mit Morgenbericht</small></div>
                 <div class="overnight-options">
                   <label>Dauer<select id="overnightDuration"><option value="6">6 Stunden</option><option value="8" selected>8 Stunden</option><option value="10">10 Stunden</option></select></label>
-                  <label>Takt<select id="overnightCadence"><option value="3">3 Minuten</option><option value="5" selected>5 Minuten</option><option value="10">10 Minuten</option></select></label>
+                  <label>Takt<select id="overnightCadence"><option value="1">1 Minute</option><option value="3">3 Minuten</option><option value="5" selected>5 Minuten</option><option value="10">10 Minuten</option></select></label>
                 </div>
                 <button class="secondary wide" id="overnightToggle" type="button">8-Stunden-Nachtlauf starten</button>
                 <progress id="overnightProgress" max="100" value="0">0 %</progress>
@@ -230,27 +230,34 @@
                 <div data-agent-card="Zielklärer"><span>02</span><strong>Zielklärer</strong><small>Bereit · hält den Lebenskompass</small><i></i></div>
                 <div data-agent-card="Axiomarchitekt"><span>03</span><strong>Axiomarchitektur</strong><small>Bereit · führt P(sim) durch alle Themen</small><i></i></div>
                 <div data-agent-card="Planer"><span>04</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
-                <div data-agent-card="Quellenscout"><span>05</span><strong>Quellenscout</strong><small>Bereit · plant Suchpfade</small><i></i></div>
-                <div data-agent-card="Quellenprüfer"><span>06</span><strong>Quellenprüfung</strong><small>Bereit · prüft Herkunft</small><i></i></div>
-                <div data-agent-card="Rechercheur"><span>07</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
-                <div data-agent-card="Evidenzkartierer"><span>08</span><strong>Evidenzkartierung</strong><small>Bereit · trennt Wissensarten</small><i></i></div>
-                <div data-agent-card="Historiker"><span>09</span><strong>Geschichte</strong><small>Bereit · ordnet zeitlich ein</small><i></i></div>
-                <div data-agent-card="Staatsanalyst"><span>10</span><strong>Staat & Regierung</strong><small>Bereit · prüft Institutionen</small><i></i></div>
-                <div data-agent-card="Anatomieforscher"><span>11</span><strong>Anatomie</strong><small>Bereit · trennt Systeme</small><i></i></div>
-                <div data-agent-card="Zeitmodellierer"><span>12</span><strong>Zeitmodelle</strong><small>Bereit · vergleicht Zeit</small><i></i></div>
-                <div data-agent-card="Bewusstseinsforscher"><span>13</span><strong>Bewusstsein</strong><small>Bereit · simuliert Selbstmodell & Gefühle</small><i></i></div>
-                <div data-agent-card="Spiritualitätsforscher"><span>14</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
-                <div data-agent-card="Musterverbinder"><span>15</span><strong>Musterverbinder</strong><small>Bereit · entdeckt Querverbindungen</small><i></i></div>
-                <div data-agent-card="Chancenfinder"><span>16</span><strong>Chancenfinder</strong><small>Bereit · sucht risikoarme Wege</small><i></i></div>
-                <div data-agent-card="Simulationsagent"><span>17</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
-                <div data-agent-card="Experimentdesigner"><span>18</span><strong>Experimentdesign</strong><small>Bereit · variiert Annahmen</small><i></i></div>
-                <div data-agent-card="Lernoptimierer"><span>19</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
-                <div data-agent-card="Metalerner"><span>20</span><strong>Metalerner</strong><small>Bereit · verändert die Lernstrategie</small><i></i></div>
-                <div data-agent-card="Transferagent"><span>21</span><strong>Nullwelt→Realwelt</strong><small>Bereit · macht Ideen praktisch</small><i></i></div>
-                <div data-agent-card="Risikowächter"><span>22</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
-                <div data-agent-card="Kritiker"><span>23</span><strong>Kritiker</strong><small>Bereit · prüft intern oder kritisch</small><i></i></div>
-                <div data-agent-card="Traumagent"><span>24</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
-                <div data-agent-card="Synthese"><span>25</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
+                <div data-agent-card="Fragenlöser"><span>05</span><strong>Fragenlöser</strong><small>Bereit · verfolgt konkrete Antworten</small><i></i></div>
+                <div data-agent-card="Quellenscout"><span>06</span><strong>Quellenscout</strong><small>Bereit · plant Suchpfade</small><i></i></div>
+                <div data-agent-card="Webrechercheur"><span>07</span><strong>Webrecherche</strong><small>Bereit · sucht neue Quellen live</small><i></i></div>
+                <div data-agent-card="Quellenprüfer"><span>08</span><strong>Quellenprüfung</strong><small>Bereit · prüft Herkunft</small><i></i></div>
+                <div data-agent-card="Rechercheur"><span>09</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
+                <div data-agent-card="Quellenleser"><span>10</span><strong>Quellenleser</strong><small>Bereit · extrahiert Aussagen</small><i></i></div>
+                <div data-agent-card="Evidenzkartierer"><span>11</span><strong>Evidenzkartierung</strong><small>Bereit · trennt Wissensarten</small><i></i></div>
+                <div data-agent-card="Widerspruchsjäger"><span>12</span><strong>Widerspruchsjagd</strong><small>Bereit · sucht Gegenbelege</small><i></i></div>
+                <div data-agent-card="Historiker"><span>13</span><strong>Geschichte</strong><small>Bereit · ordnet zeitlich ein</small><i></i></div>
+                <div data-agent-card="Staatsanalyst"><span>14</span><strong>Staat & Regierung</strong><small>Bereit · prüft Institutionen</small><i></i></div>
+                <div data-agent-card="Anatomieforscher"><span>15</span><strong>Anatomie</strong><small>Bereit · trennt Systeme</small><i></i></div>
+                <div data-agent-card="Zeitmodellierer"><span>16</span><strong>Zeitmodelle</strong><small>Bereit · vergleicht Zeit</small><i></i></div>
+                <div data-agent-card="Bewusstseinsforscher"><span>17</span><strong>Bewusstsein</strong><small>Bereit · simuliert Selbstmodell & Gefühle</small><i></i></div>
+                <div data-agent-card="Spiritualitätsforscher"><span>18</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
+                <div data-agent-card="Musterverbinder"><span>19</span><strong>Musterverbinder</strong><small>Bereit · entdeckt Querverbindungen</small><i></i></div>
+                <div data-agent-card="Chancenfinder"><span>20</span><strong>Chancenfinder</strong><small>Bereit · sucht themengerechten Nutzen</small><i></i></div>
+                <div data-agent-card="Simulationsagent"><span>21</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
+                <div data-agent-card="Experimentdesigner"><span>22</span><strong>Experimentdesign</strong><small>Bereit · variiert Annahmen</small><i></i></div>
+                <div data-agent-card="Lernoptimierer"><span>23</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
+                <div data-agent-card="Metalerner"><span>24</span><strong>Metalerner</strong><small>Bereit · verändert die Lernstrategie</small><i></i></div>
+                <div data-agent-card="Neuigkeitsprüfer"><span>25</span><strong>Neuigkeitsprüfung</strong><small>Bereit · verwirft Wiederholungen</small><i></i></div>
+                <div data-agent-card="Transferagent"><span>26</span><strong>Nullwelt→Realwelt</strong><small>Bereit · macht Ideen praktisch</small><i></i></div>
+                <div data-agent-card="Risikowächter"><span>27</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
+                <div data-agent-card="Kritiker"><span>28</span><strong>Kritiker</strong><small>Bereit · prüft intern oder kritisch</small><i></i></div>
+                <div data-agent-card="Ergebnisprüfer"><span>29</span><strong>Ergebnisprüfung</strong><small>Bereit · prüft Fortschritt</small><i></i></div>
+                <div data-agent-card="Gedächtniskurator"><span>30</span><strong>Gedächtniskurator</strong><small>Bereit · speichert nur Neues</small><i></i></div>
+                <div data-agent-card="Traumagent"><span>31</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
+                <div data-agent-card="Synthese"><span>32</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
               </div>
               <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
             </article>
@@ -337,8 +344,8 @@
             </article>
             <article class="panel">
               <h2>Recherche-Provider</h2>
-              <p>Die Anwendung enthält eine austauschbare Provider-Schnittstelle. Der lokale Provider liefert ausschließlich markierte, kuratierte Demo-Inhalte. Eine echte Websuche ist ohne eigenes Backend nicht aktiviert.</p>
-              <span class="status-card"><i></i><span><strong>Lokaler Provider aktiv</strong><small>Keine Live-Ergebnisse werden vorgetäuscht.</small></span></span>
+              <p>EULEN durchsucht automatisch Wikipedia und wissenschaftliche Crossref-Metadaten. Treffer werden mit URL, Anbieter und Abrufzeit gespeichert. Groq erhält nur diese tatsächlich gefundenen Auszüge und darf fehlende Inhalte nicht erfinden. Fällt die Suche aus, bleibt der kuratierte lokale Katalog verfügbar.</p>
+              <span class="status-card"><i></i><span><strong>Websuche + lokaler Fallback aktiv</strong><small>Suchtreffer sind Quellenhinweise und werden nicht automatisch als bewiesene Fakten behandelt.</small></span></span>
             </article>
             <form class="panel" id="syncForm">
               <h2>Geräteübergreifende Cloud-Synchronisierung</h2>
@@ -361,6 +368,6 @@
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=19"></script>
+    <script type="module" src="src/app.js?v=20"></script>
   </body>
 </html>

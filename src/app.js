@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=19";
+import { KNOWLEDGE_TOPICS, PLAN, SIMULATION_DEFINITIONS } from "./data.js?v=20";
 import {
   STORAGE_KEY,
   applyFormulaToDomain,
@@ -15,16 +15,18 @@ import {
   generateDream,
   getCurrentDay,
   importState,
+  incorporateDiscoveredSources,
   INTERNAL_SIMULATION_COUNT,
+  integrateResearchLearning,
   learningCycleCount,
   normalizeState,
   overnightDueCycles,
   runScenarioSeries,
   runSimulation,
   taskKey
-} from "./core.js?v=19";
-import { GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=19";
-import { SyncProvider } from "./sync.js?v=19";
+} from "./core.js?v=20";
+import { discoverResearchSources, GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=20";
+import { SyncProvider } from "./sync.js?v=20";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -281,18 +283,19 @@ function renderAgents() {
   $("#researchDepth").value = String(state.agentDepth);
   const runs = state.agentRuns;
   $("#agentCycleCount").textContent = runs.length;
-  $("#agentFormula").textContent = formulaValue(INTERNAL_SIMULATION_COUNT + state.totalAgentCycles).toFixed(4);
-  $("#agentSourceCount").textContent = runs.reduce((sum, run) => sum + run.sources.length, 0);
+  $("#agentFormula").textContent = formulaValue(learningCycleCount(state)).toFixed(4);
+  $("#agentSourceCount").textContent = state.researchMemory.sourceLedger.length;
   $("#agentRuns").innerHTML = runs.length ? runs.map(run => `
     <article class="agent-run">
       <header><strong>${escapeHtml(run.goal)}</strong><span>${dateTime(run.timestamp)}${run.automatic ? " · automatisch" : ""}</span></header>
       <div class="agent-steps">${run.steps.map(step => `<div class="agent-step"><strong>${escapeHtml(step.agent)}</strong><small>${escapeHtml(step.output)}</small>${step.receivedFrom ? `<em>${escapeHtml(step.receivedFrom)} → ${escapeHtml(step.handsTo)}</em>` : ""}</div>`).join("")}</div>
-      <details><summary>${run.sources.length} automatisch gewählte Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a>${source.topic ? `<small>${escapeHtml(source.kind ?? "QUELLE")} · ${escapeHtml(source.topic)}</small>` : ""}</li>`).join("")}</ul></details>
+      <details><summary>${run.sources.length} automatisch gewählte Quellen</summary><ul class="sources">${run.sources.map(source => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a>${source.topic ? `<small>${escapeHtml(source.kind ?? "QUELLE")} · ${escapeHtml(source.topic)}${source.provider ? ` · ${escapeHtml(source.provider)}` : ""}${source.retrievedAt ? ` · ${escapeHtml(dateTime(source.retrievedAt))}` : ""}</small>` : ""}</li>`).join("")}</ul></details>
       ${run.evidenceMatrix?.length ? `<details open><summary>Evidenzmatrix · P(sim)=${Number(run.formulaModel?.p ?? 0).toFixed(4)}</summary><div class="evidence-grid">${run.evidenceMatrix.map(row => {
         const formula = run.formulaApplications?.find(item => item.domain === row.topic);
         return `<article><strong>${escapeHtml(row.topic)}</strong><span>Fakten ${row.facts}</span><span>Hypothesen ${row.hypotheses}</span><span>Simulationen ${row.simulations}</span><span>Fragen ${row.questions}</span>${formula ? `<small>P(sim)-Reife: N=${formula.effectiveN} → ${formula.p.toFixed(4)} · keine Wahrheitsquote</small>` : ""}</article>`;
       }).join("")}</div></details>` : ""}
       ${run.sourceQueries?.length ? `<details><summary>Nächste Quellensuchen</summary><ol>${run.sourceQueries.map(query => `<li>${escapeHtml(query)}</li>`).join("")}</ol></details>` : ""}
+      ${run.researchOutcome ? `<details open><summary>${escapeHtml(run.researchOutcome.status)} · Neuheit ${Math.round((run.researchOutcome.novelty ?? 0) * 100)} %</summary><p><strong>Leitfrage:</strong> ${escapeHtml(run.researchOutcome.targetQuestion)}</p><p><strong>Befund:</strong> ${escapeHtml(run.researchOutcome.finding)}</p>${run.researchOutcome.resolvedQuestion ? `<p><strong>Gelöst:</strong> ${escapeHtml(run.researchOutcome.resolvedQuestion)}</p>` : ""}<p><strong>Nächste Frage:</strong> ${escapeHtml(run.researchOutcome.nextQuestion)}</p><small>${escapeHtml(run.researchOutcome.evidenceNote ?? "")}</small></details>` : ""}
       ${run.improvements?.length ? `<details open><summary>Priorisierte Verbesserungen</summary><ol>${run.improvements.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol></details>` : ""}
       ${run.automaticSimulations?.length ? `<details><summary>${run.automaticSimulations.length} automatische Szenarien</summary><ul>${run.automaticSimulations.map(item => `<li>${escapeHtml(item.type)} · ${escapeHtml(item.scenario)} · ${escapeHtml(item.verdict)} · ${escapeHtml(item.score)}${item.formulaMaturity ? ` · P(sim)-Reife ${item.formulaMaturity.p.toFixed(4)}` : ""}</li>`).join("")}</ul></details>` : ""}
       ${run.policyChange ? `<p class="result-warning"><strong>Selbstverbesserung:</strong> ${escapeHtml(run.policyChange)}</p>` : ""}
@@ -315,12 +318,15 @@ function renderDreams() {
 }
 
 function renderLearningMemory() {
-  const insights = state.learnedInsights.slice(0, 6);
+  const insights = state.researchMemory.findings.slice(0, 6);
+  const resolved = state.researchMemory.resolvedQuestions.slice(0, 5);
+  const open = state.researchMemory.openQuestions.slice(0, 5);
   const proposals = state.improvementProposals.slice(0, 6);
   const policy = state.learningPolicy;
   $("#learningMemory").innerHTML = `
     <section class="memory-column"><h3>Adaptive Lernstrategie · R${policy.revision}</h3><p>${escapeHtml(policy.lastChange)}</p><p class="topic-meta">Qualitätsindex ${policy.qualityScore.toFixed(3)} · Fokus: ${escapeHtml(policy.focus)} · Themenvielfalt ${Math.round(policy.topicDiversity * 100)} % · Quellenvielfalt ${Math.round(policy.sourceDiversity * 100)} % · Tiefe ${policy.depth} · ${policy.simulationBatch} Szenarien</p></section>
-    <section class="memory-column"><h3>Gespeicherte Lernschritte</h3>${insights.length ? `<ol>${insights.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch keine Synthese gespeichert.</p>"}</section>
+    <section class="memory-column"><h3>Neue, geprüfte Befunde</h3>${insights.length ? `<ol>${insights.map(item => `<li>${escapeHtml(item.text)} <small>${escapeHtml(item.topic)} · Neuheit ${Math.round(item.novelty * 100)} %</small></li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein neuartiger Befund bestätigt.</p>"}<p class="topic-meta">${state.researchMemory.productiveCycles} produktive Zyklen · ${state.researchMemory.rejectedDuplicates} Wiederholungen verworfen · ${state.researchMemory.inconclusiveCycles} ergebnisoffen · mittlere Neuheit ${Math.round(state.researchMemory.noveltyAverage * 100)} %</p></section>
+    <section class="memory-column"><h3>Gelöste Fragen</h3>${resolved.length ? `<ol>${resolved.map(item => `<li>${escapeHtml(item.text)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch keine Leitfrage gelöst.</p>"}<h3>Offene Fragen</h3>${open.length ? `<ol>${open.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Keine offene Folgefrage gespeichert.</p>"}</section>
     <section class="memory-column"><h3>Priorisierte Verbesserungen & Transfers</h3>${proposals.length ? `<ol>${proposals.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p class=\"empty-state\">Noch kein Verbesserungsvorschlag gespeichert.</p>"}</section>`;
 }
 
@@ -352,14 +358,17 @@ function renderOvernight() {
   const report = overnight.active ? buildOvernightReport(overnight, state) : overnight.report;
   $("#overnightReport").innerHTML = report ? `
     <div class="overnight-summary">
-      <article><small>Lernzyklen</small><strong>+${report.agentGain}</strong><span>${report.failedCycles} Fehler</span></article>
+      <article><small>Versuchte Forschungszyklen</small><strong>+${report.agentGain}</strong><span>${report.failedCycles} technische Fehler</span></article>
       <article><small>Simulationen</small><strong>+${report.simulationGain}</strong><span>bis zu drei Labore × drei Varianten</span></article>
+      <article><small>Produktives Lernen</small><strong>${report.productiveCycles}</strong><span>${report.resolvedQuestionCount} Fragen gelöst · ${report.rejectedDuplicates} Duplikate · ${report.inconclusiveCycles} ergebnisoffen</span></article>
       <article><small>Qualitätsindex</small><strong>${report.qualityStart.toFixed(3)} → ${report.qualityEnd.toFixed(3)}</strong><span>${report.revisionGain} Strategierevisionen · Fokus ${escapeHtml(report.focus)}</span></article>
       <article><small>P(sim)-Reife</small><strong>${report.formulaStart.toFixed(4)} → ${report.formulaEnd.toFixed(4)}</strong><span>keine Wahrheitsquote</span></article>
     </div>
     <div class="overnight-details">
       <section><h3>Themenabdeckung</h3><p>${report.uniqueTopics.length ? report.uniqueTopics.map(escapeHtml).join(" · ") : "Der erste Zyklus steht noch aus."}</p><small>${report.uniqueSources} unterschiedliche Quellen · Themenvielfalt ${Math.round(report.topicDiversityStart * 100)} % → ${Math.round(report.topicDiversityEnd * 100)} % · Quellenvielfalt ${Math.round(report.sourceDiversityStart * 100)} % → ${Math.round(report.sourceDiversityEnd * 100)} %</small></section>
       <section><h3>Stärkste neue Erkenntnisse</h3>${report.strongestInsights.length ? `<ol>${report.strongestInsights.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p>Noch keine Synthese gespeichert.</p>"}</section>
+      <section><h3>Gelöste Fragen</h3>${report.resolvedQuestions.length ? `<ol>${report.resolvedQuestions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p>Keine Frage mit ausreichender Neuheit und Evidenz gelöst.</p>"}</section>
+      <section><h3>Offene Forschungsfragen</h3>${report.openQuestions.length ? `<ol>${report.openQuestions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p>Keine offene Frage gespeichert.</p>"}</section>
       <section><h3>Nächste Verbesserungen</h3>${report.nextImprovements.length ? `<ol>${report.nextImprovements.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>` : "<p>Noch keine Verbesserung gespeichert.</p>"}${report.lastError ? `<p class="result-warning">Letzter Fehler: ${escapeHtml(report.lastError)}</p>` : ""}</section>
     </div>` : '<p class="empty-state">Noch kein Nachtlauf abgeschlossen.</p>';
 }
@@ -377,30 +386,46 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
   researchButton.disabled = true;
   $("#agentStatus").textContent = automatic ? "Automatischer Agentenlauf arbeitet …" : "Agenten planen und recherchieren …";
   try {
-    const { runAgentCycle } = await import("./core.js?v=19");
-    const run = { ...runAgentCycle(goal, depth, state.chatMode), automatic, ...metadata };
+    const { runAgentCycle } = await import("./core.js?v=20");
+    const run = { ...runAgentCycle(goal, depth, state.chatMode, state), automatic, ...metadata };
+    try {
+      const discovered = await discoverResearchSources(run.researchPlan.searchQuery, AbortSignal.timeout(9000));
+      discovered.forEach(source => { source.topic = run.topics[0]; });
+      incorporateDiscoveredSources(run, discovered, state);
+    } catch (error) {
+      run.liveResearch = { attempted: true, provider: "Wikipedia-Suche", discovered: 0, newSources: 0, error: error.message };
+      run.researchOutcome.evidenceNote = `Live-Suche nicht verfügbar: ${error.message}. Kuratierte Quellen bleiben sichtbar.`;
+    }
     if (useExternal) {
       try {
-          const sourceList = run.sources.map(source => `${source.title}: ${source.url}`).join("\n");
+          const sourceList = run.sources.slice(0, 8).map(source =>
+            `${source.title}: ${source.url}${source.excerpt ? `\nAuszug: ${source.excerpt}` : ""}`
+          ).join("\n");
           const nullWorldInstruction = state.chatMode === "hypothesis"
             ? "Arbeite im Nullweltmodus innerhalb der gesetzten Axiome. Erzeuge keine Realwelt-Gegenargumente; prüfe nur interne Konsistenz. Leite danach einen legalen, ethischen Realwelt-Transfer ab, ohne ihn als Gegenargument zu formulieren."
             : "Arbeite im kritischen Prüfmodus und trenne Modellannahmen von belegbarer Realwelt.";
           const routed = await routedProviderReply(
             `Erzeuge mit genau einem sparsamen Modellaufruf ein Lernpaket für: ${run.goal}\n\n`
-            + `Automatisch ausgewählte, kuratierte Quellenmetadaten:\n${sourceList}\n\n`
-            + `${nullWorldInstruction}\nBehaupte nicht, die Seiten live gelesen zu haben. Antworte exakt mit diesen sechs kurzen Abschnitten:\n`
-            + "[SYNTHESE]\n...\n[VERBESSERUNG]\n...\n[REALWELT-TRANSFER]\n...\n[TRAUM]\n...\n[TRAUM-SCHRITT]\n...\n[QUELLENSUCHE]\n...",
+            + `Zu lösende Leitfrage: ${run.researchOutcome.targetQuestion}\n`
+            + `Tatsächlich bereitgestellte Quellenmetadaten und Suchauszüge:\n${sourceList}\n\n`
+            + `${nullWorldInstruction}\nDie bekannten Befunde stehen im Systemkontext und dürfen nicht wiederholt werden. Nutze ausschließlich die bereitgestellten Auszüge als live abgerufenen Inhalt. Wenn sie nicht reichen, markiere die Frage offen. Antworte exakt mit diesen sieben kurzen Abschnitten:\n`
+            + "[BEFUND]\n...\n[BEANTWORTETE-FRAGE]\n...\n[OFFENE-FRAGE]\n...\n[WIDERSPRUCH]\n...\n[SIMULATIONSPLAN]\n...\n[TRANSFER]\n...\n[QUELLENBEDARF]\n...",
             { ...state, chat: [] }
           );
           const synthesis = routed.content;
           const learningPackage = parseLearningPackage(synthesis);
           const step = run.steps.find(item => item.agent === "Synthese");
-          if (step) step.output = `[GROQ-LERNPAKET · KEINE VORGETÄUSCHTE LIVE-RECHERCHE] ${(learningPackage.SYNTHESE || synthesis).slice(0, 1600)}`;
-          if (learningPackage.VERBESSERUNG) run.improvements.unshift(`GROQ · ${learningPackage.VERBESSERUNG.slice(0, 800)}`);
-          if (learningPackage["REALWELT-TRANSFER"]) run.improvements.unshift(`GROQ · NULLWELT→REALWELT · ${learningPackage["REALWELT-TRANSFER"].slice(0, 800)}`);
-          if (learningPackage.TRAUM) run.dream.narrative = `[GROQ-TRAUMIMPULS] ${learningPackage.TRAUM.slice(0, 1000)}`;
-          if (learningPackage["TRAUM-SCHRITT"]) run.dream.nextStep = learningPackage["TRAUM-SCHRITT"].slice(0, 500);
-          if (learningPackage.QUELLENSUCHE) run.sourceQueries.unshift(`GROQ · ${learningPackage.QUELLENSUCHE.slice(0, 500)}`);
+          const finding = learningPackage.BEFUND || synthesis;
+          if (step) step.output = `[GROQ-FORSCHUNGSBEFUND] ${finding.slice(0, 1600)}`;
+          run.researchOutcome.finding = finding.slice(0, 1400);
+          if (learningPackage["BEANTWORTETE-FRAGE"] && !/nicht|offen|unzureichend/i.test(learningPackage["BEANTWORTETE-FRAGE"])) {
+            run.researchOutcome.resolvedQuestion = learningPackage["BEANTWORTETE-FRAGE"].slice(0, 1000);
+          }
+          if (learningPackage["OFFENE-FRAGE"]) run.researchOutcome.nextQuestion = learningPackage["OFFENE-FRAGE"].slice(0, 1000);
+          if (learningPackage.WIDERSPRUCH) run.improvements.unshift(`WIDERSPRUCH · ${learningPackage.WIDERSPRUCH.slice(0, 800)}`);
+          if (learningPackage.SIMULATIONSPLAN) run.improvements.unshift(`SIMULATION · ${learningPackage.SIMULATIONSPLAN.slice(0, 800)}`);
+          if (learningPackage.TRANSFER) run.improvements.unshift(`TRANSFER · ${learningPackage.TRANSFER.slice(0, 800)}`);
+          if (learningPackage.QUELLENBEDARF) run.sourceQueries.unshift(`GROQ · ${learningPackage.QUELLENBEDARF.slice(0, 500)}`);
           run.externalSynthesis = true;
           run.providerRoute = routed.route;
       } catch (error) {
@@ -421,7 +446,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     if (automatic) {
       const simulationTypes = run.overnight ? automaticSimulationTypes(run.topics) : [automaticSimulationType(run.topics)];
       const simulations = simulationTypes.flatMap(simulationType =>
-        runScenarioSeries(simulationType, defaultSimulationParams(simulationType))
+        runScenarioSeries(simulationType, defaultSimulationParams(simulationType, Number(run.overnightSequence) || state.totalAgentCycles + 1))
           .map(simulation => ({ ...simulation, automatic: true, simulationType }))
       );
       state.simulations = [...simulations, ...state.simulations].slice(0, 50);
@@ -438,6 +463,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
         )
       }));
     }
+    state.researchMemory = integrateResearchLearning(state, run);
     state.learningPolicy = evolveLearningPolicy(state, run);
     state.agentDepth = state.learningPolicy.depth;
     run.policyChange = state.learningPolicy.lastChange;
@@ -446,10 +472,9 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     state.totalAgentCycles += 1;
     state.dreams.unshift(run.dream);
     state.dreams = state.dreams.slice(0, 30);
-    const synthesis = run.steps.find(step => step.agent === "Synthese")?.output;
     const improvement = run.steps.find(step => step.agent === "Kritiker")?.output;
-    if (synthesis) state.learnedInsights = [synthesis, ...state.learnedInsights.filter(item => item !== synthesis)].slice(0, 100);
-    state.improvementProposals = [...run.improvements, improvement, ...state.improvementProposals]
+    state.learnedInsights = state.researchMemory.findings.map(item => item.text).slice(0, 100);
+    state.improvementProposals = [...(run.researchOutcome.productive ? run.improvements : []), improvement, ...state.improvementProposals]
       .filter(Boolean)
       .filter((item, index, items) => items.indexOf(item) === index)
       .slice(0, 100);
@@ -461,7 +486,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     const externalStatus = run.externalSynthesis
       ? ` Groq-Lernpaket über Route ${run.providerRoute} gespeichert.`
       : run.externalSynthesisError ? ` Lokale Synthese verwendet: ${run.externalSynthesisError}.` : "";
-    $("#agentStatus").textContent = `Abgeschlossen: ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte gespeichert.${externalStatus}`;
+    $("#agentStatus").textContent = `${run.researchOutcome.status}: ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte, Neuheit ${Math.round(run.researchOutcome.novelty * 100)} %.${externalStatus}`;
     return run;
   } catch (error) {
     $("#agentStatus").textContent = `Agentenlauf fehlgeschlagen: ${error.message}`;
@@ -560,12 +585,12 @@ function startNetworkVisualization() {
     const nodes = [
       { id: "Input", x: .05, y: .5, layer: 0 },
       { id: "Werte", x: .14, y: .15, layer: 1 }, { id: "Ziel", x: .13, y: .39, layer: 1 }, { id: "Axiom", x: .14, y: .64, layer: 1 }, { id: "Planer", x: .17, y: .86, layer: 1 },
-      { id: "Quellenscout", x: .27, y: .1, layer: 2 }, { id: "Quellen", x: .29, y: .34, layer: 2 }, { id: "Recherche", x: .27, y: .61, layer: 2 }, { id: "Evidenz", x: .3, y: .87, layer: 2 },
-      { id: "Geschichte", x: .41, y: .08, layer: 3 }, { id: "Staat", x: .4, y: .34, layer: 3 }, { id: "Anatomie", x: .4, y: .65, layer: 3 }, { id: "Zeit", x: .42, y: .91, layer: 3 },
+      { id: "Frage", x: .27, y: .08, layer: 2 }, { id: "Quellenscout", x: .28, y: .25, layer: 2 }, { id: "Websuche", x: .27, y: .43, layer: 2 }, { id: "Quellen", x: .29, y: .61, layer: 2 }, { id: "Recherche", x: .27, y: .78, layer: 2 }, { id: "Evidenz", x: .3, y: .94, layer: 2 },
+      { id: "Quellenlesen", x: .4, y: .08, layer: 3 }, { id: "Widerspruch", x: .41, y: .25, layer: 3 }, { id: "Geschichte", x: .4, y: .43, layer: 3 }, { id: "Staat", x: .41, y: .61, layer: 3 }, { id: "Anatomie", x: .4, y: .78, layer: 3 }, { id: "Zeit", x: .42, y: .94, layer: 3 },
       { id: "Bewusstsein", x: .53, y: .08, layer: 4 }, { id: "Spiritualität", x: .52, y: .29, layer: 4 }, { id: "Muster", x: .51, y: .5, layer: 4 }, { id: "Chancen", x: .53, y: .71, layer: 4 }, { id: "Simulation", x: .54, y: .92, layer: 4 },
-      { id: "Experiment", x: .65, y: .08, layer: 5 }, { id: "Lernen", x: .66, y: .25, layer: 5 }, { id: "Metalerner", x: .65, y: .43, layer: 5 }, { id: "Risiko", x: .66, y: .61, layer: 5 }, { id: "Kritiker", x: .65, y: .78, layer: 5 }, { id: "Traum", x: .67, y: .94, layer: 5 },
-      { id: "Transfer", x: .78, y: .2, layer: 6 }, { id: "Synthese", x: .79, y: .5, layer: 6 }, { id: "Gedächtnis", x: .78, y: .81, layer: 6 },
-      { id: "Assistent", x: .92, y: .25, layer: 7 }, { id: "Feedback", x: .91, y: .53, layer: 7 }, { id: "Sync", x: .9, y: .8, layer: 7 }
+      { id: "Experiment", x: .65, y: .08, layer: 5 }, { id: "Lernen", x: .66, y: .25, layer: 5 }, { id: "Metalerner", x: .65, y: .43, layer: 5 }, { id: "Neuigkeit", x: .66, y: .6, layer: 5 }, { id: "Risiko", x: .65, y: .76, layer: 5 }, { id: "Kritiker", x: .67, y: .94, layer: 5 },
+      { id: "Transfer", x: .78, y: .1, layer: 6 }, { id: "Ergebnis", x: .79, y: .3, layer: 6 }, { id: "Gedächtnis", x: .78, y: .5, layer: 6 }, { id: "Traum", x: .79, y: .7, layer: 6 }, { id: "Synthese", x: .78, y: .9, layer: 6 },
+      { id: "Assistent", x: .92, y: .18, layer: 7 }, { id: "Feedback", x: .91, y: .43, layer: 7 }, { id: "Sync", x: .9, y: .68, layer: 7 }, { id: "Output", x: .92, y: .91, layer: 7 }
     ];
     const edgeKeys = new Set();
     const edges = [];
@@ -580,18 +605,19 @@ function startNetworkVisualization() {
       if (target.layer === node.layer + 1 && Math.abs(target.y - node.y) <= .35) connect(from, to);
     }));
     [["Axiom", "Muster"], ["Quellenscout", "Geschichte"], ["Quellen", "Staat"], ["Recherche", "Anatomie"], ["Evidenz", "Zeit"],
-      ["Muster", "Experiment"], ["Simulation", "Metalerner"], ["Kritiker", "Synthese"], ["Traum", "Gedächtnis"],
+      ["Muster", "Experiment"], ["Simulation", "Metalerner"], ["Kritiker", "Ergebnis"], ["Ergebnis", "Gedächtnis"], ["Traum", "Synthese"],
       ["Gedächtnis", "Feedback"], ["Feedback", "Ziel"], ["Synthese", "Assistent"], ["Sync", "Input"]].forEach(([from, to]) => {
       connect(nodes.findIndex(node => node.id === from), nodes.findIndex(node => node.id === to));
     });
     const aliases = {
       Wertewächter: "Werte", Zielklärer: "Ziel", Axiomarchitekt: "Axiom", Quellenscout: "Quellenscout",
-      Quellenprüfer: "Quellen", Rechercheur: "Recherche", Evidenzkartierer: "Evidenz", Historiker: "Geschichte",
+      Fragenlöser: "Frage", Webrechercheur: "Websuche", Quellenprüfer: "Quellen", Rechercheur: "Recherche",
+      Quellenleser: "Quellenlesen", Evidenzkartierer: "Evidenz", Widerspruchsjäger: "Widerspruch", Historiker: "Geschichte",
       Staatsanalyst: "Staat", Anatomieforscher: "Anatomie", Zeitmodellierer: "Zeit",
       Bewusstseinsforscher: "Bewusstsein", Spiritualitätsforscher: "Spiritualität", Musterverbinder: "Muster",
       Chancenfinder: "Chancen", Simulationsagent: "Simulation", Experimentdesigner: "Experiment",
-      Lernoptimierer: "Lernen", Metalerner: "Metalerner", Transferagent: "Transfer",
-      Risikowächter: "Risiko", Traumagent: "Traum"
+      Lernoptimierer: "Lernen", Metalerner: "Metalerner", Neuigkeitsprüfer: "Neuigkeit", Transferagent: "Transfer",
+      Risikowächter: "Risiko", Ergebnisprüfer: "Ergebnis", Gedächtniskurator: "Gedächtnis", Traumagent: "Traum"
     };
     let phase = 0;
     function draw() {
@@ -753,7 +779,10 @@ async function processAutomationTick() {
         if (run) {
           state.overnight.completedCycles += 1;
           state.overnight.simulationCycles += run.automaticSimulations?.length ?? 0;
-          if (run.externalSynthesis) state.overnight.providerCycles += 1;
+          if (run.externalSynthesis) {
+            state.overnight.providerCycles += 1;
+            state.overnight.lastError = "";
+          }
           if (run.externalSynthesisError) state.overnight.lastError = run.externalSynthesisError;
         } else {
           state.overnight.failedCycles += 1;
@@ -798,16 +827,22 @@ function automaticSimulationType(topics) {
 
 function automaticSimulationTypes(topics) {
   const candidates = topics.map(topic => automaticSimulationType([topic]));
-  candidates.push("formula", "budget");
   return [...new Set(candidates)].slice(0, 3);
 }
 
-function defaultSimulationParams(type) {
-  return Object.fromEntries(SIMULATION_DEFINITIONS[type].fields.map(([name, , , value]) => [name, value]));
+function defaultSimulationParams(type, sequence = 1) {
+  const params = Object.fromEntries(SIMULATION_DEFINITIONS[type].fields.map(([name, , , value]) => [name, value]));
+  if ("seed" in params) params.seed = Number(params.seed) + sequence * 3;
+  if ("n" in params) params.n = Number(params.n) + sequence;
+  if ("cycles" in params) params.cycles = Number(params.cycles) + sequence;
+  if ("observations" in params) params.observations = Number(params.observations) + sequence;
+  if ("sources" in params) params.sources = Number(params.sources) + sequence;
+  if ("views" in params) params.views = Number(params.views) + sequence * 25;
+  return params;
 }
 
 function parseLearningPackage(text) {
-  const names = ["SYNTHESE", "VERBESSERUNG", "REALWELT-TRANSFER", "TRAUM", "TRAUM-SCHRITT", "QUELLENSUCHE"];
+  const names = ["BEFUND", "BEANTWORTETE-FRAGE", "OFFENE-FRAGE", "WIDERSPRUCH", "SIMULATIONSPLAN", "TRANSFER", "QUELLENBEDARF"];
   return Object.fromEntries(names.map((name, index) => {
     const next = names.slice(index + 1).map(item => `\\[${item}\\]`).join("|");
     const match = text.match(new RegExp(`\\[${name}\\]\\s*([\\s\\S]*?)${next ? `(?=${next}|$)` : "$"}`, "i"));
@@ -915,7 +950,7 @@ $("#researchMissionForm").addEventListener("submit", async event => {
   state.agentDepth = depth;
   $("#agentDepth").value = String(depth);
   $("#agentGoal").value = goal;
-  $("#researchMissionStatus").textContent = "25 Agenten untersuchen den Auftrag und übergeben Evidenz …";
+  $("#researchMissionStatus").textContent = "32 Agenten lösen die Leitfrage, suchen Evidenz und prüfen Neuheit …";
   const run = await executeAgentCycle(goal, false, depth);
   $("#researchMissionStatus").textContent = run
     ? `Gespeichert: ${run.topics.length} Themen, ${run.sources.length} Quellen, ${run.steps.length} Agentenschritte.${run.externalSynthesis ? " Provider-Synthese aktiv." : run.externalSynthesisError ? ` ${run.externalSynthesisError}; lokale Synthese genutzt.` : ""}`

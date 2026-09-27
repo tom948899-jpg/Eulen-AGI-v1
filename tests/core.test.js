@@ -13,6 +13,7 @@ import {
   formulaValue,
   generateDream,
   importState,
+  integrateResearchLearning,
   INTERNAL_SIMULATION_COUNT,
   learningCycleCount,
   localAssistantReply,
@@ -65,11 +66,16 @@ test("Lebenszeit-Zähler überleben begrenzte sichtbare Verläufe", () => {
   const state = createInitialState();
   state.totalSimulationCycles = 500;
   state.totalAgentCycles = 120;
-  assert.equal(learningCycleCount(state), 640);
+  state.simulations = [
+    { type: "formula", title: "Lauf", score: "0.5", scenario: "Basis", timestamp: new Date().toISOString() },
+    { type: "formula", title: "Lauf", score: "0.5", scenario: "Basis", timestamp: new Date().toISOString() }
+  ];
+  state.researchMemory.productiveCycles = 4;
+  assert.equal(learningCycleCount(state), 25);
   const normalized = normalizeState({ ...state, simulations: [], agentRuns: [] });
   assert.equal(normalized.totalSimulationCycles, 500);
   assert.equal(normalized.totalAgentCycles, 120);
-  assert.equal(learningCycleCount(normalized), 640);
+  assert.equal(learningCycleCount(normalized), 24);
 });
 
 test("Trading-Simulation ist mit gleichem Seed reproduzierbar", () => {
@@ -147,7 +153,7 @@ test("Rechtslabor setzt Reisepass-Firma nur in der Nullwelt als Axiom", () => {
 
 test("Agentenzyklus trennt Rollen und Quellen", () => {
   const result = runAgentCycle("Untersuche die Formel in Physik und Recht");
-  assert.equal(result.steps.length, 25);
+  assert.ok(result.steps.length >= 26 && result.steps.length <= 32);
   assert.ok(result.sources.length >= 4);
   assert.ok(result.topics.includes("Nullwelt & institutionelle Wirklichkeit"));
   assert.equal(result.improvements.length, 3);
@@ -157,6 +163,27 @@ test("Agentenzyklus trennt Rollen und Quellen", () => {
   assert.ok(result.steps.every(step => step.receivedFrom && step.handsTo));
   assert.match(result.steps.find(step => step.agent === "Axiomarchitekt").output, /alle .* Themen/);
   assert.equal(result.formulaApplications.length, result.topics.length);
+});
+
+test("Forschungslernen verwirft Wiederholungen und zählt nur produktive Befunde", () => {
+  const state = createInitialState();
+  const first = runAgentCycle("Untersuche Bewusstsein und Kommunikation", 3, "hypothesis", state);
+  state.researchMemory = integrateResearchLearning(state, first);
+  assert.equal(state.researchMemory.productiveCycles, 1);
+  assert.equal(first.researchOutcome.productive, true);
+  const repeated = structuredClone(first);
+  repeated.timestamp = new Date(Date.now() + 1000).toISOString();
+  state.researchMemory = integrateResearchLearning(state, repeated);
+  assert.equal(repeated.researchOutcome.duplicateRejected, true);
+  assert.equal(state.researchMemory.productiveCycles, 1);
+  assert.equal(state.researchMemory.rejectedDuplicates, 1);
+});
+
+test("Nichtfinanzielle Forschung erhält kein künstliches Geldziel", () => {
+  const result = runAgentCycle("Erkläre die Anatomie des Nervensystems", 2);
+  assert.equal(result.researchOutcome.purpose, "understanding");
+  assert.doesNotMatch(result.steps.find(step => step.agent === "Zielklärer").output, /Vermögensaufbau/);
+  assert.doesNotMatch(result.steps.find(step => step.agent === "Chancenfinder").output, /Kapitalrisiko/);
 });
 
 test("Marktphasen werden als messbare Regime und nicht als Signal gelernt", () => {
@@ -217,7 +244,7 @@ test("Systemweite Formelmatrix nutzt fachlich getrennte Zähler", () => {
   const matrix = buildSystemFormulaMap(state);
   assert.equal(matrix.length, 6);
   assert.equal(matrix.find(item => item.domain === "30-Tage-Plan").effectiveN, 1);
-  assert.equal(matrix.find(item => item.domain === "Forschungszyklen").effectiveN, 4);
+  assert.equal(matrix.find(item => item.domain === "Produktive Forschungszyklen").effectiveN, 0);
   assert.equal(matrix.find(item => item.domain === "Sandbox-Simulationen").effectiveN, 9);
   assert.ok(matrix.every(item => /nicht Wahrheit/.test(item.meaning)));
 });
@@ -273,6 +300,7 @@ test("Lernstrategie verändert den nächsten Fokus aus Messwerten", () => {
     ...run,
     topics: ["Bewusstsein & Kommunikation", "Weltmodell mit P(sim)"],
     sources: [{ title: "A", url: "https://example.com/a" }, { title: "B", url: "https://example.com/b" }],
+    researchOutcome: { novelty: 1, sourceFreshness: 1, resolvedQuestion: "Teilfrage gelöst" },
     automaticSimulations: [{ scenario: "Basis" }]
   });
   assert.equal(transferPolicy.focus, "transfer");

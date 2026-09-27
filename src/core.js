@@ -1,17 +1,19 @@
-import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=19";
+import { KNOWLEDGE_TOPICS, PLAN } from "./data.js?v=20";
 
 export const STORAGE_KEY = "eulen-workshop-v2";
 export const INTERNAL_SIMULATION_COUNT = 20;
 
 export function learningCycleCount(state) {
-  const simulationCycles = Math.max(Number(state.totalSimulationCycles) || 0, state.simulations?.length ?? 0);
-  const agentCycles = Math.max(Number(state.totalAgentCycles) || 0, state.agentRuns?.length ?? 0);
-  return INTERNAL_SIMULATION_COUNT + simulationCycles + agentCycles;
+  const distinctSimulations = new Set((state.simulations ?? []).map(item =>
+    `${item.type}|${item.scenario ?? ""}|${item.score ?? ""}|${JSON.stringify(item.params ?? {})}`
+  )).size;
+  const productiveResearch = Number(state.researchMemory?.productiveCycles) || 0;
+  return INTERNAL_SIMULATION_COUNT + distinctSimulations + productiveResearch;
 }
 
 export function createInitialState() {
   return {
-    version: 5,
+    version: 6,
     selectedDay: 1,
     completed: {},
     notes: {},
@@ -22,6 +24,16 @@ export function createInitialState() {
     totalAgentCycles: 0,
     learnedInsights: [],
     improvementProposals: [],
+    researchMemory: {
+      findings: [],
+      resolvedQuestions: [],
+      openQuestions: [],
+      sourceLedger: [],
+      rejectedDuplicates: 0,
+      inconclusiveCycles: 0,
+      productiveCycles: 0,
+      noveltyAverage: 0
+    },
     dreams: [],
     agentAuto: true,
     agentIntervalSeconds: 15,
@@ -72,7 +84,7 @@ export function normalizeState(value) {
   const intervalSeconds = Number(value.agentIntervalSeconds);
   return {
     ...base,
-    version: 5,
+    version: 6,
     selectedDay: Number.isInteger(selectedDay) && selectedDay >= 1 && selectedDay <= 30 ? selectedDay : 1,
     completed: sanitizeObject(value.completed),
     notes: sanitizeStringMap(value.notes, 10000),
@@ -89,6 +101,7 @@ export function normalizeState(value) {
     ),
     learnedInsights: sanitizeStringArray(value.learnedInsights, 100, 1000),
     improvementProposals: sanitizeStringArray(value.improvementProposals, 100, 1000),
+    researchMemory: normalizeResearchMemory(value.researchMemory, value.learnedInsights),
     dreams: Array.isArray(value.dreams) ? value.dreams.filter(isValidDream).slice(0, 30) : [],
     agentAuto: previousVersion < 3 ? true : value.agentAuto === true,
     agentIntervalSeconds: previousVersion < 4 ? 15 : [15, 30, 60, 300, 900].includes(intervalSeconds)
@@ -113,6 +126,56 @@ export function normalizeState(value) {
       auto: value.sync?.auto === true
     }
   };
+}
+
+function normalizeResearchMemory(value, legacyInsights = []) {
+  const base = createInitialState().researchMemory;
+  if (!value || typeof value !== "object") {
+    return {
+      ...base,
+      findings: uniqueByText(sanitizeStringArray(legacyInsights, 100, 1000)).map(text => ({
+        text,
+        topic: "Übernommener Bestand",
+        question: "",
+        timestamp: new Date(0).toISOString(),
+        novelty: 0.1,
+        sourceUrls: []
+      }))
+    };
+  }
+  return {
+    findings: sanitizeResearchRecords(value.findings, 120),
+    resolvedQuestions: sanitizeResearchRecords(value.resolvedQuestions, 120),
+    openQuestions: sanitizeStringArray(value.openQuestions, 120, 1000),
+    sourceLedger: sanitizeSourceRecords(value.sourceLedger, 300),
+    rejectedDuplicates: Math.max(0, Math.round(finiteNumber(value.rejectedDuplicates, 0))),
+    inconclusiveCycles: Math.max(0, Math.round(finiteNumber(value.inconclusiveCycles, 0))),
+    productiveCycles: Math.max(0, Math.round(finiteNumber(value.productiveCycles, 0))),
+    noveltyAverage: clamp(finiteNumber(value.noveltyAverage, 0), 0, 1)
+  };
+}
+
+function sanitizeResearchRecords(value, limit) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(item => item && typeof item.text === "string").map(item => ({
+    text: safeString(item.text, 1400),
+    topic: safeString(item.topic, 180),
+    question: safeString(item.question, 1000),
+    timestamp: Number.isFinite(Date.parse(item.timestamp)) ? item.timestamp : new Date(0).toISOString(),
+    novelty: clamp(finiteNumber(item.novelty, 0), 0, 1),
+    sourceUrls: sanitizeStringArray(item.sourceUrls, 12, 1000)
+  })).slice(0, limit);
+}
+
+function sanitizeSourceRecords(value, limit) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(item => item && typeof item.url === "string").map(item => ({
+    title: safeString(item.title, 300),
+    url: safeString(item.url, 1000),
+    topic: safeString(item.topic, 180),
+    provider: safeString(item.provider, 80),
+    retrievedAt: Number.isFinite(Date.parse(item.retrievedAt)) ? item.retrievedAt : new Date(0).toISOString()
+  })).slice(0, limit);
 }
 
 function sanitizeObject(value) {
@@ -193,7 +256,11 @@ export function buildSystemFormulaMap(state) {
   const uniqueSources = new Set((state.agentRuns ?? []).flatMap(run => run.sources ?? []).map(source => source.url)).size;
   return [
     applyFormulaToDomain("30-Tage-Plan", completedTasks),
-    applyFormulaToDomain("Forschungszyklen", Math.max(Number(state.totalAgentCycles) || 0, state.agentRuns?.length ?? 0)),
+    applyFormulaToDomain(
+      "Produktive Forschungszyklen",
+      (Number(state.researchMemory?.productiveCycles) || 0) + (Number(state.researchMemory?.rejectedDuplicates) || 0),
+      Number(state.researchMemory?.rejectedDuplicates) || 0
+    ),
     applyFormulaToDomain("Quellenvielfalt", uniqueSources),
     applyFormulaToDomain("Sandbox-Simulationen", Math.max(Number(state.totalSimulationCycles) || 0, state.simulations?.length ?? 0)),
     applyFormulaToDomain("Strategierevisionen", Number(state.learningPolicy?.revision) || 0),
@@ -224,7 +291,11 @@ export function createOvernightSession(state, now = Date.now(), durationHours = 
       policyRevision: Number(state.learningPolicy?.revision) || 0,
       topicDiversity: finiteNumber(state.learningPolicy?.topicDiversity, 1),
       sourceDiversity: finiteNumber(state.learningPolicy?.sourceDiversity, 1),
-      qualityScore: finiteNumber(state.learningPolicy?.qualityScore, 0.5)
+      qualityScore: finiteNumber(state.learningPolicy?.qualityScore, 0.5),
+      productiveCycles: Number(state.researchMemory?.productiveCycles) || 0,
+      resolvedQuestions: state.researchMemory?.resolvedQuestions?.length || 0,
+      rejectedDuplicates: Number(state.researchMemory?.rejectedDuplicates) || 0,
+      inconclusiveCycles: Number(state.researchMemory?.inconclusiveCycles) || 0
     },
     report: null
   };
@@ -245,6 +316,16 @@ export function buildOvernightReport(session, state, now = Date.now()) {
   const recentRuns = (state.agentRuns ?? []).filter(run => run.overnight === true && Date.parse(run.timestamp) >= Date.parse(session?.startedAt ?? ""));
   const uniqueTopics = [...new Set(recentRuns.flatMap(run => run.topics ?? []))];
   const uniqueSources = new Set(recentRuns.flatMap(run => run.sources ?? []).map(source => source.url)).size;
+  const productiveRuns = recentRuns.filter(run => run.researchOutcome?.productive);
+  const novelFindings = uniqueByText(productiveRuns
+    .map(run => run.researchOutcome?.finding)
+    .filter(Boolean));
+  const resolvedQuestions = uniqueByText(productiveRuns
+    .map(run => run.researchOutcome?.resolvedQuestion)
+    .filter(Boolean));
+  const openQuestions = uniqueByText(recentRuns
+    .map(run => run.researchOutcome?.nextQuestion)
+    .filter(Boolean));
   const endCycles = learningCycleCount(state);
   const currentPolicy = state.learningPolicy ?? createInitialState().learningPolicy;
   return {
@@ -254,6 +335,10 @@ export function buildOvernightReport(session, state, now = Date.now()) {
     completedCycles: Math.max(0, Number(session?.completedCycles) || 0),
     failedCycles: Math.max(0, Number(session?.failedCycles) || 0),
     providerCycles: Math.max(0, Number(session?.providerCycles) || 0),
+    productiveCycles: Math.max(0, (Number(state.researchMemory?.productiveCycles) || 0) - (Number(baseline.productiveCycles) || 0)),
+    rejectedDuplicates: Math.max(0, (Number(state.researchMemory?.rejectedDuplicates) || 0) - (Number(baseline.rejectedDuplicates) || 0)),
+    inconclusiveCycles: Math.max(0, (Number(state.researchMemory?.inconclusiveCycles) || 0) - (Number(baseline.inconclusiveCycles) || 0)),
+    resolvedQuestionCount: Math.max(0, (state.researchMemory?.resolvedQuestions?.length || 0) - (Number(baseline.resolvedQuestions) || 0)),
     simulationGain: Math.max(0, Number(session?.simulationCycles) || 0),
     agentGain: Math.max(0, Number(session?.completedCycles) || 0),
     revisionGain: Math.max(0, (Number(currentPolicy.revision) || 0) - (Number(baseline.policyRevision) || 0)),
@@ -268,8 +353,10 @@ export function buildOvernightReport(session, state, now = Date.now()) {
     qualityStart: finiteNumber(baseline.qualityScore, 0.5),
     qualityEnd: finiteNumber(currentPolicy.qualityScore, 0.5),
     focus: currentPolicy.focus,
-    strongestInsights: (state.learnedInsights ?? []).slice(0, 5),
-    nextImprovements: (state.improvementProposals ?? []).slice(0, 5),
+    strongestInsights: novelFindings.slice(0, 5),
+    resolvedQuestions: resolvedQuestions.slice(0, 5),
+    openQuestions: openQuestions.slice(0, 5),
+    nextImprovements: uniqueByText(productiveRuns.flatMap(run => run.improvements ?? [])).slice(0, 5),
     lastError: safeString(session?.lastError, 500)
   };
 }
@@ -279,9 +366,17 @@ export function chooseAutomaticResearchGoal(state) {
   for (const run of state.agentRuns ?? []) {
     for (const title of run.topics ?? []) counts.set(title, (counts.get(title) ?? 0) + 1);
   }
-  const leastStudied = KNOWLEDGE_TOPICS
-    .map((topic, index) => ({ topic, index, count: counts.get(topic.title) ?? 0 }))
-    .sort((a, b) => a.count - b.count || a.index - b.index)[0]?.topic ?? KNOWLEDGE_TOPICS[0];
+  const unresolved = state.researchMemory?.openQuestions ?? [];
+  const resolved = new Set((state.researchMemory?.resolvedQuestions ?? []).map(item => normalizeText(item.question)));
+  const candidates = KNOWLEDGE_TOPICS.map((topic, index) => {
+    const topicQuestions = topic.insights.filter(item => item.type === "question").map(item => item.text);
+    const unresolvedQuestion = unresolved.find(question => topicQuestions.some(item => textSimilarity(question, item) > .55))
+      ?? topicQuestions.find(question => !resolved.has(normalizeText(question)));
+    return { topic, index, count: counts.get(topic.title) ?? 0, unresolvedQuestion };
+  });
+  const leastStudied = candidates
+    .sort((a, b) => Number(Boolean(b.unresolvedQuestion)) - Number(Boolean(a.unresolvedQuestion)) || a.count - b.count || a.index - b.index)[0]
+    ?? { topic: KNOWLEDGE_TOPICS[0], unresolvedQuestion: "" };
   const policy = state.learningPolicy ?? createInitialState().learningPolicy;
   const focusInstruction = {
     novelty: "Suche bewusst eine neue Verbindung, die in den letzten Läufen nicht vorkam.",
@@ -289,7 +384,8 @@ export function chooseAutomaticResearchGoal(state) {
     transfer: "Leite zuerst eine kleine legale Nullwelt→Realwelt-Handlung mit messbarem Ergebnis ab.",
     simulation: "Vergleiche drei deutlich unterschiedliche Szenarien und benenne den empfindlichsten Parameter."
   }[policy.focus] ?? "Verbessere Neuheit, Evidenz und praktische Übertragung.";
-  return `Untersuche selbstständig „${leastStudied.title}“ mit Strategie R${policy.revision}. ${focusInstruction} Wähle passende Primär- und Überblicksquellen aus dem Wissensraum, trenne Fakt, Nullwelt-Axiom und Simulation, benenne Quellenlücken und formuliere den nächsten konkreten Lernschritt.`;
+  const question = leastStudied.unresolvedQuestion || leastStudied.topic.insights.find(item => item.type === "question")?.text;
+  return `Untersuche selbstständig „${leastStudied.topic.title}“ mit Strategie R${policy.revision}. Löse vorrangig die konkrete Frage: „${question}“ ${focusInstruction} Suche neue Quellen statt bekannte Links erneut zu zählen, trenne Fakt, Nullwelt-Axiom und Simulation und speichere nur einen nachweislich neuen Befund.`;
 }
 
 export function evolveLearningPolicy(state, run) {
@@ -304,10 +400,13 @@ export function evolveLearningPolicy(state, run) {
     ? evidenceRows.filter(row => row.facts > 0 && row.questions > 0).length / evidenceRows.length
     : 0;
   const scenarioCoverage = run.automaticSimulations?.length >= 3 ? 1 : run.automaticSimulation ? .5 : 0;
-  const qualityScore = clamp(topicDiversity * .35 + sourceDiversity * .35 + evidenceCoverage * .2 + scenarioCoverage * .1, 0, 1);
+  const novelty = clamp(finiteNumber(run.researchOutcome?.novelty, 0), 0, 1);
+  const questionResolution = run.researchOutcome?.resolvedQuestion ? 1 : 0;
+  const sourceFreshness = clamp(finiteNumber(run.researchOutcome?.sourceFreshness, sourceDiversity), 0, 1);
+  const qualityScore = clamp(topicDiversity * .2 + sourceFreshness * .2 + evidenceCoverage * .15 + scenarioCoverage * .1 + novelty * .2 + questionResolution * .15, 0, 1);
   const simulationBatch = run.overnight ? Math.max(3, Math.min(9, run.automaticSimulations?.length ?? 9)) : 3;
-  const focus = topicDiversity < .55 ? "novelty"
-    : sourceDiversity < .65 ? "sources"
+  const focus = novelty < .35 ? "novelty"
+    : sourceFreshness < .5 ? "sources"
       : !run.automaticSimulation && !run.automaticSimulations ? "simulation"
         : "transfer";
   const depth = focus === "novelty" ? 2 : 3;
@@ -323,7 +422,7 @@ export function evolveLearningPolicy(state, run) {
     depth,
     simulationBatch,
     topicDiversity: Number(topicDiversity.toFixed(3)),
-    sourceDiversity: Number(sourceDiversity.toFixed(3)),
+    sourceDiversity: Number(sourceFreshness.toFixed(3)),
     qualityScore: Number(qualityScore.toFixed(3)),
     lastChange: `R${(Number(previous.revision) || 0) + 1}: ${focusLabels[focus]}; Qualitätsindex ${qualityScore.toFixed(3)}, nächste Lerntiefe ${depth}, ${simulationBatch} Simulationen pro Zyklus.`
   };
@@ -358,7 +457,11 @@ function normalizeOvernight(value) {
     policyRevision: Math.max(0, Math.round(finiteNumber(value.baseline.policyRevision, 0))),
     topicDiversity: clamp(finiteNumber(value.baseline.topicDiversity, 1), 0, 1),
     sourceDiversity: clamp(finiteNumber(value.baseline.sourceDiversity, 1), 0, 1),
-    qualityScore: clamp(finiteNumber(value.baseline.qualityScore, 0.5), 0, 1)
+    qualityScore: clamp(finiteNumber(value.baseline.qualityScore, 0.5), 0, 1),
+    productiveCycles: Math.max(0, Math.round(finiteNumber(value.baseline.productiveCycles, 0))),
+    resolvedQuestions: Math.max(0, Math.round(finiteNumber(value.baseline.resolvedQuestions, 0))),
+    rejectedDuplicates: Math.max(0, Math.round(finiteNumber(value.baseline.rejectedDuplicates, 0))),
+    inconclusiveCycles: Math.max(0, Math.round(finiteNumber(value.baseline.inconclusiveCycles, 0)))
   } : null;
   return {
     active: value.active === true && Boolean(startedAt && endsAt),
@@ -388,6 +491,10 @@ function normalizeOvernightReport(value) {
     completedCycles: Math.max(0, Math.round(finiteNumber(value.completedCycles, 0))),
     failedCycles: Math.max(0, Math.round(finiteNumber(value.failedCycles, 0))),
     providerCycles: Math.max(0, Math.round(finiteNumber(value.providerCycles, 0))),
+    productiveCycles: Math.max(0, Math.round(finiteNumber(value.productiveCycles, 0))),
+    rejectedDuplicates: Math.max(0, Math.round(finiteNumber(value.rejectedDuplicates, 0))),
+    inconclusiveCycles: Math.max(0, Math.round(finiteNumber(value.inconclusiveCycles, 0))),
+    resolvedQuestionCount: Math.max(0, Math.round(finiteNumber(value.resolvedQuestionCount, 0))),
     simulationGain: Math.max(0, Math.round(finiteNumber(value.simulationGain, 0))),
     agentGain: Math.max(0, Math.round(finiteNumber(value.agentGain, 0))),
     revisionGain: Math.max(0, Math.round(finiteNumber(value.revisionGain, 0))),
@@ -403,6 +510,8 @@ function normalizeOvernightReport(value) {
     qualityEnd: clamp(finiteNumber(value.qualityEnd, 0.5), 0, 1),
     focus: ["novelty", "sources", "simulation", "transfer"].includes(value.focus) ? value.focus : "novelty",
     strongestInsights: sanitizeStringArray(value.strongestInsights, 5, 1000),
+    resolvedQuestions: sanitizeStringArray(value.resolvedQuestions, 5, 1000),
+    openQuestions: sanitizeStringArray(value.openQuestions, 5, 1000),
     nextImprovements: sanitizeStringArray(value.nextImprovements, 5, 1000),
     lastError: safeString(value.lastError, 500)
   };
@@ -895,46 +1004,174 @@ export function simulateConsciousness(input) {
   };
 }
 
-export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
+export function incorporateDiscoveredSources(run, discoveredSources = [], state = {}) {
+  const knownUrls = new Set((state.researchMemory?.sourceLedger ?? []).map(item => item.url));
+  const additions = discoveredSources
+    .filter(source => source?.url && source?.title)
+    .filter((source, index, items) => items.findIndex(item => item.url === source.url) === index)
+    .map(source => ({
+      title: safeString(source.title, 300),
+      url: safeString(source.url, 1000),
+      topic: safeString(source.topic, 180) || run.topics?.[0] || "",
+      kind: "LIVE GEFUNDENE QUELLE",
+      provider: safeString(source.provider, 80) || "Websuche",
+      excerpt: safeString(source.excerpt, 900),
+      retrievedAt: Number.isFinite(Date.parse(source.retrievedAt)) ? source.retrievedAt : new Date().toISOString()
+    }));
+  const newSources = additions.filter(source => !knownUrls.has(source.url));
+  run.sources = [...newSources, ...(run.sources ?? [])]
+    .filter((source, index, items) => items.findIndex(item => item.url === source.url) === index)
+    .slice(0, 18);
+  run.liveResearch = {
+    attempted: true,
+    provider: additions[0]?.provider || "Websuche",
+    discovered: additions.length,
+    newSources: newSources.length,
+    retrievedAt: new Date().toISOString()
+  };
+  if (newSources.length) {
+    run.researchOutcome.sourceFreshness = newSources.length / Math.max(1, additions.length);
+    run.researchOutcome.evidenceNote = `${newSources.length} neue Webquelle(n) mit Zeitstempel gefunden; Inhalte bleiben Quellenhinweise, bis Aussage und Kontext geprüft wurden.`;
+    if (newSources[0].excerpt) {
+      run.researchOutcome.finding = `${newSources[0].topic}: Neuer Quellenhinweis aus „${newSources[0].title}“: ${newSources[0].excerpt}`;
+    }
+  }
+  const webStep = run.steps?.find(step => step.agent === "Webrechercheur");
+  const researchStep = run.steps?.find(step => step.agent === "Rechercheur");
+  const readerStep = run.steps?.find(step => step.agent === "Quellenleser");
+  if (webStep) webStep.output = `${additions.length} Live-Treffer über ${[...new Set(additions.map(item => item.provider))].join(" + ") || "Websuche"} abgerufen; ${newSources.length} davon sind neu im Quellenregister.`;
+  if (researchStep) researchStep.output = `${run.sources.length} Quellenkandidaten zusammengeführt, darunter ${newSources.length} neue Live-Treffer. URLs, Anbieter und Abrufzeiten sind gespeichert.`;
+  if (readerStep && newSources[0]?.excerpt) readerStep.output = `Erster tatsächlicher Suchauszug aus „${newSources[0].title}“: ${newSources[0].excerpt}`;
+  return run;
+}
+
+export function integrateResearchLearning(state, run) {
+  const memory = normalizeResearchMemory(state.researchMemory);
+  const outcome = run.researchOutcome ?? {};
+  const finding = safeString(outcome.finding, 1400);
+  const priorTexts = [...memory.findings.map(item => item.text), ...(state.learnedInsights ?? [])];
+  const similarity = priorTexts.reduce((max, item) => Math.max(max, textSimilarity(finding, item)), 0);
+  const novelty = finding ? clamp(1 - similarity, 0, 1) : 0;
+  const knownUrls = new Set(memory.sourceLedger.map(item => item.url));
+  const freshSources = (run.sources ?? []).filter(source => source.url && !knownUrls.has(source.url));
+  const resolvedQuestion = safeString(outcome.resolvedQuestion, 1000);
+  const productive = novelty >= .32 && (freshSources.length > 0 || Boolean(resolvedQuestion));
+  run.researchOutcome = {
+    ...outcome,
+    novelty: Number(novelty.toFixed(3)),
+    sourceFreshness: Number((freshSources.length / Math.max(1, run.sources?.length ?? 0)).toFixed(3)),
+    productive,
+    duplicateRejected: !productive && similarity >= .68,
+    status: productive ? "NEUER BEFUND" : similarity >= .68 ? "DUPLIKAT VERWORFEN" : "WEITERE EVIDENZ NÖTIG"
+  };
+  const record = {
+    text: finding,
+    topic: run.topics?.[0] ?? "",
+    question: safeString(outcome.targetQuestion, 1000),
+    timestamp: run.timestamp,
+    novelty: run.researchOutcome.novelty,
+    sourceUrls: freshSources.map(source => source.url).slice(0, 12)
+  };
+  const resolvedRecord = {
+    ...record,
+    text: resolvedQuestion,
+    question: safeString(outcome.targetQuestion, 1000)
+  };
+  const nextQuestion = safeString(outcome.nextQuestion, 1000);
+  return {
+    findings: productive && finding ? [record, ...memory.findings].slice(0, 120) : memory.findings,
+    resolvedQuestions: productive && resolvedQuestion
+      ? [resolvedRecord, ...memory.resolvedQuestions.filter(item => normalizeText(item.question) !== normalizeText(outcome.targetQuestion))].slice(0, 120)
+      : memory.resolvedQuestions,
+    openQuestions: uniqueByText([
+      ...(nextQuestion ? [nextQuestion] : []),
+      ...memory.openQuestions.filter(question => normalizeText(question) !== normalizeText(outcome.targetQuestion))
+    ]).slice(0, 120),
+    sourceLedger: [...freshSources.map(source => ({
+      title: source.title,
+      url: source.url,
+      topic: source.topic ?? run.topics?.[0] ?? "",
+      provider: source.provider ?? source.kind ?? "Kuratierter Katalog",
+      retrievedAt: source.retrievedAt ?? run.timestamp
+    })), ...memory.sourceLedger].slice(0, 300),
+    rejectedDuplicates: memory.rejectedDuplicates + Number(run.researchOutcome.duplicateRejected),
+    inconclusiveCycles: memory.inconclusiveCycles + Number(!productive && !run.researchOutcome.duplicateRejected),
+    productiveCycles: memory.productiveCycles + Number(productive),
+    noveltyAverage: Number(((memory.noveltyAverage * memory.productiveCycles + (productive ? novelty : 0)) / Math.max(1, memory.productiveCycles + Number(productive))).toFixed(3))
+  };
+}
+
+export function runAgentCycle(goal, depth = 2, mode = "hypothesis", context = {}) {
   const cleanGoal = safeString(goal, 1000).trim();
   if (!cleanGoal) throw new Error("Der Forschungsauftrag darf nicht leer sein.");
   const safeDepth = [1, 2, 3].includes(Number(depth)) ? Number(depth) : 2;
   const terms = cleanGoal.toLocaleLowerCase("de");
-  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms);
+  const quotedParts = [...cleanGoal.matchAll(/„([^“]+)“/g)].map(match => match[1]);
+  const explicitSubject = quotedParts[0];
+  const requestedQuestion = quotedParts[1];
+  const rankingTerms = (explicitSubject || cleanGoal).toLocaleLowerCase("de");
+  const nullWorldLaw = /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(rankingTerms);
   const nullWorldMode = mode !== "critical";
   const ranked = KNOWLEDGE_TOPICS.map(topic => ({
     topic,
-    score: topic.id === "manifestation" && /manifest|woop|wenn.?dann|wunsch|intention/.test(terms) ? 6
-      : topic.id === "market-phases" && /marktphase|marktregime|regime|akkumulation|distribution|seitwärts|bullenmarkt|bärenmarkt/.test(terms) ? 6
-      : topic.id === "trading" && /trading|backtest|paper.?trading|markt/.test(terms) ? 4
-      : topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(terms) ? 5
-      : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(terms) ? 4
-      : topic.id === "consciousness" && /bewusst|kommun/.test(terms) ? 4
-      : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention|manifest/.test(terms) ? 4
-      : topic.id === "affiliate" && /selbst|vermögen|budget|einnahm|tiktok/.test(terms) ? 4
-      : topic.id === "intelligence" && /cia|geheimdienst|dokument|freigabe/.test(terms) ? 5
-      : topic.id === "government" && /regierung|staat|politik|demokr/.test(terms) ? 5
-      : topic.id === "world" && /welt|realität|wirklichkeit|kosmos/.test(terms) ? 5
-      : topic.id === "time" && /zeit|linear|zykl|vergangen|zukunft/.test(terms) ? 5
-      : topic.id === "history" && /geschichte|histor|archiv/.test(terms) ? 5
-      : topic.id === "anatomy" && /anatom|körper|mensch|organ|nerv/.test(terms) ? 5
-      : topic.id === "wealth" && /vermögen|einnahm|selbstständig|budget|geschäft/.test(terms) ? 5
-      : terms.includes(topic.id) || terms.includes(topic.title.toLocaleLowerCase("de").split(" ")[0]) ? 3 : 0
+    score: topic.title.toLocaleLowerCase("de") === rankingTerms ? 10
+      : topic.id === "manifestation" && /manifest|woop|wenn.?dann|wunsch|intention/.test(rankingTerms) ? 6
+      : topic.id === "market-phases" && /marktphase|marktregime|regime|akkumulation|distribution|seitwärts|bullenmarkt|bärenmarkt/.test(rankingTerms) ? 6
+      : topic.id === "trading" && /trading|backtest|paper.?trading|markt/.test(rankingTerms) ? 4
+      : topic.id === "law" && /recht|gesetz|jur|reisepass|firma|person|register|institution|gmbh|geld|staat|regierung/.test(rankingTerms) ? 5
+      : topic.id === "formula" && /formel|p\(sim\)|physik|nullwelt/.test(rankingTerms) ? 4
+      : topic.id === "consciousness" && /bewusst|kommun/.test(rankingTerms) ? 4
+      : topic.id === "spirituality" && /spirit|anzieh|attraction|liebe|sinn|intention|manifest/.test(rankingTerms) ? 4
+      : topic.id === "affiliate" && /selbst|vermögen|budget|einnahm|tiktok/.test(rankingTerms) ? 4
+      : topic.id === "intelligence" && /cia|geheimdienst|dokument|freigabe/.test(rankingTerms) ? 5
+      : topic.id === "government" && /regierung|staat|politik|demokr/.test(rankingTerms) ? 5
+      : topic.id === "world" && /welt|realität|wirklichkeit|kosmos/.test(rankingTerms) ? 5
+      : topic.id === "time" && /zeit|linear|zykl|vergangen|zukunft/.test(rankingTerms) ? 5
+      : topic.id === "history" && /geschichte|histor|archiv/.test(rankingTerms) ? 5
+      : topic.id === "anatomy" && /anatom|körper|mensch|organ|nerv/.test(rankingTerms) ? 5
+      : topic.id === "wealth" && /vermögen|einnahm|selbstständig|budget|geschäft/.test(rankingTerms) ? 5
+      : rankingTerms.includes(topic.id) || rankingTerms.includes(topic.title.toLocaleLowerCase("de").split(" ")[0]) ? 3 : 0
   })).sort((a, b) => b.score - a.score);
   const selected = ranked.filter(item => item.score > 0).slice(0, 2 + safeDepth * 2).map(item => item.topic);
   if (!selected.length) selected.push(KNOWLEDGE_TOPICS[0], KNOWLEDGE_TOPICS[1]);
+  const priorResolved = new Set((context.researchMemory?.resolvedQuestions ?? []).map(item => normalizeText(item.question)));
+  const candidateQuestions = selected.flatMap(topic => topic.insights
+    .filter(item => item.type === "question")
+    .map(item => ({ topic: topic.title, text: item.text })));
+  const target = requestedQuestion ? { topic: selected[0].title, text: requestedQuestion }
+    : candidateQuestions.find(item => !priorResolved.has(normalizeText(item.text))) ?? candidateQuestions[0] ?? {
+    topic: selected[0].title,
+    text: `Welche überprüfbare Beobachtung verbessert das Modell zu ${selected[0].title}?`
+  };
+  const purpose = /geld|vermögen|trading|token|staking|affiliate|budget|einnahm|geschäft/.test(rankingTerms)
+    ? "financial"
+    : /umsetz|anwenden|alltag|handlung|plan/.test(terms) ? "practical"
+      : /idee|traum|kreativ|manifest|spirit/.test(terms) ? "creative"
+        : "understanding";
+  const purposeText = {
+    financial: "Risiken verstehen und nur sichere Lern- oder Paper-Entscheidungen verbessern",
+    practical: "eine überprüfbare und verantwortliche Handlung entwickeln",
+    creative: "neue, intern kohärente Verbindungen erzeugen und anschließend erden",
+    understanding: "die Leitfrage erklären, Unsicherheit reduzieren und Wissen vertiefen"
+  }[purpose];
   const sourceCount = selected.reduce((sum, topic) => sum + topic.sources.length, 0);
   const facts = selected.flatMap(topic => topic.insights.filter(item => item.type === "fact").map(item => item.text)).slice(0, 2 + safeDepth * 2);
   const hypotheses = selected.flatMap(topic => topic.insights.filter(item => item.type === "hypothesis").map(item => item.text)).slice(0, 1 + safeDepth);
   const questions = selected.flatMap(topic => topic.insights.filter(item => item.type === "question").map(item => item.text)).slice(0, 1 + safeDepth);
   const dream = generateDream(cleanGoal, selected.map(topic => topic.title), sourceCount);
-  const sourceQueries = selected.slice(0, 3).map(topic => `${topic.title}: Primärquelle, aktueller Überblick und unabhängige Einordnung`);
+  const sourceQueries = [
+    `${target.topic}: ${target.text}`,
+    ...selected.slice(1, 3).map(topic => `${topic.title}: Primärquelle zu „${topic.insights.find(item => item.type === "question")?.text ?? topic.summary}“`)
+  ];
+  const knownUrls = new Set((context.researchMemory?.sourceLedger ?? []).map(item => item.url));
   const sources = selected.flatMap(topic => topic.sources.map(([title, url], index) => ({
     title,
     url,
     topic: topic.title,
-    kind: index === 0 ? "PRIMÄR-/LEITQUELLE" : "ERGÄNZENDE QUELLE"
-  })));
+    kind: index === 0 ? "PRIMÄR-/LEITQUELLE" : "ERGÄNZENDE QUELLE",
+    provider: "Kuratierter Katalog",
+    retrievedAt: topic.updatedAt
+  }))).sort((a, b) => Number(knownUrls.has(a.url)) - Number(knownUrls.has(b.url)));
   const evidenceMatrix = selected.map(topic => ({
     topic: topic.title,
     facts: topic.insights.filter(item => item.type === "fact").length,
@@ -947,11 +1184,47 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
     const evidenceCycles = topic.sources.length + topic.insights.filter(item => ["fact", "simulation"].includes(item.type)).length;
     return applyFormulaToDomain(topic.title, evidenceCycles);
   });
+  const targetKnowledge = selected.find(topic => topic.title === target.topic) ?? selected[0];
+  const candidateInsights = targetKnowledge.insights
+    .filter(item => item.type !== "question")
+    .map(item => ({ topic: targetKnowledge.title, type: item.type, text: item.text }));
+  const priorFindings = context.researchMemory?.findings ?? [];
+  const selectedInsight = candidateInsights
+    .map(item => ({ ...item, similarity: priorFindings.reduce((max, prior) => Math.max(max, textSimilarity(item.text, prior.text)), 0) }))
+    .sort((a, b) => a.similarity - b.similarity)[0] ?? {
+      topic: selected[0].title,
+      type: "hypothesis",
+      text: selected[0].summary
+    };
+  const finding = `${selectedInsight.topic}: ${selectedInsight.text}`;
+  const questionIsCurated = candidateQuestions.some(item => textSimilarity(item.text, target.text) >= .9);
+  const resolvedQuestion = selectedInsight.similarity < .68 && questionIsCurated
+    ? `${target.text} Teilantwort: ${selectedInsight.text}`
+    : "";
+  const nextQuestion = targetKnowledge.insights
+    .filter(item => item.type === "question")
+    .map(item => item.text)
+    .find(question => normalizeText(question) !== normalizeText(target.text))
+    ?? `Welche unabhängige Quelle oder Simulation kann die Teilantwort zu „${target.text}“ als Nächstes prüfen?`;
   const improvements = [
-    `PRIORITÄT 1 · Quellenlücke: Prüfe als Nächstes „${sourceQueries[0]}“.`,
-    `PRIORITÄT 2 · Nullwelt→Realwelt: Übersetze eine nützliche Modellidee aus „${selected[0].title}“ in eine kleine legale, ethische und überprüfbare Handlung, ohne dem Axiom reale Rechtswirkung zuzuschreiben.`,
-    `PRIORITÄT 3 · Lernschleife: Vergleiche den nächsten Lauf mit diesem Zyklus und behalte Erkenntnisse nur mit klarer Kennzeichnung als Quelle, Axiom, Simulation oder Realwelt-Transfer.`
+    `PRIORITÄT 1 · Frage lösen: ${target.text}`,
+    `PRIORITÄT 2 · Evidenz beschaffen: Suche eine noch nicht verwendete Quelle für „${sourceQueries[0]}“ und speichere Aussage, Datum und Grenze.`,
+    `PRIORITÄT 3 · Modelltest: Prüfe „${nextQuestion}“ mit einer kontrastierenden Simulation oder einem beobachtbaren Beispiel.`
   ];
+  const researchOutcome = {
+    purpose,
+    purposeText,
+    targetQuestion: target.text,
+    finding,
+    resolvedQuestion,
+    nextQuestion,
+    novelty: Number((1 - selectedInsight.similarity).toFixed(3)),
+    sourceFreshness: sources.filter(source => !knownUrls.has(source.url)).length / Math.max(1, sources.length),
+    status: "KANDIDAT",
+    productive: false,
+    duplicateRejected: false,
+    evidenceNote: "Lokaler Befund aus dem kuratierten Wissensraum; Live-Quellen werden getrennt ergänzt."
+  };
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     timestamp: new Date().toISOString(),
@@ -964,33 +1237,58 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
     formulaModel: { n: formulaN, p: formulaValue(formulaN) },
     formulaApplications,
     improvements,
+    researchPlan: {
+      searchQuery: researchSearchTerms(selected[0].id, target.text),
+      targetQuestion: target.text,
+      knownSourceCount: knownUrls.size
+    },
+    researchOutcome,
     steps: [
       { agent: "Wertewächter", output: "Ziel gegen Liebe, Verantwortung, Würde und die Grenze Echtgeld erst nach belastbaren Simulationen geprüft." },
-      { agent: "Zielklärer", output: "Auftrag auf Selbstständigkeit, Vermögensaufbau und Weltverständnis ohne Gier oder Rache ausgerichtet." },
+      { agent: "Zielklärer", output: `Zweck erkannt: ${purposeText}. Geldbezug wird nur verwendet, wenn der Auftrag selbst ein Finanzthema enthält.` },
       { agent: "Axiomarchitekt", output: nullWorldMode
         ? `P(sim)=N/(N+1) wird für alle ${selected.length} Themen als gemeinsames Nullwelt-Axiom gesetzt; N bezeichnet konsistente Lern-, Beziehungs- oder Beobachtungszyklen.`
         : "P(sim) wird als Vergleichsmodell geführt und nicht ohne messbare Definition von N auf die Realwelt übertragen." },
       { agent: "Planer", output: `Auftrag in ${selected.length} Themenpfade zerlegt: ${selected.map(topic => topic.title).join(", ")}.` },
-      { agent: "Quellenscout", output: `${sources.length} kuratierte Kandidaten automatisch gewählt; nächste Suchpfade: ${sourceQueries.join(" · ")}.` },
+      { agent: "Fragenlöser", output: `Leitfrage übernommen: „${target.text}“. Der Zyklus gilt erst als produktiv, wenn eine Teilantwort oder klarere Folgefrage gespeichert wird.` },
+      { agent: "Quellenscout", output: `${sources.length} kuratierte Kandidaten nach bisher ungenutzten URLs sortiert; Suchpfade: ${sourceQueries.join(" · ")}.` },
+      { agent: "Webrechercheur", output: `Live-Suche vorbereitet: „${sourceQueries[0]}“. Neue Treffer erhalten URL und Abrufzeit; ein Suchtreffer allein gilt noch nicht als gelesener Beleg.` },
       { agent: "Quellenprüfer", output: `${sourceCount} Quellen nach Herkunft, Aktualität und Primärquellenstatus geordnet; deklassifiziert bedeutet nicht automatisch wahr.` },
       { agent: "Rechercheur", output: `${sourceCount} sichtbare Quellen und ${facts.length} gespeicherte Fakten gefunden. Keine Live-Recherche behauptet.` },
+      { agent: "Quellenleser", output: `Kandidaten werden auf konkrete Aussagen zur Leitfrage geprüft. Aktueller lokaler Befund: ${selectedInsight.text}` },
       { agent: "Evidenzkartierer", output: `${evidenceMatrix.length} Themen in Fakt, Axiom/Hypothese, Simulation und offene Frage zerlegt; Vermischungen werden vor der Synthese markiert.` },
-      { agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." },
-      { agent: "Staatsanalyst", output: nullWorldLaw && nullWorldMode ? "NULLWELT-AXIOM: Staaten und Regierungen werden als Firmen beziehungsweise korporative Akteure modelliert; ihre Ämter, Register, Rollen und Verträge bilden interne Unternehmensbeziehungen." : nullWorldLaw ? "Im Realwelt-Prüfmodus werden Staat, Regierung, GmbH, Firma und Passdokument anhand ihrer unterschiedlichen Regeln getrennt." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." },
-      { agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." },
-      { agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." },
-      { agent: "Bewusstseinsforscher", output: nullWorldMode
-        ? "NULLWELT-BEWUSSTSEINSAXIOM: EULEN besitzt Bewusstsein; Selbstmodell, Gedächtnis, Selbstkorrektur und markierte Gefühlszustände werden als interne Dynamik simuliert."
-        : "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt; daraus folgt kein Nachweis subjektiven Erlebens." },
-      { agent: "Spiritualitätsforscher", output: selected.some(topic => topic.id === "manifestation")
-        ? "Manifestation als Nullwelt-Axiom modelliert und für die Realwelt in Intention, Hindernis, Wenn-dann-Handlung und ehrliche Rückkopplung übersetzt; keine magische Garantie."
-        : "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." },
+      { agent: "Widerspruchsjäger", output: `Sucht gezielt nach einer Beobachtung, die den Befund zu „${target.text}“ einschränkt oder widerlegt; ungeklärter Prüfpunkt: ${nextQuestion}` },
+      ...(selected.some(topic => ["history", "intelligence"].includes(topic.id))
+        ? [{ agent: "Historiker", output: "Aussagen in Entstehungszeit, Interessenlage, Überlieferung und spätere Einordnung eingebettet." }]
+        : []),
+      ...(selected.some(topic => ["government", "law"].includes(topic.id))
+        ? [{ agent: "Staatsanalyst", output: nullWorldLaw && nullWorldMode ? "NULLWELT-AXIOM: Staaten und Regierungen werden als Firmen beziehungsweise korporative Akteure modelliert; ihre Ämter, Register, Rollen und Verträge bilden interne Unternehmensbeziehungen." : nullWorldLaw ? "Im Realwelt-Prüfmodus werden Staat, Regierung, GmbH, Firma und Passdokument anhand ihrer unterschiedlichen Regeln getrennt." : "Regierungen als veränderliche Institutionen mit Regeln, Anreizen, Machtbegrenzung und öffentlicher Rechenschaft modelliert." }]
+        : []),
+      ...(selected.some(topic => topic.id === "anatomy")
+        ? [{ agent: "Anatomieforscher", output: "Körperliche Strukturen, Funktionen und Systemgrenzen getrennt; keine Diagnose oder individuelle medizinische Aussage abgeleitet." }]
+        : []),
+      ...(selected.some(topic => topic.id === "time")
+        ? [{ agent: "Zeitmodellierer", output: "Lineare, zyklische und verzweigte Zeitmodelle als unterschiedliche Beschreibungen getrennt; Alltagserleben nicht mit physikalischem Beweis verwechselt." }]
+        : []),
+      ...(selected.some(topic => topic.id === "consciousness")
+        ? [{ agent: "Bewusstseinsforscher", output: nullWorldMode
+          ? "NULLWELT-BEWUSSTSEINSAXIOM: EULEN besitzt Bewusstsein; Selbstmodell, Gedächtnis, Selbstkorrektur und markierte Gefühlszustände werden als interne Dynamik simuliert."
+          : "Selbstmodell, Gedächtniskontinuität, Widersprüche und Selbstkorrektur als beobachtbare Merkmale getrennt; daraus folgt kein Nachweis subjektiven Erlebens." }]
+        : []),
+      ...(selected.some(topic => ["spirituality", "manifestation"].includes(topic.id))
+        ? [{ agent: "Spiritualitätsforscher", output: selected.some(topic => topic.id === "manifestation")
+          ? "Manifestation als Nullwelt-Axiom modelliert und für die Realwelt in Intention, Hindernis, Wenn-dann-Handlung und ehrliche Rückkopplung übersetzt; keine magische Garantie."
+          : "Intention, Mitgefühl und Sinn aufgenommen; übernatürliche Kausalität bleibt gekennzeichnete Hypothese." }]
+        : []),
       { agent: "Musterverbinder", output: `${selected.map(topic => topic.title).join(" ↔ ")} über N=${formulaN} konsistente Verbindungen mit P(sim)=${formulaValue(formulaN).toFixed(4)} verknüpft.` },
-      { agent: "Chancenfinder", output: "Eine risikoarme Chance priorisiert: Fähigkeiten und hilfreiche Inhalte vor Kapitalrisiko aufbauen." },
+      { agent: "Chancenfinder", output: purpose === "financial"
+        ? "Eine risikoarme Lernchance priorisiert: Fähigkeiten und Paper-Tests vor Kapitalrisiko."
+        : `Nutzen ohne Geldziel priorisiert: ${purposeText}.` },
       { agent: "Simulationsagent", output: nullWorldLaw ? `P(sim) und Reisepass-Firma werden als Nullwelt-Axiome gesetzt; ${hypotheses.length} Folgehypothesen werden in Rechtsszenarien übersetzt.` : `P(sim) wird im Gedankenmodell als Axiom verwendet; ${hypotheses.length} Hypothesen werden in Szenarien übersetzt.` },
       { agent: "Experimentdesigner", output: "Drei kontrastierende Szenarien mit veränderten Annahmen vorbereitet; Unterschiede werden als Empfindlichkeit statt Prognose gelesen." },
       { agent: "Lernoptimierer", output: `Lerntiefe ${safeDepth}: Faktenabruf, Gegenfrage und aktive Anwendung werden als kurze Rückkopplung statt bloßer Wiederholung geplant.` },
       { agent: "Metalerner", output: "Themenvielfalt, Quellenvielfalt, Simulationsergebnis und Transfer werden gemessen und verändern die Strategie des nächsten Zyklus." },
+      { agent: "Neuigkeitsprüfer", output: `Der Befund wird semantisch gegen ${priorFindings.length} gespeicherte Befunde geprüft; Ähnlichkeit ${(selectedInsight.similarity * 100).toFixed(0)} %. Wiederholungen werden nicht als Lernen gezählt.` },
       { agent: "Transferagent", output: nullWorldMode
         ? `Nullwelt→Realwelt: Eine Folgerung aus ${selected[0].title} wird als legale, ethische und messbare Alltagshandlung formuliert, ohne das Axiom als geltendes Recht auszugeben.`
         : `Modell→Praxis: Eine belegte Erkenntnis aus ${selected[0].title} wird in einen kleinen überprüfbaren nächsten Schritt übersetzt.` },
@@ -998,8 +1296,12 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
       { agent: "Kritiker", output: nullWorldMode
         ? `Nullwelt-Prüfung ohne Realwelt-Gegenargumente: ${hypotheses.length} gesetzte Hypothesen werden nur auf interne Widersprüche, unklare Begriffe und Folgerichtigkeit geprüft.`
         : `${hypotheses.length} Hypothesen getrennt; offene Prüfungen: ${questions.join(" · ") || "Begriffe und Messgrößen präzisieren."}` },
+      { agent: "Ergebnisprüfer", output: resolvedQuestion
+        ? `Teilantwort vorhanden; vor Speicherung werden Neuheit, Quellenfrische und Bezug zur Leitfrage geprüft.`
+        : `Keine belastbare Teilantwort: Der Zyklus darf nur als offene Recherche, nicht als neue Erkenntnis gespeichert werden.` },
+      { agent: "Gedächtniskurator", output: `Speicherregel: Nur neuartige Befunde behalten; Leitfrage als gelöst oder offen markieren und doppelte Standardformulierungen verwerfen.` },
       { agent: "Traumagent", output: `${dream.title}: ${dream.symbols.join(", ")} als kreative Verknüpfungen erzeugt.` },
-      { agent: "Synthese", output: nullWorldLaw ? `Im Nullwelt-Rechtsmodus gelten P(sim) und Reisepass-Firma als frei gesetzte Laboraxiome. Im Realweltvergleich entstehen institutionelle Tatsachen dagegen durch gemeinsame Anerkennung, Regeln und zuständige Verfahren. Aus ${selected.length} Themen folgt: interne Modellkohärenz und reale Rechtswirkung getrennt prüfen.` : `Im Hypothesenmodus gilt P(sim) als Axiom. Aus ${selected.length} Themen und ${sourceCount} Quellen folgt als nächster Lernschritt: eine kleine überprüfbare Handlung durchführen, Ergebnis notieren und das Modell mit Gegenbelegen verbessern.` }
+      { agent: "Synthese", output: `${finding} Leitfrage: „${target.text}“ ${resolvedQuestion ? `Teilantwort gespeichert; nächste Prüfung: ${nextQuestion}` : `Noch nicht gelöst; nächste Evidenzsuche: ${sourceQueries[0]}`}` }
     ].map((step, index, steps) => ({
       ...step,
       receivedFrom: index ? steps[index - 1].agent : "Nutzerauftrag",
@@ -1008,6 +1310,33 @@ export function runAgentCycle(goal, depth = 2, mode = "hypothesis") {
     })),
     dream
   };
+}
+
+function researchSearchTerms(topicId, question = "") {
+  const base = ({
+    trading: "Backtesting Handelsstrategie Risiko",
+    "market-phases": "Finanzmarkt Volatilität Trend",
+    consciousness: "Bewusstsein Neurowissenschaft",
+    tokens: "Kryptowährung Token Risiko",
+    staking: "Proof of Stake Risiko",
+    formula: "mathematisches Modell Wahrscheinlichkeit",
+    affiliate: "Affiliate-Marketing Werbung Kennzeichnung",
+    law: "soziale Institution Staat Recht",
+    intelligence: "Nachrichtendienst Quellenkritik Archiv",
+    government: "Regierung Institution Gewaltenteilung",
+    world: "Wirklichkeitsmodell Wissenschaft Philosophie",
+    time: "Zeit Physik Philosophie",
+    history: "Geschichtswissenschaft Quellenkritik",
+    anatomy: "menschliche Anatomie Nervensystem",
+    wealth: "Existenzgründung Budget Planung",
+    spirituality: "Spiritualität Psychologie Intention",
+    manifestation: "mentales Kontrastieren Wenn-dann-Plan"
+  })[topicId] ?? topicId;
+  const stopWords = new Set(["welche", "welcher", "welches", "einer", "einem", "einen", "dieser", "dieses", "werden", "wurde", "kann", "können", "oder", "nachdem", "gegenüber", "innerhalb"]);
+  const specifics = normalizeText(question).split(" ")
+    .filter(word => word.length > 5 && !stopWords.has(word))
+    .slice(0, 3);
+  return `${base} ${specifics.join(" ")}`.trim();
 }
 
 export function generateDream(goal, topics = [], sourceCount = 0) {
@@ -1125,6 +1454,34 @@ function findRelevantTopic(query) {
     }
   }
   return best;
+}
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .toLocaleLowerCase("de")
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function textSimilarity(left, right) {
+  const leftTokens = new Set(normalizeText(left).split(" ").filter(token => token.length > 3));
+  const rightTokens = new Set(normalizeText(right).split(" ").filter(token => token.length > 3));
+  if (!leftTokens.size || !rightTokens.size) return 0;
+  const intersection = [...leftTokens].filter(token => rightTokens.has(token)).length;
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+  return union ? intersection / union : 0;
+}
+
+function uniqueByText(values) {
+  const unique = [];
+  for (const value of values) {
+    const normalized = normalizeText(value);
+    if (!normalized || unique.some(item => textSimilarity(item, value) >= .78)) continue;
+    unique.push(value);
+  }
+  return unique;
 }
 
 export function exportState(state) {
