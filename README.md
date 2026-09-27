@@ -19,6 +19,40 @@ npm test
 npm run check
 ```
 
+
+### Cloud-Agent (serverseitig, autonom)
+
+Für nicht-lokalen Betrieb mit serverseitigem Groq-Key-Routing, persistentem Cloud-State und Scheduler:
+
+```bash
+npm run cloud-agent
+```
+
+Optional für Produktion:
+
+- `PORT` (Standard `8787`)
+- `CLOUD_AGENT_SECRET` (Pflicht für persistente Schlüsselentschlüsselung über Neustarts)
+- `ALLOW_EPHEMERAL_SECRET=1` (nur lokal: startet ohne persistentes Secret; gespeicherte Schlüssel sind nach Neustart ungültig)
+
+Der Cloud-Agent stellt u. a. diese Endpunkte bereit:
+
+- `GET/PUT /state/{workspace}` (Sync-Zustand)
+- `POST /api/provider/{workspace}/connect|disconnect|reply` (serverseitiges Groq-Routing)
+- `GET /api/status/{workspace}` (Health/Status für mobile Steuerung)
+- `POST /api/automation/{workspace}/start|stop|run-now` (autonome Läufe)
+
+Zusätzlich akzeptiert `POST /api/automation/{workspace}/start` optional `allowLocalFallback` (Standard `true`). Damit laufen autonome Lernzyklen auch ohne aktiven Provider-Pool lokal weiter; mit verbundenem Pool wird serverseitiges Groq-Routing genutzt.
+
+### Handy-Schnellstart (ohne PC)
+
+1. Groq-, Render/Railway- und GitHub-Account bereitmachen.
+2. Cloud-Agent deployen: Render → New Web Service → Repo `tom948899-jpg/Eulen-AGI-v1`, Start Command `npm run cloud-agent`, ENV `CLOUD_AGENT_SECRET` setzen.
+3. App über GitHub Pages öffnen → **Daten & Konfiguration**.
+4. Sync verbinden: Endpunkt + Arbeitsraum-ID + Zugriffstoken eintragen → **Verbinden & synchronisieren**.
+5. Groq-Key-Pool verbinden (1–3 Keys) → **Groq-Pool verbinden**.
+6. Cloud-Automation starten (Fallback optional aktiv lassen) → **Cloud-Automation starten**.
+7. Kontrollcheck: Automation aktiv, Cloud-Update aktuell, Modus `provider` oder `local-fallback`.
+
 ## Funktionsumfang
 
 - Vollständiger 30-Tage-Plan mit 120 Aufgaben, Tagesauswahl, Fortschritt, Notizen und Lernständen

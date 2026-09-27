@@ -25,8 +25,9 @@ import {
   runSimulation,
   taskKey
 } from "./core.js?v=20";
-import { discoverResearchSources, GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, OpenAICompatibleProvider, testProvider } from "./providers.js?v=20";
+import { discoverResearchSources, GROQ_ENDPOINT, GROQ_MODEL, LocalProvider, testProvider } from "./providers.js?v=20";
 import { SyncProvider } from "./sync.js?v=20";
+import { CloudAgentClient } from "./cloud.js?v=20";
 
 let state = loadState();
 let activeSimulation = "budget";
@@ -35,8 +36,9 @@ let saveTimer;
 let syncInProgress = false;
 let agentCycleInProgress = false;
 let automationTickInProgress = false;
-let providerKeyCursor = 0;
-const providerKeyCooldowns = new Map();
+let syncTokenMemory = "";
+let cloudStatusCache = null;
+let cloudStatusInFlight = null;
 const AUTOMATION_LOCK_KEY = "eulen-automation-lock";
 const automationOwner = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 let installPrompt;
@@ -46,6 +48,9 @@ const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", d
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const dateTime = value => new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const withTimeout = ms => (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function")
+  ? AbortSignal.timeout(ms)
+  : undefined;
 
 function loadState() {
   try { return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
@@ -83,10 +88,10 @@ function renderAll() {
   $("#chatMode").value = state.chatMode;
   $("#providerEndpoint").value = state.provider.endpoint || GROQ_ENDPOINT;
   $("#providerModel").value = state.provider.model || GROQ_MODEL;
-  const providerKeyCount = getProviderKeys().length;
-  $("#providerStatus").textContent = providerKeyCount && state.provider.endpoint
-    ? `${providerKeyCount} Groq-Key${providerKeyCount === 1 ? "" : "s"} für intelligentes Routing verbunden.`
-    : "Noch kein Groq-Key verbunden · lokaler Modus aktiv.";
+  $("#providerStatus").textContent = state.provider.useAgents && state.provider.endpoint
+    ? "Groq-Cloud-Routing aktiv (Schlüssel serverseitig verwaltet)."
+    : "Noch kein Groq-Cloud-Routing verbunden · lokaler Modus aktiv.";
+  renderCloudOps();
   $("#agentDepth").value = String(state.agentDepth);
   $("#researchDepth").value = String(state.agentDepth);
   $("#syncEndpoint").value = state.sync.endpoint;
@@ -389,7 +394,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     const { runAgentCycle } = await import("./core.js?v=20");
     const run = { ...runAgentCycle(goal, depth, state.chatMode, state), automatic, ...metadata };
     try {
-      const discovered = await discoverResearchSources(run.researchPlan.searchQuery, AbortSignal.timeout(9000));
+      const discovered = await discoverResearchSources(run.researchPlan.searchQuery, withTimeout(9000));
       discovered.forEach(source => { source.topic = run.topics[0]; });
       incorporateDiscoveredSources(run, discovered, state);
     } catch (error) {
@@ -520,8 +525,7 @@ async function sendChat(text) {
   submit.textContent = "Denkt …";
   setNetworkActivity("Assistent", "Antwort wird strukturiert", `${state.chatMode === "hypothesis" ? "P(sim)-Hypothesenmodus" : "Kritischer Prüfmodus"} · N=${learningCycleCount(state)}`, true);
   try {
-    const keys = getProviderKeys();
-    const reply = state.provider.endpoint && state.provider.model && keys.length
+    const reply = state.provider.useAgents
       ? (await routedProviderReply(clean, state)).content
       : await new LocalProvider().reply(clean, state);
     state.chat.push({ role: "assistant", text: reply });
@@ -544,13 +548,13 @@ async function sendChat(text) {
 async function synchronizeState({ silent = false } = {}) {
     if (syncInProgress) return;
     const status = $("#syncStatus");
-    const token = sessionStorage.getItem("eulen-sync-token") ?? $("#syncToken").value.trim();
+    const token = syncTokenMemory || $("#syncToken").value.trim();
     syncInProgress = true;
     if (!silent) status.textContent = "Synchronisierung läuft …";
     setNetworkActivity("Sync", "Gerätestand wird abgeglichen", state.sync.workspace || "Kein Arbeitsraum", true);
     try {
       const provider = new SyncProvider({ endpoint: state.sync.endpoint, workspace: state.sync.workspace, token });
-      const result = await provider.synchronize(state, AbortSignal.timeout(15000));
+      const result = await provider.synchronize(state, withTimeout(15000));
       if (result.direction === "download") {
         const localSync = state.sync;
         state = normalizeState(result.state);
@@ -561,11 +565,13 @@ async function synchronizeState({ silent = false } = {}) {
       status.textContent = result.direction === "download"
         ? "Neuerer Stand von einem anderen Gerät geladen."
         : result.direction === "upload" ? "Lokaler Stand sicher in die Cloud übertragen." : "Alle Geräte sind auf demselben Stand.";
+      if (token) status.textContent += " Zugriffstoken aktiv (nur im Speicher).";
       setNetworkActivity("Sync", "Synchronisierung abgeschlossen", status.textContent, false);
     } catch (error) {
       status.textContent = `Nicht synchronisiert: ${error.message}`;
       setNetworkActivity("Sync", "Synchronisierung fehlgeschlagen", error.message, false);
       if (!silent) toast("Cloud-Synchronisierung fehlgeschlagen.");
+      throw error;
     } finally {
       syncInProgress = false;
     }
@@ -774,7 +780,7 @@ async function processAutomationTick() {
           : !manifestationStudied && priorityGoals.length ? priorityGoals[0]
             : recurringPriority || chooseAutomaticResearchGoal(state);
         $("#agentGoal").value = goal;
-        const useExternal = state.provider.useAgents && getProviderKeys().length > 0 && (sequence - 1) % 6 === 0;
+        const useExternal = state.provider.useAgents && (sequence - 1) % 6 === 0;
         const run = await executeAgentCycle(goal, true, state.agentDepth, useExternal, { overnight: true, overnightSequence: sequence });
         if (run) {
           state.overnight.completedCycles += 1;
@@ -850,49 +856,103 @@ function parseLearningPackage(text) {
   }));
 }
 
-function getProviderKeys() {
-  try {
-    const stored = JSON.parse(sessionStorage.getItem("eulen-provider-keys") || "[]");
-    if (Array.isArray(stored)) return [...new Set(stored.filter(key => typeof key === "string" && key.trim()).map(key => key.trim()))].slice(0, 3);
-  } catch {}
-  const legacy = sessionStorage.getItem("eulen-provider-key");
-  return legacy ? [legacy] : [];
-}
-
 function collectProviderKeys() {
   return [...new Set(["#providerKey", "#providerKey2", "#providerKey3"]
     .map(selector => $(selector).value.trim())
-    .filter(Boolean))];
+    .filter(Boolean))].slice(0, 3);
 }
 
-function saveProviderKeys(keys) {
-  sessionStorage.setItem("eulen-provider-keys", JSON.stringify(keys));
-  sessionStorage.removeItem("eulen-provider-key");
-  providerKeyCursor = 0;
-  providerKeyCooldowns.clear();
+function getCloudToken() {
+  return (syncTokenMemory || $("#syncToken")?.value || "").trim();
+}
+
+function hasCloudConfiguration() {
+  return Boolean(state.sync.endpoint && state.sync.workspace && getCloudToken());
+}
+
+function createCloudClient() {
+  if (!state.sync.endpoint || !state.sync.workspace) {
+    throw new Error("Für Cloud-Routing zuerst Sync-Endpunkt und Arbeitsraum konfigurieren.");
+  }
+  const token = getCloudToken();
+  if (!token) throw new Error("Für Cloud-Routing wird ein Zugriffstoken benötigt.");
+  return new CloudAgentClient({ endpoint: state.sync.endpoint, workspace: state.sync.workspace, token });
 }
 
 async function routedProviderReply(text, providerState, signal) {
-  const keys = getProviderKeys();
-  if (!state.provider.endpoint || !state.provider.model || !keys.length) throw new Error("Kein getesteter Groq-Key konfiguriert.");
-  const now = Date.now();
-  const available = keys.filter(key => (providerKeyCooldowns.get(key) ?? 0) <= now);
-  if (!available.length) throw new Error("Alle Groq-Keys befinden sich nach einem Rate-Limit in einer fünfminütigen Sparpause.");
-  let lastError;
-  for (let offset = 0; offset < available.length; offset++) {
-    const index = (providerKeyCursor + offset) % available.length;
-    const key = available[index];
-    try {
-      const provider = new OpenAICompatibleProvider({ endpoint: state.provider.endpoint, model: state.provider.model, key });
-      const content = await provider.reply(text, providerState, signal);
-      providerKeyCursor = (index + 1) % available.length;
-      return { content, route: `${keys.indexOf(key) + 1}/${keys.length}` };
-    } catch (error) {
-      lastError = error;
-      if (/429|rate|limit/i.test(error.message)) providerKeyCooldowns.set(key, Date.now() + 5 * 60 * 1000);
-    }
+  if (!state.provider.useAgents || !state.provider.endpoint || !state.provider.model) {
+    throw new Error("Kein serverseitiger Groq-Router konfiguriert.");
   }
-  throw lastError ?? new Error("Kein Groq-Key konnte die Anfrage beantworten.");
+  const client = createCloudClient();
+  return client.reply({ text, providerState }, signal);
+}
+
+async function refreshCloudStatus(silent = true) {
+  if (cloudStatusInFlight) return cloudStatusInFlight;
+  cloudStatusInFlight = (async () => {
+    if (!state.sync.endpoint || !state.sync.workspace || !getCloudToken()) {
+      cloudStatusCache = null;
+      renderCloudOps();
+      return;
+    }
+    try {
+      cloudStatusCache = await createCloudClient().status(withTimeout(12000));
+      renderCloudOps();
+    } catch (error) {
+      cloudStatusCache = null;
+      renderCloudOps();
+      if (!silent) $("#cloudOpsStatus").textContent = `Cloud-Status nicht verfügbar: ${error.message}`;
+    }
+  })();
+  try {
+    await cloudStatusInFlight;
+  } finally {
+    cloudStatusInFlight = null;
+  }
+}
+
+function renderCloudOps() {
+  const status = cloudStatusCache;
+  const keyCount = Number(status?.router?.keys ?? 0);
+  const paused = Number(status?.router?.coolingDown ?? 0);
+  const automationEnabled = status?.automation?.enabled === true;
+  const running = status?.automation?.running === true;
+  const updatedAt = status?.state?.updatedAt ? dateTime(status.state.updatedAt) : "–";
+  const failed = Number(status?.automation?.failed ?? 0);
+  const skipped = Number(status?.automation?.skipped ?? 0);
+  const mode = status?.automation?.lastMode || "–";
+  const allowLocalFallback = status?.automation?.allowLocalFallback !== false;
+  const workspace = state.sync.workspace || "nicht gesetzt";
+  if ($("#cloudWorkspaceLabel")) $("#cloudWorkspaceLabel").textContent = workspace;
+  if ($("#cloudKeys")) $("#cloudKeys").textContent = String(keyCount);
+  if ($("#cloudPaused")) $("#cloudPaused").textContent = String(paused);
+  if ($("#cloudAutomation")) $("#cloudAutomation").textContent = automationEnabled ? (running ? "aktiv · läuft" : "aktiv") : "gestoppt";
+  if ($("#cloudUpdatedAt")) $("#cloudUpdatedAt").textContent = updatedAt;
+  if ($("#cloudFailed")) $("#cloudFailed").textContent = String(failed);
+  if ($("#cloudSkipped")) $("#cloudSkipped").textContent = String(skipped);
+  if ($("#cloudMode")) $("#cloudMode").textContent = mode;
+  if ($("#cloudAllowFallback")) $("#cloudAllowFallback").checked = allowLocalFallback;
+  const toggleButton = $("#cloudAutomationToggle");
+  if (toggleButton) {
+    toggleButton.textContent = automationEnabled ? "Cloud-Automation stoppen" : "Cloud-Automation starten";
+    toggleButton.setAttribute("aria-label", automationEnabled ? "Cloud-Automation stoppen" : "Cloud-Automation starten");
+  }
+
+  if ($("#cloudOpsStatus") && !$("#cloudOpsStatus").textContent.trim()) {
+    $("#cloudOpsStatus").textContent = hasCloudConfiguration()
+      ? "Cloud-Agent bereit."
+      : "Für Cloud-Agent Sync-Endpunkt, Arbeitsraum und Token eintragen.";
+  }
+}
+
+function setCloudOpsControlsDisabled(disabled) {
+  const group = $("#cloudOpsControls");
+  if (group) group.disabled = disabled;
+  ["#cloudStatusRefresh", "#cloudAutomationToggle", "#cloudRunNow", "#cloudAllowFallback"]
+    .forEach(selector => {
+      const element = $(selector);
+      if (element) element.disabled = disabled;
+    });
 }
 
 $$(".nav-item").forEach(button => button.addEventListener("click", () => navigate(button.dataset.view)));
@@ -1059,11 +1119,17 @@ $("#syncForm").addEventListener("submit", async event => {
     workspace: $("#syncWorkspace").value.trim(),
     auto: $("#syncAuto").checked
   };
-  sessionStorage.setItem("eulen-sync-token", $("#syncToken").value.trim());
+  const submittedToken = $("#syncToken").value.trim();
+  syncTokenMemory = submittedToken;
   saveState();
-  await synchronizeState();
+  try {
+    await synchronizeState();
+    $("#syncToken").value = "";
+  } catch {
+    if (submittedToken) $("#syncToken").value = submittedToken;
+  }
 });
-$("#syncNow").addEventListener("click", () => synchronizeState());
+$("#syncNow").addEventListener("click", () => { synchronizeState().catch(() => {}); });
 $("#syncAuto").addEventListener("change", event => {
   state.sync.auto = event.target.checked;
   saveState();
@@ -1079,14 +1145,18 @@ $("#providerForm").addEventListener("submit", async event => {
     key: keys[0] ?? ""
   };
   button.disabled = true;
-  status.textContent = "Verbindung wird geprüft …";
+  status.textContent = "Cloud-Router wird geprüft …";
   try {
-    await testProvider(config, AbortSignal.timeout(15000));
+    if (!keys.length) throw new Error("Mindestens ein Groq-Key ist erforderlich.");
+    if (!hasCloudConfiguration()) throw new Error("Bitte zuerst Sync-Endpunkt, Arbeitsraum und Zugriffstoken setzen.");
+    await testProvider(config, withTimeout(15000));
+    await createCloudClient().connectProviderPool({ endpoint: config.endpoint, model: config.model, keys }, withTimeout(15000));
     state.provider = { endpoint: config.endpoint, model: config.model, useAgents: true };
     state.agentAuto = true;
-    saveProviderKeys(keys);
     saveState();
-    status.textContent = `${keys.length} Groq-Key${keys.length === 1 ? "" : "s"} verbunden. Round-Robin und per-Key-Sparpause sind aktiv; Schlüssel bleiben nur in diesem Tab.`;
+    ["#providerKey", "#providerKey2", "#providerKey3"].forEach(selector => { $(selector).value = ""; });
+    status.textContent = `${keys.length} Groq-Key${keys.length === 1 ? "" : "s"} an den Cloud-Router übertragen. Keine lokale Key-Speicherung.`;
+    await refreshCloudStatus();
     const goal = chooseAutomaticResearchGoal(state);
     $("#agentGoal").value = goal;
     setTimeout(() => executeAgentCycle(goal, true, state.agentDepth), 0);
@@ -1096,10 +1166,10 @@ $("#providerForm").addEventListener("submit", async event => {
     button.disabled = false;
   }
 });
-$("#providerDisconnect").addEventListener("click", () => {
-  sessionStorage.removeItem("eulen-provider-key");
-  sessionStorage.removeItem("eulen-provider-keys");
-  providerKeyCooldowns.clear();
+$("#providerDisconnect").addEventListener("click", async () => {
+  try {
+    if (hasCloudConfiguration()) await createCloudClient().disconnectProviderPool(withTimeout(12000));
+  } catch {}
   state.provider = { endpoint: "", model: "", useAgents: false };
   saveState();
   $("#providerKey").value = "";
@@ -1107,7 +1177,8 @@ $("#providerDisconnect").addEventListener("click", () => {
   $("#providerKey3").value = "";
   $("#providerEndpoint").value = GROQ_ENDPOINT;
   $("#providerModel").value = GROQ_MODEL;
-  $("#providerStatus").textContent = "Provider getrennt · kostenloser lokaler Modus aktiv.";
+  $("#providerStatus").textContent = "Cloud-Router getrennt · kostenloser lokaler Modus aktiv.";
+  await refreshCloudStatus();
 });
 $("#exportData").addEventListener("click", () => {
   const blob = new Blob([exportState(state)], { type: "application/json" });
@@ -1135,8 +1206,8 @@ $("#importData").addEventListener("change", async event => {
 $("#deleteData").addEventListener("click", () => {
   if (!confirm("Alle lokalen EULEN-Daten unwiderruflich löschen?")) return;
   localStorage.removeItem(STORAGE_KEY);
-  sessionStorage.removeItem("eulen-provider-key");
-  sessionStorage.removeItem("eulen-provider-keys");
+  syncTokenMemory = "";
+  cloudStatusCache = null;
   state = createInitialState();
   renderAll();
   $("#dataStatus").textContent = "Alle lokalen Daten wurden gelöscht.";
@@ -1168,6 +1239,54 @@ $("#installApp").addEventListener("click", async () => {
   $("#installApp").hidden = true;
 });
 
+$("#cloudStatusRefresh")?.addEventListener("click", async event => {
+  setCloudOpsControlsDisabled(true);
+  try { await refreshCloudStatus(false); } finally { setCloudOpsControlsDisabled(false); }
+});
+$("#cloudRunNow")?.addEventListener("click", async event => {
+  const status = $("#cloudOpsStatus");
+  setCloudOpsControlsDisabled(true);
+  try {
+    const result = await createCloudClient().runAutomationNow(withTimeout(15000));
+    status.textContent = result?.status === "completed"
+      ? "Cloud-Zyklus erfolgreich ausgeführt."
+      : result?.status === "failed"
+        ? `Cloud-Zyklus fehlgeschlagen: ${result?.error || "unbekannt"}`
+        : result?.reason === "skipped-running"
+        ? "Cloud-Zyklus läuft bereits im Hintergrund; kein zusätzlicher Lauf gestartet."
+        : `Cloud-Zyklus nicht ausgeführt: ${result?.status || "unbekannt"}${result?.error ? ` (${result.error})` : ""}.`;
+    if (result?.mode && result.mode !== "") status.textContent += ` Modus: ${result.mode}.`;
+    await refreshCloudStatus();
+  } catch (error) {
+    status.textContent = `Cloud-Zyklus fehlgeschlagen: ${error.message}`;
+  } finally {
+    setCloudOpsControlsDisabled(false);
+  }
+});
+$("#cloudAutomationToggle")?.addEventListener("click", async event => {
+  const status = $("#cloudOpsStatus");
+  setCloudOpsControlsDisabled(true);
+  try {
+    await refreshCloudStatus();
+    const enabled = cloudStatusCache?.automation?.enabled === true;
+    const intervalSeconds = Number(state.agentIntervalSeconds) || 15;
+    const allowLocalFallback = $("#cloudAllowFallback")?.checked !== false;
+    const result = enabled
+      ? await createCloudClient().stopAutomation(withTimeout(15000))
+      : await createCloudClient().startAutomation(intervalSeconds, allowLocalFallback, withTimeout(15000));
+    status.textContent = enabled
+      ? "Cloud-Automation gestoppt."
+      : result?.immediateRun && result.immediateRun !== "completed"
+        ? `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s), aber erster Lauf übersprungen: ${result.immediateRun}${result?.reason ? ` (${result.reason})` : ""}.`
+         : `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s) · Fallback ${allowLocalFallback ? "an" : "aus"}.`;
+    await refreshCloudStatus();
+  } catch (error) {
+    status.textContent = `Cloud-Automation konnte nicht geändert werden: ${error.message}`;
+  } finally {
+    setCloudOpsControlsDisabled(false);
+  }
+});
+
 const initialView = location.hash.slice(1);
 const hasInitialView = initialView && document.getElementById(initialView)?.classList.contains("view");
 navigate(hasInitialView ? initialView : "dashboard");
@@ -1180,10 +1299,15 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) processAutomationTick();
 });
 if (state.overnight.active) setTimeout(processAutomationTick, 0);
+setTimeout(() => refreshCloudStatus(), 0);
 
 setInterval(() => {
-  if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });
+  if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true }).catch(() => {});
 }, 30 * 1000);
+
+setInterval(() => {
+  if (state.provider.useAgents || hasCloudConfiguration()) refreshCloudStatus();
+}, 45 * 1000);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").then(() => {

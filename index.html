@@ -319,16 +319,16 @@
             <form class="panel" id="providerForm">
               <p class="eyebrow">BIS ZU 3 KEYS · INTELLIGENTES ROUTING</p>
               <h2>Groq-Pool verbinden</h2>
-              <p>EULEN verteilt Chat und Lernzyklen per Round-Robin auf deine eigenen Schlüssel. Bei HTTP 429 pausiert nur der betroffene Key fünf Minuten; der nächste übernimmt. Pro Lernzyklus wird weiterhin nur ein erfolgreiches kompaktes Lernpaket erzeugt. Das darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen verwendet werden. Groqs Gratisangebot ist nicht garantiert oder unbegrenzt; der lokale Modus bleibt vollständig kostenlos.</p>
+              <p>EULEN überträgt deine Schlüssel verschlüsselt an den Cloud-Agent und verteilt Chat/Lernzyklen serverseitig per Round-Robin. Bei HTTP 429 pausiert nur der betroffene Key fünf Minuten. Pro Lernzyklus wird weiterhin nur ein kompaktes Lernpaket erzeugt. Das darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen verwendet werden.</p>
               <label>Groq API-Key 1<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · erforderlich"></label>
-              <label>Groq API-Key 2<input id="providerKey2" type="password" autocomplete="off" placeholder="optional · nur in diesem Browser-Tab"></label>
-              <label>Groq API-Key 3<input id="providerKey3" type="password" autocomplete="off" placeholder="optional · nur in diesem Browser-Tab"></label>
+              <label>Groq API-Key 2<input id="providerKey2" type="password" autocomplete="off" placeholder="optional · wird nur beim Senden genutzt"></label>
+              <label>Groq API-Key 3<input id="providerKey3" type="password" autocomplete="off" placeholder="optional · wird nur beim Senden genutzt"></label>
               <details class="advanced-provider">
                 <summary>Erweiterte Provider-Einstellungen</summary>
                 <label>Endpoint<input id="providerEndpoint" type="url"></label>
                 <label>Modell<input id="providerModel" type="text"></label>
               </details>
-              <div class="stack"><button class="primary" type="submit">Groq-Pool verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
+                            <div class="stack"><button class="primary" type="submit">Groq-Pool verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
               <output id="providerStatus" class="form-status">Noch kein Groq-Key verbunden · lokaler Modus aktiv.</output>
               <p class="provider-storage-note"><strong>Warum ist der Key kein Speicher?</strong> Er erlaubt Modellanfragen, bietet aber keinen privaten EULEN-Datenspeicher. Dein Plan und Lernstand bleiben lokal; Export/Import funktioniert ohne Cloud-Sync.</p>
             </form>
@@ -352,11 +352,58 @@
               <p>Verbindet einen kompatiblen HTTPS-Sync-Provider. Ohne konfigurierten Provider bleiben Daten lokal; es wird keine Cloud-Synchronisierung vorgetäuscht.</p>
               <label>Sync-Endpunkt<input id="syncEndpoint" type="url" placeholder="https://sync.example.de/api"></label>
               <label>Arbeitsraum-ID<input id="syncWorkspace" type="text" maxlength="100" placeholder="mein-eulen-arbeitsraum"></label>
-              <label>Zugriffstoken<input id="syncToken" type="password" autocomplete="off" placeholder="Nur für diesen Tab gespeichert"></label>
+              <label>Zugriffstoken<input id="syncToken" type="password" autocomplete="off" placeholder="Wird im Speicher gehalten (nicht in local/sessionStorage)"></label>
               <label class="toggle-line"><input id="syncAuto" type="checkbox"> Alle 30 Sekunden auf Änderungen anderer Geräte prüfen</label>
               <div class="stack"><button class="primary" type="submit">Verbinden & synchronisieren</button><button class="secondary" id="syncNow" type="button">Jetzt synchronisieren</button></div>
               <output id="syncStatus" class="form-status">Nicht verbunden · lokaler Modus</output>
             </form>
+
+            <article class="panel cloud-ops-panel">
+              <h2>Cloud-Agent Steuerung (mobil)</h2>
+              <p>Komprimierte Live-Sicht für Status, aktive Läufe, Key-Ausfälle und Tagesfortschritt.</p>
+              <div class="cloud-ops-grid">
+                <article><small>Arbeitsraum</small><strong id="cloudWorkspaceLabel">nicht gesetzt</strong></article>
+                <article><small>Aktive Keys</small><strong id="cloudKeys">0</strong></article>
+                <article><small>Cooldown Keys</small><strong id="cloudPaused">0</strong></article>
+                <article><small>Automation</small><strong id="cloudAutomation">gestoppt</strong></article>
+                <article><small>Letztes Cloud-Update</small><strong id="cloudUpdatedAt">–</strong></article>
+                <article><small>Fehlgeschlagene Läufe</small><strong id="cloudFailed">0</strong></article>
+                <article><small>Übersprungene Läufe</small><strong id="cloudSkipped">0</strong></article>
+                <article><small>Letzter Modus</small><strong id="cloudMode">–</strong></article>
+              </div>
+              <fieldset id="cloudOpsControls">
+                <label class="toggle-line"><input id="cloudAllowFallback" type="checkbox" checked> Bei fehlendem Provider lokal weiterlernen (Autonomie bleibt aktiv)</label>
+                <div class="stack">
+                  <button class="secondary" id="cloudStatusRefresh" type="button">Cloud-Status aktualisieren</button>
+                  <button class="secondary" id="cloudAutomationToggle" type="button" aria-label="Cloud-Automation starten">Cloud-Automation starten</button>
+                  <button class="secondary" id="cloudRunNow" type="button">Cloud-Zyklus jetzt ausführen</button>
+                </div>
+              </fieldset>
+              <output id="cloudOpsStatus" class="form-status" role="status" aria-live="polite">Für Cloud-Agent Sync-Endpunkt, Arbeitsraum und Token eintragen.</output>
+            </article>
+            <article class="panel">
+              <h2>Handy-Schnellstart (Schritt für Schritt)</h2>
+              <ol class="mobile-steps">
+                <li><strong>Accounts bereitmachen:</strong> Groq, Render/Railway, GitHub.</li>
+                <li><strong>Cloud-Agent deployen:</strong> Render → New Web Service → Repo verbinden, Start Command <code>npm run cloud-agent</code>, ENV <code>CLOUD_AGENT_SECRET</code> setzen.</li>
+                <li><strong>App öffnen:</strong> GitHub-Pages-URL auf dem Handy öffnen, zu <em>Daten &amp; Konfiguration</em> gehen.</li>
+                <li><strong>Sync verbinden:</strong> Endpunkt, Arbeitsraum-ID und Zugriffstoken eintragen, dann <em>Verbinden &amp; synchronisieren</em>.</li>
+                <li><strong>Groq-Pool verbinden:</strong> 1–3 Keys eintragen, <em>Groq-Pool verbinden</em> drücken.</li>
+                <li><strong>Autonomie starten:</strong> optionalen Fallback aktiv lassen, <em>Cloud-Automation starten</em> drücken.</li>
+                <li><strong>30-Sekunden-Check:</strong> Automation aktiv, Cloud-Update aktuell, Modus = <code>provider</code> oder <code>local-fallback</code>.</li>
+              </ol>
+              <details>
+                <summary>Ultrakurze 2-Minuten-Checkliste</summary>
+                <ul class="mobile-checklist">
+                  <li>Sync-Endpunkt + Arbeitsraum + Token eintragen</li>
+                  <li>„Verbinden &amp; synchronisieren“ klicken</li>
+                  <li>Groq Keys eintragen</li>
+                  <li>„Groq-Pool verbinden“ klicken</li>
+                  <li>„Cloud-Automation starten“ klicken</li>
+                  <li>„Cloud-Status aktualisieren“ prüfen</li>
+                </ul>
+              </details>
+            </article>
             <article class="panel">
               <h2>Mobile Installation</h2>
               <p>Nach Bereitstellung über HTTPS kann EULEN auf iPad/iPhone über „Teilen → Zum Home-Bildschirm“ installiert werden. Offline geladene Programmdateien bleiben verfügbar; Cloud-Daten benötigen weiterhin eine Verbindung.</p>
