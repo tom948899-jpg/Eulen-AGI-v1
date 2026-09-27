@@ -59,10 +59,10 @@ export class CloudAgentClient {
     return this.request(`/api/status/${encodeURIComponent(this.workspace)}`, { signal });
   }
 
-  startAutomation(intervalSeconds = 15, signal) {
+  startAutomation(intervalSeconds = 15, allowLocalFallback = true, signal) {
     return this.request(`/api/automation/${encodeURIComponent(this.workspace)}/start`, {
       method: "POST",
-      body: { intervalSeconds },
+      body: { intervalSeconds, allowLocalFallback },
       signal
     });
   }

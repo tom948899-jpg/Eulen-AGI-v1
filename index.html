@@ -328,7 +328,7 @@
                 <label>Endpoint<input id="providerEndpoint" type="url"></label>
                 <label>Modell<input id="providerModel" type="text"></label>
               </details>
-              <div class="stack"><button class="primary" type="submit">Groq-Pool verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
+                            <div class="stack"><button class="primary" type="submit">Groq-Pool verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
               <output id="providerStatus" class="form-status">Noch kein Groq-Key verbunden · lokaler Modus aktiv.</output>
               <p class="provider-storage-note"><strong>Warum ist der Key kein Speicher?</strong> Er erlaubt Modellanfragen, bietet aber keinen privaten EULEN-Datenspeicher. Dein Plan und Lernstand bleiben lokal; Export/Import funktioniert ohne Cloud-Sync.</p>
             </form>
@@ -367,12 +367,18 @@
                 <article><small>Cooldown Keys</small><strong id="cloudPaused">0</strong></article>
                 <article><small>Automation</small><strong id="cloudAutomation">gestoppt</strong></article>
                 <article><small>Letztes Cloud-Update</small><strong id="cloudUpdatedAt">–</strong></article>
+                <article><small>Fehlgeschlagene Läufe</small><strong id="cloudFailed">0</strong></article>
+                <article><small>Übersprungene Läufe</small><strong id="cloudSkipped">0</strong></article>
+                <article><small>Letzter Modus</small><strong id="cloudMode">–</strong></article>
               </div>
-              <div class="stack">
-                <button class="secondary" id="cloudStatusRefresh" type="button">Cloud-Status aktualisieren</button>
-                <button class="secondary" id="cloudAutomationToggle" type="button" aria-label="Cloud-Automation starten">Cloud-Automation starten</button>
-                <button class="secondary" id="cloudRunNow" type="button">Cloud-Zyklus jetzt ausführen</button>
-              </div>
+              <fieldset id="cloudOpsControls">
+                <label class="toggle-line"><input id="cloudAllowFallback" type="checkbox" checked> Bei fehlendem Provider lokal weiterlernen (Autonomie bleibt aktiv)</label>
+                <div class="stack">
+                  <button class="secondary" id="cloudStatusRefresh" type="button">Cloud-Status aktualisieren</button>
+                  <button class="secondary" id="cloudAutomationToggle" type="button" aria-label="Cloud-Automation starten">Cloud-Automation starten</button>
+                  <button class="secondary" id="cloudRunNow" type="button">Cloud-Zyklus jetzt ausführen</button>
+                </div>
+              </fieldset>
               <output id="cloudOpsStatus" class="form-status" role="status" aria-live="polite">Für Cloud-Agent Sync-Endpunkt, Arbeitsraum und Token eintragen.</output>
             </article>
             <article class="panel">

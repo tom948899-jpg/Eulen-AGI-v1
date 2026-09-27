@@ -41,6 +41,8 @@ Der Cloud-Agent stellt u. a. diese Endpunkte bereit:
 - `GET /api/status/{workspace}` (Health/Status für mobile Steuerung)
 - `POST /api/automation/{workspace}/start|stop|run-now` (autonome Läufe)
 
+Zusätzlich akzeptiert `POST /api/automation/{workspace}/start` optional `allowLocalFallback` (Standard `true`). Damit laufen autonome Lernzyklen auch ohne aktiven Provider-Pool lokal weiter; mit verbundenem Pool wird serverseitiges Groq-Routing genutzt.
+
 ## Funktionsumfang
 
 - Vollständiger 30-Tage-Plan mit 120 Aufgaben, Tagesauswahl, Fortschritt, Notizen und Lernständen

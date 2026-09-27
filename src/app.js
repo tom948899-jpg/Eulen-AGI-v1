@@ -48,6 +48,9 @@ const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", d
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const dateTime = value => new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const withTimeout = ms => (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function")
+  ? AbortSignal.timeout(ms)
+  : undefined;
 
 function loadState() {
   try { return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
@@ -391,7 +394,7 @@ async function executeAgentCycle(goal, automatic = false, depth = state.agentDep
     const { runAgentCycle } = await import("./core.js?v=20");
     const run = { ...runAgentCycle(goal, depth, state.chatMode, state), automatic, ...metadata };
     try {
-      const discovered = await discoverResearchSources(run.researchPlan.searchQuery, AbortSignal.timeout(9000));
+      const discovered = await discoverResearchSources(run.researchPlan.searchQuery, withTimeout(9000));
       discovered.forEach(source => { source.topic = run.topics[0]; });
       incorporateDiscoveredSources(run, discovered, state);
     } catch (error) {
@@ -551,7 +554,7 @@ async function synchronizeState({ silent = false } = {}) {
     setNetworkActivity("Sync", "Gerätestand wird abgeglichen", state.sync.workspace || "Kein Arbeitsraum", true);
     try {
       const provider = new SyncProvider({ endpoint: state.sync.endpoint, workspace: state.sync.workspace, token });
-      const result = await provider.synchronize(state, AbortSignal.timeout(15000));
+      const result = await provider.synchronize(state, withTimeout(15000));
       if (result.direction === "download") {
         const localSync = state.sync;
         state = normalizeState(result.state);
@@ -562,6 +565,7 @@ async function synchronizeState({ silent = false } = {}) {
       status.textContent = result.direction === "download"
         ? "Neuerer Stand von einem anderen Gerät geladen."
         : result.direction === "upload" ? "Lokaler Stand sicher in die Cloud übertragen." : "Alle Geräte sind auf demselben Stand.";
+      if (token) status.textContent += " Zugriffstoken aktiv (nur im Speicher).";
       setNetworkActivity("Sync", "Synchronisierung abgeschlossen", status.textContent, false);
     } catch (error) {
       status.textContent = `Nicht synchronisiert: ${error.message}`;
@@ -892,7 +896,7 @@ async function refreshCloudStatus(silent = true) {
       return;
     }
     try {
-      cloudStatusCache = await createCloudClient().status(AbortSignal.timeout(12000));
+      cloudStatusCache = await createCloudClient().status(withTimeout(12000));
       renderCloudOps();
     } catch (error) {
       cloudStatusCache = null;
@@ -911,18 +915,27 @@ function renderCloudOps() {
   const status = cloudStatusCache;
   const keyCount = Number(status?.router?.keys ?? 0);
   const paused = Number(status?.router?.coolingDown ?? 0);
+  const automationEnabled = status?.automation?.enabled === true;
   const running = status?.automation?.running === true;
   const updatedAt = status?.state?.updatedAt ? dateTime(status.state.updatedAt) : "–";
+  const failed = Number(status?.automation?.failed ?? 0);
+  const skipped = Number(status?.automation?.skipped ?? 0);
+  const mode = status?.automation?.lastMode || "–";
+  const allowLocalFallback = status?.automation?.allowLocalFallback !== false;
   const workspace = state.sync.workspace || "nicht gesetzt";
   if ($("#cloudWorkspaceLabel")) $("#cloudWorkspaceLabel").textContent = workspace;
   if ($("#cloudKeys")) $("#cloudKeys").textContent = String(keyCount);
   if ($("#cloudPaused")) $("#cloudPaused").textContent = String(paused);
-  if ($("#cloudAutomation")) $("#cloudAutomation").textContent = running ? "läuft" : "gestoppt";
+  if ($("#cloudAutomation")) $("#cloudAutomation").textContent = automationEnabled ? (running ? "aktiv · läuft" : "aktiv") : "gestoppt";
   if ($("#cloudUpdatedAt")) $("#cloudUpdatedAt").textContent = updatedAt;
+  if ($("#cloudFailed")) $("#cloudFailed").textContent = String(failed);
+  if ($("#cloudSkipped")) $("#cloudSkipped").textContent = String(skipped);
+  if ($("#cloudMode")) $("#cloudMode").textContent = mode;
+  if ($("#cloudAllowFallback")) $("#cloudAllowFallback").checked = allowLocalFallback;
   const toggleButton = $("#cloudAutomationToggle");
   if (toggleButton) {
-    toggleButton.textContent = running ? "Cloud-Automation stoppen" : "Cloud-Automation starten";
-    toggleButton.setAttribute("aria-label", running ? "Cloud-Automation stoppen" : "Cloud-Automation starten");
+    toggleButton.textContent = automationEnabled ? "Cloud-Automation stoppen" : "Cloud-Automation starten";
+    toggleButton.setAttribute("aria-label", automationEnabled ? "Cloud-Automation stoppen" : "Cloud-Automation starten");
   }
 
   if ($("#cloudOpsStatus") && !$("#cloudOpsStatus").textContent.trim()) {
@@ -930,6 +943,16 @@ function renderCloudOps() {
       ? "Cloud-Agent bereit."
       : "Für Cloud-Agent Sync-Endpunkt, Arbeitsraum und Token eintragen.";
   }
+}
+
+function setCloudOpsControlsDisabled(disabled) {
+  const group = $("#cloudOpsControls");
+  if (group) group.disabled = disabled;
+  ["#cloudStatusRefresh", "#cloudAutomationToggle", "#cloudRunNow", "#cloudAllowFallback"]
+    .forEach(selector => {
+      const element = $(selector);
+      if (element) element.disabled = disabled;
+    });
 }
 
 $$(".nav-item").forEach(button => button.addEventListener("click", () => navigate(button.dataset.view)));
@@ -1126,8 +1149,8 @@ $("#providerForm").addEventListener("submit", async event => {
   try {
     if (!keys.length) throw new Error("Mindestens ein Groq-Key ist erforderlich.");
     if (!hasCloudConfiguration()) throw new Error("Bitte zuerst Sync-Endpunkt, Arbeitsraum und Zugriffstoken setzen.");
-    await testProvider(config, AbortSignal.timeout(15000));
-    await createCloudClient().connectProviderPool({ endpoint: config.endpoint, model: config.model, keys }, AbortSignal.timeout(15000));
+    await testProvider(config, withTimeout(15000));
+    await createCloudClient().connectProviderPool({ endpoint: config.endpoint, model: config.model, keys }, withTimeout(15000));
     state.provider = { endpoint: config.endpoint, model: config.model, useAgents: true };
     state.agentAuto = true;
     saveState();
@@ -1145,7 +1168,7 @@ $("#providerForm").addEventListener("submit", async event => {
 });
 $("#providerDisconnect").addEventListener("click", async () => {
   try {
-    if (hasCloudConfiguration()) await createCloudClient().disconnectProviderPool(AbortSignal.timeout(12000));
+    if (hasCloudConfiguration()) await createCloudClient().disconnectProviderPool(withTimeout(12000));
   } catch {}
   state.provider = { endpoint: "", model: "", useAgents: false };
   saveState();
@@ -1217,49 +1240,50 @@ $("#installApp").addEventListener("click", async () => {
 });
 
 $("#cloudStatusRefresh")?.addEventListener("click", async event => {
-  const button = event.currentTarget;
-  button.disabled = true;
-  try { await refreshCloudStatus(false); } finally { button.disabled = false; }
+  setCloudOpsControlsDisabled(true);
+  try { await refreshCloudStatus(false); } finally { setCloudOpsControlsDisabled(false); }
 });
 $("#cloudRunNow")?.addEventListener("click", async event => {
   const status = $("#cloudOpsStatus");
-  const button = event.currentTarget;
-  button.disabled = true;
+  setCloudOpsControlsDisabled(true);
   try {
-    const result = await createCloudClient().runAutomationNow(AbortSignal.timeout(15000));
+    const result = await createCloudClient().runAutomationNow(withTimeout(15000));
     status.textContent = result?.status === "completed"
       ? "Cloud-Zyklus erfolgreich ausgeführt."
       : result?.status === "failed"
         ? `Cloud-Zyklus fehlgeschlagen: ${result?.error || "unbekannt"}`
+        : result?.reason === "skipped-running"
+        ? "Cloud-Zyklus läuft bereits im Hintergrund; kein zusätzlicher Lauf gestartet."
         : `Cloud-Zyklus nicht ausgeführt: ${result?.status || "unbekannt"}${result?.error ? ` (${result.error})` : ""}.`;
+    if (result?.mode && result.mode !== "") status.textContent += ` Modus: ${result.mode}.`;
     await refreshCloudStatus();
   } catch (error) {
     status.textContent = `Cloud-Zyklus fehlgeschlagen: ${error.message}`;
   } finally {
-    button.disabled = false;
+    setCloudOpsControlsDisabled(false);
   }
 });
 $("#cloudAutomationToggle")?.addEventListener("click", async event => {
   const status = $("#cloudOpsStatus");
-  const button = event.currentTarget;
-  button.disabled = true;
+  setCloudOpsControlsDisabled(true);
   try {
     await refreshCloudStatus();
-    const running = cloudStatusCache?.automation?.running === true;
+    const enabled = cloudStatusCache?.automation?.enabled === true;
     const intervalSeconds = Number(state.agentIntervalSeconds) || 15;
-    const result = running
-      ? await createCloudClient().stopAutomation(AbortSignal.timeout(15000))
-      : await createCloudClient().startAutomation(intervalSeconds, AbortSignal.timeout(15000));
-    status.textContent = running
+    const allowLocalFallback = $("#cloudAllowFallback")?.checked !== false;
+    const result = enabled
+      ? await createCloudClient().stopAutomation(withTimeout(15000))
+      : await createCloudClient().startAutomation(intervalSeconds, allowLocalFallback, withTimeout(15000));
+    status.textContent = enabled
       ? "Cloud-Automation gestoppt."
       : result?.immediateRun && result.immediateRun !== "completed"
         ? `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s), aber erster Lauf übersprungen: ${result.immediateRun}${result?.reason ? ` (${result.reason})` : ""}.`
-        : `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s).`;
+         : `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s) · Fallback ${allowLocalFallback ? "an" : "aus"}.`;
     await refreshCloudStatus();
   } catch (error) {
     status.textContent = `Cloud-Automation konnte nicht geändert werden: ${error.message}`;
   } finally {
-    button.disabled = false;
+    setCloudOpsControlsDisabled(false);
   }
 });
 

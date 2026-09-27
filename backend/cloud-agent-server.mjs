@@ -97,20 +97,21 @@ function ensureWorkspace(id) {
       updatedAt: "",
       hasState: false,
       provider: { endpoint: "", model: "", keyPool: [], cursor: 0 },
-      automation: { enabled: false, intervalSeconds: 60, running: false, lastRunAt: "", lastError: "", completed: 0 }
+      automation: { enabled: false, intervalSeconds: 60, running: false, lastRunAt: "", lastError: "", completed: 0, failed: 0, skipped: 0, allowLocalFallback: true, lastMode: "" }
     };
     markDirty();
   }
   return store.workspaces[id];
 }
 
-function authorize(req, workspace) {
+function authorize(req, workspace, { allowProvision = false } = {}) {
   const token = bearerToken(req);
   if (!token) return { ok: false, error: "Fehlendes Zugriffstoken." };
   if (!workspace.authHash) {
+    if (!allowProvision) return { ok: false, error: "Arbeitsraum noch nicht provisioniert. Bitte zuerst den Sync-Stand schreiben." };
     workspace.authHash = hashToken(token);
     markDirty();
-    return { ok: true, token };
+    return { ok: true, token, provisioned: true };
   }
   if (workspace.authHash !== hashToken(token)) return { ok: false, error: "Ungültiges Zugriffstoken." };
   return { ok: true, token };
@@ -222,6 +223,83 @@ function validateProviderEndpoint(value) {
   return url.toString();
 }
 
+function hasProviderPool(workspace) {
+  return Boolean(workspace?.provider?.endpoint && workspace?.provider?.model && Array.isArray(workspace?.provider?.keyPool) && workspace.provider.keyPool.length);
+}
+
+function createAdaptiveAutomationGoal(state) {
+  const open = state.researchMemory?.openQuestions?.find(item => typeof item === "string" && item.trim());
+  if (open) {
+    return `Beantworte priorisiert die offene Frage: "${open.trim().slice(0, 280)}". Trenne Fakten, Hypothesen und Simulationen und liefere einen konkreten nächsten Schritt.`;
+  }
+  return chooseAutomaticResearchGoal(state);
+}
+
+function stripHtml(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchResearchHints(query, signal) {
+  const search = String(query || "").trim().slice(0, 180);
+  if (!search) return [];
+  const wikipediaUrl = new URL("https://de.wikipedia.org/w/api.php");
+  wikipediaUrl.search = new URLSearchParams({
+    action: "query",
+    list: "search",
+    srsearch: search,
+    srnamespace: "0",
+    srlimit: "4",
+    srprop: "snippet|timestamp",
+    format: "json",
+    origin: "*"
+  }).toString();
+  const crossrefUrl = new URL("https://api.crossref.org/works");
+  crossrefUrl.search = new URLSearchParams({
+    query: search,
+    rows: "3",
+    select: "DOI,title,URL,published,container-title"
+  }).toString();
+
+  const [wiki, crossref] = await Promise.allSettled([
+    fetch(wikipediaUrl, { method: "GET", headers: { Accept: "application/json" }, signal }),
+    fetch(crossrefUrl, { method: "GET", headers: { Accept: "application/json" }, signal })
+  ]);
+
+  const results = [];
+  if (wiki.status === "fulfilled" && wiki.value.ok) {
+    const payload = await wiki.value.json();
+    results.push(...(payload?.query?.search || []).map(item => ({
+      title: `Wikipedia: ${item.title}`,
+      url: `https://de.wikipedia.org/?curid=${item.pageid}`,
+      excerpt: stripHtml(item.snippet).slice(0, 500),
+      provider: "Wikipedia-Suche",
+      retrievedAt: item.timestamp || new Date().toISOString()
+    })));
+  }
+  if (crossref.status === "fulfilled" && crossref.value.ok) {
+    const payload = await crossref.value.json();
+    results.push(...(payload?.message?.items || []).map(item => ({
+      title: `Crossref: ${item.title?.[0] || item.DOI}`,
+      url: item.URL || `https://doi.org/${item.DOI}`,
+      excerpt: [item["container-title"]?.[0], (item.published?.["date-parts"]?.[0] || []).join("-")].filter(Boolean).join(" · ").slice(0, 500),
+      provider: "Crossref-Metadatensuche",
+      retrievedAt: new Date().toISOString()
+    })));
+  }
+
+  return results
+    .filter(item => item.url)
+    .filter((item, index, arr) => arr.findIndex(other => other.url === item.url) === index)
+    .slice(0, 6);
+}
+
 function automaticSimulationType(topics = []) {
   const text = topics.join(" ").toLocaleLowerCase("de");
   if (/trading|backtest|marktphase|marktregime/.test(text)) return "trading";
@@ -236,29 +314,65 @@ function automaticSimulationType(topics = []) {
 }
 
 async function runAutomationCycle(workspace) {
-  if (workspace.automation.running) return { status: "skipped-running" };
+  if (workspace.automation.running) {
+    workspace.automation.skipped = (workspace.automation.skipped || 0) + 1;
+    markDirty();
+    return { status: "skipped-running" };
+  }
+  const providerReady = hasProviderPool(workspace);
+  if (!providerReady && workspace.automation.allowLocalFallback === false) {
+    workspace.automation.skipped = (workspace.automation.skipped || 0) + 1;
+    workspace.automation.lastError = "Provider-Pool fehlt und lokaler Fallback ist deaktiviert.";
+    workspace.automation.lastMode = "blocked";
+    markDirty();
+    return { status: "skipped-no-provider", error: workspace.automation.lastError };
+  }
+
   workspace.automation.running = true;
   markDirty();
   try {
     const state = guardrailsState(workspace.state);
-    const goal = chooseAutomaticResearchGoal(state);
+    const goal = createAdaptiveAutomationGoal(state);
     const run = runAgentCycle(goal, state.agentDepth, state.chatMode, state);
+
     try {
-      const routed = await routedProviderReply(
-        workspace,
-        `Erzeuge ein kurzes Cloud-Lernpaket für den autonomen Lauf: ${goal}`,
-        { ...state, chat: [] },
-        AbortSignal.timeout(20000)
-      );
-      const synthesisStep = run.steps.find(step => step.agent === "Synthese");
-      if (synthesisStep) synthesisStep.output = `[CLOUD-GROQ] ${routed.content.slice(0, 1600)}`;
-      run.externalSynthesis = true;
-      run.providerRoute = routed.route;
+      const discovered = await fetchResearchHints(run.researchPlan?.searchQuery || goal, AbortSignal.timeout(9000));
+      if (discovered.length) {
+        const enriched = discovered.map(item => ({ ...item, topic: run.topics?.[0] || "Cloud-Automation", kind: "QUELLE" }));
+        const sourceMap = new Map();
+        for (const source of [...(run.sources || []), ...enriched]) {
+          if (source?.url && !sourceMap.has(source.url)) sourceMap.set(source.url, source);
+        }
+        run.sources = [...sourceMap.values()].slice(0, 18);
+      }
+      run.liveResearch = { attempted: true, provider: "Wikipedia/Crossref", discovered: discovered.length, newSources: discovered.length, error: "" };
     } catch (error) {
-      run.externalSynthesisError = error.message;
+      run.liveResearch = { attempted: true, provider: "Wikipedia/Crossref", discovered: 0, newSources: 0, error: error.message };
     }
+
+    if (providerReady) {
+      try {
+        const routed = await routedProviderReply(
+          workspace,
+          `Erzeuge ein kurzes Cloud-Lernpaket für den autonomen Lauf: ${goal}`,
+          { ...state, chat: [] },
+          AbortSignal.timeout(20000)
+        );
+        const synthesisStep = run.steps.find(step => step.agent === "Synthese");
+        if (synthesisStep) synthesisStep.output = `[CLOUD-GROQ] ${routed.content.slice(0, 1600)}`;
+        run.externalSynthesis = true;
+        run.providerRoute = routed.route;
+      } catch (error) {
+        run.externalSynthesisError = error.message;
+      }
+    } else {
+      run.externalSynthesisError = "Kein Provider verbunden; lokaler Fallback genutzt.";
+    }
+
     const autoType = automaticSimulationType(run.topics);
-    const simulations = runScenarioSeries(autoType, {});
+    const sequence = Number(workspace.automation.completed || 0) + Number(workspace.automation.failed || 0) + 1;
+    const baseParams = autoType === "trading" ? { seed: 40 + sequence } : autoType === "formula" ? { n: 20 + sequence } : {};
+    const simulations = runScenarioSeries(autoType, baseParams);
     run.automatic = true;
     run.automaticSimulations = simulations.map(item => ({
       type: autoType,
@@ -275,16 +389,20 @@ async function runAutomationCycle(workspace) {
     state.agentRuns = state.agentRuns.slice(0, 30);
     state.totalAgentCycles += 1;
     state.updatedAt = new Date().toISOString();
+
     workspace.state = guardrailsState(state);
     workspace.updatedAt = workspace.state.updatedAt;
     workspace.hasState = true;
     workspace.automation.lastRunAt = workspace.updatedAt;
     workspace.automation.lastError = "";
-    workspace.automation.completed += 1;
+    workspace.automation.lastMode = providerReady ? "provider" : "local-fallback";
+    workspace.automation.completed = (workspace.automation.completed || 0) + 1;
     markDirty();
-    return { status: "completed" };
+    return { status: "completed", mode: workspace.automation.lastMode };
   } catch (error) {
     workspace.automation.lastError = error.message;
+    workspace.automation.lastMode = "failed";
+    workspace.automation.failed = (workspace.automation.failed || 0) + 1;
     markDirty();
     return { status: "failed", error: error.message };
   } finally {
@@ -304,7 +422,7 @@ const server = http.createServer(async (req, res) => {
       const workspaceId = parseWorkspace(pathname, "/state/");
       if (!workspaceId) return json(res, 400, { error: "Ungültige Arbeitsraum-ID." });
       const workspace = ensureWorkspace(workspaceId);
-      const auth = authorize(req, workspace);
+      const auth = authorize(req, workspace, { allowProvision: false });
       if (!auth.ok) return json(res, 401, { error: auth.error });
       if (!workspace.hasState) return json(res, 404, { error: "Kein Stand vorhanden." });
       return json(res, 200, { updatedAt: workspace.updatedAt, state: workspace.state });
@@ -314,7 +432,7 @@ const server = http.createServer(async (req, res) => {
       const workspaceId = parseWorkspace(pathname, "/state/");
       if (!workspaceId) return json(res, 400, { error: "Ungültige Arbeitsraum-ID." });
       const workspace = ensureWorkspace(workspaceId);
-      const auth = authorize(req, workspace);
+      const auth = authorize(req, workspace, { allowProvision: true });
       if (!auth.ok) return json(res, 401, { error: auth.error });
       const payload = await parseBody(req);
       const guarded = guardrailsState(payload?.state || payload || {});
@@ -330,6 +448,7 @@ const server = http.createServer(async (req, res) => {
       workspace.state.updatedAt = workspace.updatedAt;
       workspace.hasState = true;
       markDirty();
+      await saveStore();
       return json(res, 200, { updatedAt: workspace.updatedAt });
     }
 
@@ -340,7 +459,7 @@ const server = http.createServer(async (req, res) => {
       const workspaceId = decodeURIComponent(workspaceRaw);
       if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{2,99}$/.test(workspaceId)) return json(res, 400, { error: "Ungültige Arbeitsraum-ID." });
       const workspace = ensureWorkspace(workspaceId);
-      const auth = authorize(req, workspace);
+      const auth = authorize(req, workspace, { allowProvision: false });
       if (!auth.ok) return json(res, 401, { error: auth.error });
 
       if (domain === "status" && req.method === "GET") {
@@ -355,11 +474,16 @@ const server = http.createServer(async (req, res) => {
             lastErrors: workspace.provider.keyPool.map(item => item.lastError).filter(Boolean).slice(0, 3)
           },
           automation: {
-            running: workspace.automation.enabled,
+            enabled: workspace.automation.enabled,
+            running: workspace.automation.running === true,
             intervalSeconds: workspace.automation.intervalSeconds,
             lastRunAt: workspace.automation.lastRunAt,
             lastError: workspace.automation.lastError,
-            completed: workspace.automation.completed
+            completed: workspace.automation.completed,
+            failed: workspace.automation.failed || 0,
+            skipped: workspace.automation.skipped || 0,
+            allowLocalFallback: workspace.automation.allowLocalFallback !== false,
+            lastMode: workspace.automation.lastMode || ""
           }
         });
       }
@@ -377,12 +501,14 @@ const server = http.createServer(async (req, res) => {
           keyPool: keys.map((key, index) => ({ id: index + 1, secret: encryptSecret(key), cooldownUntil: 0, lastError: "", lastUsedAt: "" }))
         };
         markDirty();
+        await saveStore();
         return json(res, 200, { status: "connected", keys: workspace.provider.keyPool.length });
       }
 
       if (domain === "provider" && req.method === "POST" && action === "disconnect") {
         workspace.provider = { endpoint: "", model: "", keyPool: [], cursor: 0 };
         markDirty();
+        await saveStore();
         return json(res, 200, { status: "disconnected" });
       }
 
@@ -397,10 +523,17 @@ const server = http.createServer(async (req, res) => {
         const intervalSeconds = Math.max(15, Math.min(3600, Number(payload.intervalSeconds) || 60));
         workspace.automation.enabled = true;
         workspace.automation.intervalSeconds = intervalSeconds;
+        workspace.automation.allowLocalFallback = payload?.allowLocalFallback !== false;
         markDirty();
-        const hasProviderPool = workspace.provider.keyPool.length > 0 && workspace.provider.endpoint && workspace.provider.model;
-        const immediate = hasProviderPool ? await runAutomationCycle(workspace) : { status: "skipped-no-provider" };
-        return json(res, 200, { status: "started", intervalSeconds, immediateRun: immediate.status, reason: hasProviderPool ? "" : "Provider-Pool fehlt" });
+        const canRunNow = hasProviderPool(workspace) || workspace.automation.allowLocalFallback;
+        const immediate = canRunNow ? await runAutomationCycle(workspace) : { status: "skipped-no-provider", error: "Provider-Pool fehlt und Fallback deaktiviert" };
+        return json(res, 200, {
+          status: "started",
+          intervalSeconds,
+          immediateRun: immediate.status,
+          reason: canRunNow ? "" : "Provider-Pool fehlt und lokaler Fallback ist deaktiviert",
+          allowLocalFallback: workspace.automation.allowLocalFallback !== false
+        });
       }
 
       if (domain === "automation" && req.method === "POST" && action === "stop") {
@@ -410,12 +543,14 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (domain === "automation" && req.method === "POST" && action === "run-now") {
-        const hasProviderPool = workspace.provider.keyPool.length > 0 && workspace.provider.endpoint && workspace.provider.model;
-        if (!hasProviderPool) {
-          return json(res, 200, { status: "skipped-no-provider", error: "Provider-Pool fehlt", updatedAt: workspace.updatedAt });
+        const canRunNow = hasProviderPool(workspace) || workspace.automation.allowLocalFallback;
+        if (!canRunNow) {
+          workspace.automation.skipped = (workspace.automation.skipped || 0) + 1;
+          markDirty();
+          return json(res, 200, { status: "skipped-no-provider", error: "Provider-Pool fehlt und Fallback deaktiviert", updatedAt: workspace.updatedAt });
         }
         const result = await runAutomationCycle(workspace);
-        return json(res, 200, { status: result.status, error: result.error || "", updatedAt: workspace.updatedAt });
+        return json(res, 200, { status: result.status, reason: result.status, error: result.error || "", mode: result.mode || "", updatedAt: workspace.updatedAt });
       }
 
       return json(res, 405, { error: "Methode nicht erlaubt." });
@@ -434,12 +569,19 @@ setInterval(async () => {
   schedulerRunning = true;
   try {
     for (const workspace of Object.values(store.workspaces)) {
-      if (!workspace.automation.enabled) continue;
-      const hasProviderPool = workspace.provider.keyPool.length > 0 && workspace.provider.endpoint && workspace.provider.model;
-      if (!hasProviderPool) continue;
-      const last = Date.parse(workspace.automation.lastRunAt || 0);
-      if (Date.now() - last < workspace.automation.intervalSeconds * 1000) continue;
-      await runAutomationCycle(workspace);
+      try {
+        if (!workspace.automation.enabled) continue;
+        const canRunNow = hasProviderPool(workspace) || workspace.automation.allowLocalFallback;
+        if (!canRunNow) continue;
+        const last = Date.parse(workspace.automation.lastRunAt || 0);
+        if (Date.now() - last < workspace.automation.intervalSeconds * 1000) continue;
+        await runAutomationCycle(workspace);
+      } catch (error) {
+        workspace.automation.lastError = error.message;
+        workspace.automation.failed = (workspace.automation.failed || 0) + 1;
+        workspace.automation.running = false;
+        markDirty();
+      }
     }
     await saveStore();
   } finally {

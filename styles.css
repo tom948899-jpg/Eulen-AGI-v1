@@ -408,6 +408,13 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
   font-size: 14px;
 }
 
+#cloudOpsControls {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
 @media (max-width: 720px) {
   .cloud-ops-panel .stack {
     display: grid;
