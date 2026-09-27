@@ -9,6 +9,9 @@ import {
   chooseAutomaticResearchGoal,
   createInitialState,
   createOvernightSession,
+  detectAutomationStartupRisk,
+  disableAutomationForSafety,
+  enableAutomationAfterSafety,
   evolveLearningPolicy,
   formulaValue,
   generateDream,
@@ -219,6 +222,7 @@ test("Nachtlauf plant robuste Zyklen und erzeugt Qualitätsbericht", () => {
   const state = createInitialState();
   const overnight = createOvernightSession(state, now, 8, 5);
   assert.equal(overnightDueCycles(overnight, now), 1);
+  assert.equal(overnightDueCycles(overnight, now + 16 * 60 * 1000, 1), 1);
   assert.equal(overnightDueCycles(overnight, now + 16 * 60 * 1000), 3);
   state.totalAgentCycles = 2;
   state.totalSimulationCycles = 6;
@@ -233,6 +237,37 @@ test("Nachtlauf plant robuste Zyklen und erzeugt Qualitätsbericht", () => {
   const repaired = normalizeState({ version: 5, overnight: { report: { uniqueTopics: "ungültig", qualityEnd: 4 } } });
   assert.deepEqual(repaired.overnight.report.uniqueTopics, []);
   assert.equal(repaired.overnight.report.qualityEnd, 1);
+});
+
+test("Safe Mode stoppt Automatik persistent ohne Datenverlust", () => {
+  const now = Date.parse("2026-09-26T20:00:00.000Z");
+  const state = createInitialState();
+  state.chat = [{ role: "user", text: "bleibt erhalten" }];
+  state.agentRuns = [{ goal: "Test", timestamp: new Date(now).toISOString(), topics: [], sources: [], steps: [] }];
+  state.overnight = createOvernightSession(state, now, 8, 5);
+  state.agentAuto = true;
+  const paused = disableAutomationForSafety(state, "Überlast erkannt", now + 1000);
+  assert.equal(paused.agentAuto, false);
+  assert.equal(paused.overnight.active, false);
+  assert.equal(paused.automationSafety.safeMode, true);
+  assert.match(paused.automationSafety.reason, /Überlast/);
+  assert.equal(paused.chat.length, 1);
+  assert.equal(paused.agentRuns.length, 1);
+});
+
+test("Safe Mode kann ohne automatisches Re-Enable beendet werden", () => {
+  const state = disableAutomationForSafety(createInitialState(), "Test");
+  const resumed = enableAutomationAfterSafety(state);
+  assert.equal(resumed.automationSafety.safeMode, false);
+  assert.equal(resumed.automationSafety.manualResumeRequired, false);
+  assert.equal(resumed.agentAuto, false);
+});
+
+test("Sicherer Start erkennt Reload-Burst und Fehlerstreak", () => {
+  const state = createInitialState();
+  assert.match(detectAutomationStartupRisk(state, { reloadBurst: 3 }), /neu geladen/);
+  state.automationSafety.tickErrorStreak = 2;
+  assert.match(detectAutomationStartupRisk(state), /Automatikfehler/);
 });
 
 test("Systemweite Formelmatrix nutzt fachlich getrennte Zähler", () => {

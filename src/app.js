@@ -9,6 +9,9 @@ import {
   chooseAutomaticResearchGoal,
   createInitialState,
   createOvernightSession,
+  detectAutomationStartupRisk,
+  disableAutomationForSafety,
+  enableAutomationAfterSafety,
   exportState,
   evolveLearningPolicy,
   formulaValue,
@@ -35,10 +38,18 @@ let saveTimer;
 let syncInProgress = false;
 let agentCycleInProgress = false;
 let automationTickInProgress = false;
+let lastAutomationTickStartedAt = 0;
 let providerKeyCursor = 0;
 const providerKeyCooldowns = new Map();
 const AUTOMATION_LOCK_KEY = "eulen-automation-lock";
+const AUTOMATION_RELOAD_KEY = "eulen-automation-reloads";
 const automationOwner = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+const AUTOMATION_TICK_INTERVAL_MS = 5 * 1000;
+const MAX_OVERNIGHT_CATCHUP_PER_TICK = 1;
+const HEAVY_TICK_MS = 12000;
+const MIN_AUTOMATION_TICK_GAP_MS = 2000;
+let automationIntervalTimer = null;
+let syncIntervalTimer = null;
 let installPrompt;
 const stateChannel = "BroadcastChannel" in window ? new BroadcastChannel("eulen-state-v2") : null;
 const networkActivity = { agent: "", task: "Wartet auf den nächsten Auftrag", detail: "20 interne Referenzläufe geladen.", working: false };
@@ -277,7 +288,9 @@ function labelType(type) {
 }
 
 function renderAgents() {
+  ensureAutomationSafetyState();
   $("#agentAuto").checked = state.agentAuto;
+  $("#agentAuto").disabled = state.automationSafety.safeMode;
   $("#agentInterval").value = String(state.agentIntervalSeconds);
   $("#agentDepth").value = String(state.agentDepth);
   $("#researchDepth").value = String(state.agentDepth);
@@ -285,6 +298,15 @@ function renderAgents() {
   $("#agentCycleCount").textContent = runs.length;
   $("#agentFormula").textContent = formulaValue(learningCycleCount(state)).toFixed(4);
   $("#agentSourceCount").textContent = state.researchMemory.sourceLedger.length;
+  const safeModeStatus = $("#safeModeStatus");
+  const resumeButton = $("#automationResume");
+  const killSwitch = $("#automationKillSwitch");
+  safeModeStatus.textContent = state.automationSafety.safeMode
+    ? `Safe Mode aktiv seit ${dateTime(state.automationSafety.activatedAt || new Date().toISOString())}: ${state.automationSafety.reason || "Automatik pausiert."} Zum Wiederstart zuerst „Safe Mode beenden“, danach Automatik manuell einschalten.`
+    : "Safe Mode aus. Mit „Automatik sofort stoppen“ kannst du Nachtlauf und Automatik jederzeit dauerhaft pausieren.";
+  safeModeStatus.classList.toggle("result-warning", state.automationSafety.safeMode);
+  resumeButton.hidden = !state.automationSafety.safeMode;
+  killSwitch.textContent = state.automationSafety.safeMode ? "Safe Mode aktiv (Automatik gestoppt)" : "Automatik sofort stoppen (Safe Mode)";
   $("#agentRuns").innerHTML = runs.length ? runs.map(run => `
     <article class="agent-run">
       <header><strong>${escapeHtml(run.goal)}</strong><span>${dateTime(run.timestamp)}${run.automatic ? " · automatisch" : ""}</span></header>
@@ -359,7 +381,7 @@ function renderOvernight() {
   $("#overnightReport").innerHTML = report ? `
     <div class="overnight-summary">
       <article><small>Versuchte Forschungszyklen</small><strong>+${report.agentGain}</strong><span>${report.failedCycles} technische Fehler</span></article>
-      <article><small>Simulationen</small><strong>+${report.simulationGain}</strong><span>bis zu drei Labore × drei Varianten</span></article>
+      <article><small>Simulationen</small><strong>+${report.simulationGain}</strong><span>kontrolliertes Nachholen · maximal ein fälliger Zyklus pro Tick</span></article>
       <article><small>Produktives Lernen</small><strong>${report.productiveCycles}</strong><span>${report.resolvedQuestionCount} Fragen gelöst · ${report.rejectedDuplicates} Duplikate · ${report.inconclusiveCycles} ergebnisoffen</span></article>
       <article><small>Qualitätsindex</small><strong>${report.qualityStart.toFixed(3)} → ${report.qualityEnd.toFixed(3)}</strong><span>${report.revisionGain} Strategierevisionen · Fokus ${escapeHtml(report.focus)}</span></article>
       <article><small>P(sim)-Reife</small><strong>${report.formulaStart.toFixed(4)} → ${report.formulaEnd.toFixed(4)}</strong><span>keine Wahrheitsquote</span></article>
@@ -717,6 +739,44 @@ function formatInterval(seconds) {
   return seconds < 60 ? `${seconds} Sekunden` : `${seconds / 60} Minuten`;
 }
 
+function recordReloadBurst(now = Date.now()) {
+  const windowMs = 90 * 1000;
+  const recentReloads = () => {
+    const recent = JSON.parse(localStorage.getItem(AUTOMATION_RELOAD_KEY) || "[]");
+    const sanitized = Array.isArray(recent) ? recent.filter(value => Number.isFinite(Number(value))) : [];
+    return sanitized.filter(value => now - Number(value) <= windowMs);
+  };
+  try {
+    const previous = recentReloads();
+    const updated = [...previous, now].slice(-6);
+    localStorage.setItem(AUTOMATION_RELOAD_KEY, JSON.stringify(updated));
+    return { previousBurst: previous.length, currentBurst: updated.length };
+  } catch {
+    return { previousBurst: 0, currentBurst: 1 };
+  }
+}
+
+function activateSafeMode(reason, initiatedByUser = false, safetySnapshot = state.automationSafety) {
+  const activatedAt = Date.now();
+  const detail = reason || "Automatik wurde vorsorglich pausiert.";
+  if (safetySnapshot) {
+    state.automationSafety = { ...state.automationSafety, ...safetySnapshot };
+  }
+  state = disableAutomationForSafety(state, initiatedByUser ? `Manuell gestoppt: ${detail}` : detail, activatedAt);
+  saveState();
+  renderAgents();
+  setNetworkActivity("Safe Mode", "Automatik pausiert", detail, false);
+  toast("Safe Mode aktiv. Automatik bleibt aus, bis du sie manuell wieder aktivierst.");
+}
+
+function resumeFromSafeMode() {
+  state = enableAutomationAfterSafety(state);
+  saveState();
+  renderAgents();
+  $("#agentStatus").textContent = "Safe Mode beendet. Aktiviere die Automatik manuell, wenn dein System stabil ist.";
+  toast("Safe Mode beendet. Automatik bleibt zunächst deaktiviert.");
+}
+
 function acquireAutomationLock() {
   const now = Date.now();
   let current = null;
@@ -726,11 +786,21 @@ function acquireAutomationLock() {
     localStorage.removeItem(AUTOMATION_LOCK_KEY);
   }
   if (current?.owner !== automationOwner && Number(current?.expiresAt) > now) return false;
-  localStorage.setItem(AUTOMATION_LOCK_KEY, JSON.stringify({ owner: automationOwner, expiresAt: now + 60 * 1000 }));
+  localStorage.setItem(AUTOMATION_LOCK_KEY, JSON.stringify({ owner: automationOwner, expiresAt: now + 5 * 60 * 1000 }));
   try {
     return JSON.parse(localStorage.getItem(AUTOMATION_LOCK_KEY))?.owner === automationOwner;
   } catch {
     return false;
+  }
+}
+
+function renewAutomationLock() {
+  try {
+    const current = JSON.parse(localStorage.getItem(AUTOMATION_LOCK_KEY) || "null");
+    if (current?.owner !== automationOwner) return;
+    localStorage.setItem(AUTOMATION_LOCK_KEY, JSON.stringify({ owner: automationOwner, expiresAt: Date.now() + 5 * 60 * 1000 }));
+  } catch {
+    localStorage.removeItem(AUTOMATION_LOCK_KEY);
   }
 }
 
@@ -753,14 +823,38 @@ function finalizeOvernight(reason = "Zeitfenster abgeschlossen") {
   toast("Nachtlauf beendet. Der Morgenbericht ist bereit.");
 }
 
+function startAutomationSchedulers() {
+  if (automationIntervalTimer) clearInterval(automationIntervalTimer);
+  if (syncIntervalTimer) clearInterval(syncIntervalTimer);
+  automationIntervalTimer = setInterval(processAutomationTick, AUTOMATION_TICK_INTERVAL_MS);
+  syncIntervalTimer = setInterval(() => {
+    if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });
+  }, 30 * 1000);
+}
+
+function ensureAutomationSafetyState() {
+  if (!state.automationSafety || typeof state.automationSafety !== "object") {
+    state.automationSafety = createInitialState().automationSafety;
+  }
+}
+
 async function processAutomationTick() {
+  ensureAutomationSafetyState();
+  if (state.automationSafety.safeMode) return;
+  const startedAt = Date.now();
+  if (startedAt - lastAutomationTickStartedAt < MIN_AUTOMATION_TICK_GAP_MS) return;
   if (automationTickInProgress || agentCycleInProgress) return;
   if (!acquireAutomationLock()) return;
+  lastAutomationTickStartedAt = startedAt;
   automationTickInProgress = true;
+  let tickHadError = false;
+  let cycleHadError = false;
+  let safetyReason = "";
   try {
     if (state.overnight.active) {
-      const dueCycles = overnightDueCycles(state.overnight, Date.now(), 3);
+      const dueCycles = overnightDueCycles(state.overnight, Date.now(), MAX_OVERNIGHT_CATCHUP_PER_TICK);
       for (let index = 0; index < dueCycles && state.overnight.active; index += 1) {
+        renewAutomationLock();
         const sequence = state.overnight.completedCycles + 1;
         const manifestationStudied = state.agentRuns.some(run =>
           run.overnight === true
@@ -785,6 +879,7 @@ async function processAutomationTick() {
           }
           if (run.externalSynthesisError) state.overnight.lastError = run.externalSynthesisError;
         } else {
+          cycleHadError = true;
           state.overnight.failedCycles += 1;
           state.overnight.lastError = "Ein fälliger Zyklus konnte nicht abgeschlossen werden.";
         }
@@ -804,11 +899,38 @@ async function processAutomationTick() {
     if (Date.now() - lastRun >= state.agentIntervalSeconds * 1000) {
       const goal = chooseAutomaticResearchGoal(state);
       $("#agentGoal").value = goal;
+      renewAutomationLock();
       await executeAgentCycle(goal, true, state.agentDepth);
     }
+  } catch (error) {
+    tickHadError = true;
+    setNetworkActivity("Safe Mode", "Automatikfehler erkannt", error.message, false);
+    console.error(error);
   } finally {
+    const durationMs = Date.now() - startedAt;
+    const isHeavyTick = durationMs >= HEAVY_TICK_MS;
+    const hasConsecutiveTickError = tickHadError;
+    const hasConsecutiveCycleError = cycleHadError;
+    state.automationSafety.lastTickAt = new Date().toISOString();
+    state.automationSafety.lastTickDurationMs = durationMs;
+    state.automationSafety.tickErrorStreak = hasConsecutiveTickError ? state.automationSafety.tickErrorStreak + 1 : 0;
+    state.automationSafety.cycleErrorStreak = hasConsecutiveCycleError ? state.automationSafety.cycleErrorStreak + 1 : 0;
+    state.automationSafety.heavyTickStreak = isHeavyTick ? state.automationSafety.heavyTickStreak + 1 : 0;
+    if (state.automationSafety.tickErrorStreak >= 2) {
+      safetyReason = `Automatikfehler traten ${state.automationSafety.tickErrorStreak}× nacheinander auf.`;
+    } else if (state.automationSafety.cycleErrorStreak >= 3) {
+      safetyReason = `Nachtlauf-Zyklen schlugen ${state.automationSafety.cycleErrorStreak}× nacheinander fehl.`;
+    } else if (state.automationSafety.heavyTickStreak >= 2) {
+      safetyReason = `Automatik-Ticks dauerten wiederholt länger als ${(HEAVY_TICK_MS / 1000).toFixed(0)} Sekunden.`;
+    } else if (tickHadError || cycleHadError || isHeavyTick) {
+      saveState();
+    }
     automationTickInProgress = false;
     releaseAutomationLock();
+    if (safetyReason) {
+      saveState(false);
+      activateSafeMode(safetyReason, false, { ...state.automationSafety });
+    }
   }
 }
 
@@ -985,6 +1107,11 @@ $("#agentForm").addEventListener("submit", event => {
   executeAgentCycle($("#agentGoal").value);
 });
 $("#agentAuto").addEventListener("change", event => {
+  if (state.automationSafety.safeMode && event.target.checked) {
+    event.target.checked = false;
+    $("#agentStatus").textContent = "Safe Mode aktiv. Beende zuerst den Safe Mode, bevor du die Automatik wieder aktivierst.";
+    return;
+  }
   state.agentAuto = event.target.checked;
   saveState();
   $("#agentStatus").textContent = state.agentAuto ? `Automatik aktiv: nächster selbst gewählter Lernauftrag nach ${formatInterval(state.agentIntervalSeconds)}.` : "Automatik deaktiviert.";
@@ -1002,6 +1129,10 @@ $("#agentInterval").addEventListener("change", event => {
 $("#overnightDuration").addEventListener("change", renderOvernight);
 $("#overnightCadence").addEventListener("change", renderOvernight);
 $("#overnightToggle").addEventListener("click", () => {
+  if (state.automationSafety.safeMode) {
+    $("#agentStatus").textContent = "Safe Mode aktiv. Nachtlauf ist blockiert, bis du den Safe Mode beendest.";
+    return;
+  }
   if (state.overnight.active) {
     finalizeOvernight("Manuell beendet");
     return;
@@ -1017,6 +1148,12 @@ $("#overnightToggle").addEventListener("click", () => {
   renderAgents();
   setNetworkActivity("Planer", "Nachtlabor gestartet", `${$("#overnightDuration").value} Stunden · Takt ${$("#overnightCadence").value} Minuten`, true);
   processAutomationTick();
+});
+$("#automationKillSwitch").addEventListener("click", () => {
+  activateSafeMode("Automatik sofort gestoppt (manueller Kill-Switch).", true);
+});
+$("#automationResume").addEventListener("click", () => {
+  resumeFromSafeMode();
 });
 $("#agentDepth").addEventListener("change", event => {
   state.agentDepth = Number(event.target.value);
@@ -1083,13 +1220,15 @@ $("#providerForm").addEventListener("submit", async event => {
   try {
     await testProvider(config, AbortSignal.timeout(15000));
     state.provider = { endpoint: config.endpoint, model: config.model, useAgents: true };
-    state.agentAuto = true;
+    if (!state.automationSafety.safeMode) state.agentAuto = true;
     saveProviderKeys(keys);
     saveState();
     status.textContent = `${keys.length} Groq-Key${keys.length === 1 ? "" : "s"} verbunden. Round-Robin und per-Key-Sparpause sind aktiv; Schlüssel bleiben nur in diesem Tab.`;
-    const goal = chooseAutomaticResearchGoal(state);
-    $("#agentGoal").value = goal;
-    setTimeout(() => executeAgentCycle(goal, true, state.agentDepth), 0);
+    if (!state.automationSafety.safeMode) {
+      const goal = chooseAutomaticResearchGoal(state);
+      $("#agentGoal").value = goal;
+      setTimeout(() => executeAgentCycle(goal, true, state.agentDepth), 0);
+    }
   } catch (error) {
     status.textContent = `Nicht verbunden: ${error.message}`;
   } finally {
@@ -1170,20 +1309,22 @@ $("#installApp").addEventListener("click", async () => {
 
 const initialView = location.hash.slice(1);
 const hasInitialView = initialView && document.getElementById(initialView)?.classList.contains("view");
+const reloadBurst = recordReloadBurst();
+const startupRisk = detectAutomationStartupRisk(state, { reloadBurst: reloadBurst.previousBurst });
+if (startupRisk) {
+  state = disableAutomationForSafety(state, `Sicherer Start: ${startupRisk}`);
+  saveState();
+}
 navigate(hasInitialView ? initialView : "dashboard");
 renderAll();
 startNetworkVisualization();
-
-setInterval(processAutomationTick, 5 * 1000);
+startAutomationSchedulers();
 window.addEventListener("focus", processAutomationTick);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) processAutomationTick();
 });
-if (state.overnight.active) setTimeout(processAutomationTick, 0);
-
-setInterval(() => {
-  if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });
-}, 30 * 1000);
+window.addEventListener("beforeunload", releaseAutomationLock);
+if ((state.overnight.active || state.agentAuto) && !state.automationSafety.safeMode) setTimeout(processAutomationTick, 0);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").then(() => {

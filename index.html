@@ -220,6 +220,11 @@
                 <progress id="overnightProgress" max="100" value="0">0 %</progress>
                 <p id="overnightStatus">Bereit. Der Tab muss geöffnet bleiben; nach Standby werden fällige Zyklen kontrolliert nachgeholt.</p>
               </div>
+              <div class="safe-mode-control">
+                <button class="danger wide" id="automationKillSwitch" type="button">Automatik sofort stoppen (Safe Mode)</button>
+                <button class="secondary wide" id="automationResume" type="button" hidden>Safe Mode beenden</button>
+                <p class="form-status" id="safeModeStatus">Safe Mode aus. Mit „Automatik sofort stoppen“ kannst du Nachtlauf und Automatik jederzeit dauerhaft pausieren.</p>
+              </div>
               <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
               <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
               <p class="form-status" id="agentStatus">Bereit. Jeder Lauf wird lokal protokolliert.</p>
