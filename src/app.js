@@ -288,6 +288,7 @@ function labelType(type) {
 }
 
 function renderAgents() {
+  ensureAutomationSafetyState();
   $("#agentAuto").checked = state.agentAuto;
   $("#agentAuto").disabled = state.automationSafety.safeMode;
   $("#agentInterval").value = String(state.agentIntervalSeconds);
@@ -739,23 +740,29 @@ function formatInterval(seconds) {
 }
 
 function recordReloadBurst(now = Date.now()) {
-  try {
+  const windowMs = 90 * 1000;
+  const recentReloads = () => {
     const recent = JSON.parse(localStorage.getItem(AUTOMATION_RELOAD_KEY) || "[]");
     const sanitized = Array.isArray(recent) ? recent.filter(value => Number.isFinite(Number(value))) : [];
-    const windowMs = 90 * 1000;
-    const updated = [...sanitized.filter(value => now - Number(value) <= windowMs), now].slice(-6);
+    return sanitized.filter(value => now - Number(value) <= windowMs);
+  };
+  try {
+    const previous = recentReloads();
+    const updated = [...previous, now].slice(-6);
     localStorage.setItem(AUTOMATION_RELOAD_KEY, JSON.stringify(updated));
-    return updated.length;
+    return { previousBurst: previous.length, currentBurst: updated.length };
   } catch {
-    localStorage.setItem(AUTOMATION_RELOAD_KEY, JSON.stringify([now]));
-    return 1;
+    return { previousBurst: 0, currentBurst: 1 };
   }
 }
 
-function activateSafeMode(reason, initiatedByUser = false) {
+function activateSafeMode(reason, initiatedByUser = false, safetySnapshot = state.automationSafety) {
+  const activatedAt = Date.now();
   const detail = reason || "Automatik wurde vorsorglich pausiert.";
-  state = disableAutomationForSafety(state, detail);
-  if (initiatedByUser) state.automationSafety.reason = `Manuell gestoppt: ${detail}`;
+  if (safetySnapshot) {
+    state.automationSafety = { ...state.automationSafety, ...safetySnapshot };
+  }
+  state = disableAutomationForSafety(state, initiatedByUser ? `Manuell gestoppt: ${detail}` : detail, activatedAt);
   saveState();
   renderAgents();
   setNetworkActivity("Safe Mode", "Automatik pausiert", detail, false);
@@ -825,7 +832,14 @@ function startAutomationSchedulers() {
   }, 30 * 1000);
 }
 
+function ensureAutomationSafetyState() {
+  if (!state.automationSafety || typeof state.automationSafety !== "object") {
+    state.automationSafety = createInitialState().automationSafety;
+  }
+}
+
 async function processAutomationTick() {
+  ensureAutomationSafetyState();
   if (state.automationSafety.safeMode) return;
   const startedAt = Date.now();
   if (startedAt - lastAutomationTickStartedAt < MIN_AUTOMATION_TICK_GAP_MS) return;
@@ -894,23 +908,29 @@ async function processAutomationTick() {
     console.error(error);
   } finally {
     const durationMs = Date.now() - startedAt;
+    const isHeavyTick = durationMs >= HEAVY_TICK_MS;
+    const hasConsecutiveTickError = tickHadError;
+    const hasConsecutiveCycleError = cycleHadError;
     state.automationSafety.lastTickAt = new Date().toISOString();
     state.automationSafety.lastTickDurationMs = durationMs;
-    state.automationSafety.tickErrorStreak = tickHadError ? state.automationSafety.tickErrorStreak + 1 : 0;
-    state.automationSafety.cycleErrorStreak = cycleHadError ? state.automationSafety.cycleErrorStreak + 1 : 0;
-    state.automationSafety.heavyTickStreak = durationMs >= HEAVY_TICK_MS ? state.automationSafety.heavyTickStreak + 1 : 0;
+    state.automationSafety.tickErrorStreak = hasConsecutiveTickError ? state.automationSafety.tickErrorStreak + 1 : 0;
+    state.automationSafety.cycleErrorStreak = hasConsecutiveCycleError ? state.automationSafety.cycleErrorStreak + 1 : 0;
+    state.automationSafety.heavyTickStreak = isHeavyTick ? state.automationSafety.heavyTickStreak + 1 : 0;
     if (state.automationSafety.tickErrorStreak >= 2) {
       safetyReason = `Automatikfehler traten ${state.automationSafety.tickErrorStreak}× nacheinander auf.`;
     } else if (state.automationSafety.cycleErrorStreak >= 3) {
       safetyReason = `Nachtlauf-Zyklen schlugen ${state.automationSafety.cycleErrorStreak}× nacheinander fehl.`;
     } else if (state.automationSafety.heavyTickStreak >= 2) {
       safetyReason = `Automatik-Ticks dauerten wiederholt länger als ${(HEAVY_TICK_MS / 1000).toFixed(0)} Sekunden.`;
-    } else if (tickHadError || cycleHadError || durationMs >= HEAVY_TICK_MS) {
+    } else if (tickHadError || cycleHadError || isHeavyTick) {
       saveState();
     }
     automationTickInProgress = false;
     releaseAutomationLock();
-    if (safetyReason) activateSafeMode(safetyReason);
+    if (safetyReason) {
+      saveState(false);
+      activateSafeMode(safetyReason, false, { ...state.automationSafety });
+    }
   }
 }
 
@@ -1290,7 +1310,7 @@ $("#installApp").addEventListener("click", async () => {
 const initialView = location.hash.slice(1);
 const hasInitialView = initialView && document.getElementById(initialView)?.classList.contains("view");
 const reloadBurst = recordReloadBurst();
-const startupRisk = detectAutomationStartupRisk(state, { reloadBurst });
+const startupRisk = detectAutomationStartupRisk(state, { reloadBurst: reloadBurst.previousBurst });
 if (startupRisk) {
   state = disableAutomationForSafety(state, `Sicherer Start: ${startupRisk}`);
   saveState();
