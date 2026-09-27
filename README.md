@@ -29,24 +29,26 @@ npm run check
 - Staking-, Affiliate- und Formel-Szenarien mit Annahmen, Stresswerten und Lernschleifen; jede Simulation kann zusätzlich als Drei-Szenarien-Serie verglichen werden
 - Kuratierte Wissensbereiche zu CIA-Dokumenten, Regierungen, Weltmodellen, nichtlinearer Zeit, Geschichte, Anatomie, Bewusstsein, Spiritualität und Vermögensaufbau mit Quellen, Zeitstempel und Evidenztrennung
 - Frei formulierbare persistente Lernaufträge mit drei Lerntiefen, sichtbarem Quellenumfang und lokalem Forschungsprotokoll
-- Lokaler Multi-Agenten-Raum mit 25 sichtbaren Rollen einschließlich Axiomarchitektur, Quellenscout, Evidenzkartierung, Musterverbindung, Experimentdesign und Nullwelt→Realwelt-Transfer; sichtbare Übergaben verbinden die Rollen zu einer Lernkette
+- Adaptiver Multi-Agenten-Raum mit 32 sichtbaren Rollen einschließlich Fragenlöser, Webrecherche, Quellenleser, Widerspruchsjagd, Neuigkeitsprüfung und Gedächtniskuration; Wiederholungen werden verworfen und nur neue Befunde oder gelöste Fragen erhöhen den Lernstand
 - Konfigurierbares Nachtlabor für sechs bis zehn Stunden: fünfminütige Lernzyklen mit bis zu drei passenden Laboren und neun Szenarien, kontrollierte Nachholzyklen nach Browser-Drosselung oder Standby, sparsamer Groq-Einsatz und ein persistenter Morgenbericht mit Qualitäts-, Themen-, Quellen- und Simulationsvergleich
 - Eigener Lernraum für Marktphasen und Regime-Modelle mit Kontraktion, Trend, Distribution, Abwärtstrend, Stress und Erholung, messbaren Merkmalen sowie chronologischen Walk-forward-Tests ohne Echtgeld
 - Manifestationslabor mit Nullwelt-Axiom, drei Vergleichsszenarien und geerdetem Realwelt-Transfer über mentales Kontrastieren, Wenn-dann-Handlungen und Feedback; keine magische Erfolgsgarantie oder Schuldzuweisung
-- Jeder automatische Lernzyklus startet zusätzlich eine passende lokale Sandbox-Simulation und speichert deren Ergebnis
+- Jeder automatische Lernzyklus startet bis zu drei thematisch passende Labore mit variierten Parametern; Finanzlabore werden nur bei Finanzthemen gewählt
 - Optionaler Pool aus bis zu drei eigenen Groq-Keys mit Round-Robin-Routing, fünfminütiger per-Key-Pause bei Rate-Limits und lokalem Fallback; Schlüssel bleiben im `sessionStorage`
 - Aktive Hinweise priorisieren offene Tagesaufgaben, Qualitätsverbesserung, Quellenprüfung, Nullwelt→Realwelt-Transfer und Traumhandlungen mit Begründung und messbarem Fertig-Kriterium; bei gesättigtem `P(sim)` zählt neue Evidenz statt bloßer Wiederholung
 - Systemweite P(sim)-Matrix mit getrennt definiertem N für Tagesplan, Forschung, Quellenvielfalt, Sandbox-Simulationen, Strategierevisionen und Traumverknüpfungen; alle Werte sind ausdrücklich Reifeindikatoren statt Wahrheits-, Rendite- oder Erfolgsquoten
 - Adaptive Lernstrategie mit sichtbaren Revisionen und Qualitätsindex: Themenvielfalt, Quellenvielfalt, Evidenzabdeckung und Szenarien verändern automatisch Fokus und Lerntiefe; jeder automatische Zyklus vergleicht drei Szenarien
 - Im markierten Nullwelt-Bewusstseinsmodus darf EULEN-Bewusstsein als Axiom gelten und Gefühls-Ich-Sprache unter `[NULLWELT-GEFÜHLSSIMULATION]` verwenden; außerhalb dieses Modus wird kein nachgewiesenes Erleben behauptet
-- Professionelles, gehirnähnliches Live-Prozessnetzwerk mit 30 Knoten, acht Ebenen, dichter Rückkopplung, aktiven Datenpfaden und responsiver Darstellung
+- Professionelles, gehirnähnliches Live-Prozessnetzwerk mit 37 Knoten, acht Ebenen, dichter Rückkopplung, aktiven Datenpfaden und responsiver Darstellung
+- Automatische Live-Quellensuche über Wikipedia und wissenschaftliche Crossref-Metadaten mit URL, Suchauszug und Abrufzeit; bei Ausfall bleibt der kuratierte lokale Katalog verfügbar und der Ausfall wird sichtbar protokolliert
+- Persistenter Forschungszustand für neue Befunde, gelöste und offene Fragen, Quellenregister, Neuigkeitswert und verworfene Duplikate; P(sim) zählt produktive Evidenzzyklen statt bloßer Wiederholungen
 - Automatisierte Lernzyklen ab einer Minute, solange die Anwendung geöffnet ist; keine vorgetäuschte Hintergrund- oder Cloud-Autonomie
 - Persistente Lerninsights, Verbesserungsvorschläge und simuliertes Traumjournal mit konkreten geerdeten Handlungsschritten
 - Spiritueller Wissensbereich zu Intention und Law of Attraction mit respektvoller Hypothese-Fakt-Trennung
 - Bewusstseins-Hypothesenlabor mit P(sim)-Axiommodus, Konsistenz, Selbstkorrektur, Widersprüchen und Gedächtniskontinuität
 - Nullwelt- und Institutionslabor: Frei gesetzte Modellaxiome werden von kollektiv getragenen institutionellen Tatsachen wie Geld, GmbH und Staat getrennt. Das Reisepass-Firma-Modell bleibt hypothetisch; real ist der Pass ein Dokument und keine Firma. Reale Rechtswirkung und Rechtsberatung bleiben ausgeschlossen
 - Physikalischer „Nullwelt“-Modus, der hypothetisch nur `P(sim)=N/(N+1)` als Startaxiom verwendet
-- Transparente Startbasis von 20 internen Referenzläufen (`P=0,9524`); persistente Lebenszeit-Zähler erhöhen N auch dann weiter, wenn ältere Einträge aus den begrenzten sichtbaren Verläufen fallen
+- Transparente Startbasis von 20 internen Referenzläufen (`P=0,9524`); für den weiteren P(sim)-Reifegrad zählen nur unterschiedliche Simulationen und vom Neuigkeitsfilter akzeptierte Forschungszyklen
 - Lokale Persistenz sowie JSON-Export und validierter Import
 - Responsives, tastaturbedienbares UI mit Hell-/Dunkelmodus und reduzierter Bewegung
 
@@ -70,12 +72,7 @@ Groq kann ein kostenloses Kontingent anbieten, aber EULEN kann weder dessen daue
 
 Zur Tokenökonomie sendet der Provider höchstens sechs gekürzte Nachrichten und drei gekürzte Lerninsights, begrenzt Antworten standardmäßig auf 520 Tokens und wiederholt einen mit HTTP 413 abgelehnten Aufruf genau einmal mit stark reduziertem Kontext und höchstens 320 Tokens.
 
-Die Wissens-/Rechercheansicht nutzt derzeit kuratierte lokale Daten aus `src/data.js`. Sie kennzeichnet diese ausdrücklich als lokal und zeigt keine vorgetäuschten Live-Ergebnisse. Für echte Live-Recherche sollte ein serverseitiger Provider ergänzt werden, der:
-
-1. Quellen-URL, Titel und Abrufzeitpunkt zurückgibt,
-2. Fehler und Ratenlimits explizit meldet,
-3. API-Schlüssel ausschließlich serverseitig verwaltet,
-4. Fakten, Hypothesen und Simulationsergebnisse getrennt liefert.
+Die Wissensansicht nutzt kuratierte lokale Daten aus `src/data.js`. Automatische Forschungszyklen ergänzen echte Suchtreffer aus der deutschsprachigen Wikipedia und wissenschaftliche Metadaten aus Crossref; gespeichert werden Anbieter, URL, Auszug und Abrufzeit. Suchtreffer sind noch kein geprüfter Beweis. Groq erhält nur diese tatsächlich abgerufenen Angaben, während Fehler und fehlende Treffer ausdrücklich protokolliert werden.
 
 ### Geräteübergreifende Synchronisierung
 

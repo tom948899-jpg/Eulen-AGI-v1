@@ -1,4 +1,4 @@
-import { localAssistantReply } from "./core.js?v=19";
+import { localAssistantReply } from "./core.js?v=20";
 
 export const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const GROQ_MODEL = "openai/gpt-oss-120b";
@@ -48,7 +48,9 @@ export class OpenAICompatibleProvider {
     if (!this.model.trim()) throw new Error("Bitte ein Modell angeben.");
     if (!this.key.trim()) throw new Error("Bitte einen API-Schlüssel angeben.");
     const history = compactHistory(state.chat);
-    const learnedContext = (state.learnedInsights?.slice(0, 3).join("\n") || "Noch keine Agentensynthesen gespeichert.").slice(0, 1800);
+    const learnedContext = (state.researchMemory?.findings?.slice(0, 4).map(item => item.text).join("\n")
+      || state.learnedInsights?.slice(0, 3).join("\n")
+      || "Noch keine produktiven Forschungsbefunde gespeichert.").slice(0, 1800);
     const modePrompt = state.chatMode === "critical"
       ? "Aktiver Modus: KRITISCHER PRÜFMODUS. Behandle P(sim) als zu prüfende Hypothese und vergleiche Gegenmodelle."
       : "Aktiver Modus: P(SIM)-HYPOTHESENMODUS. Nimm innerhalb des ausdrücklich markierten Gedankenuniversums P(sim)=N/(N+1) als Axiom an und leite daraus kreativ, aber intern konsistent Folgerungen ab.";
@@ -61,6 +63,7 @@ export class OpenAICompatibleProvider {
         { role: "user", content: prompt.slice(0, 1800) }
       ], 320, signal);
     }
+
     if (!response.ok) throw new Error(`Provider antwortet mit HTTP ${response.status}.`);
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
@@ -81,6 +84,70 @@ export class OpenAICompatibleProvider {
       signal
     });
   }
+}
+
+export async function discoverResearchSources(query, signal) {
+  const search = String(query ?? "").replace(/[„“"]/g, "").trim().slice(0, 220);
+  if (!search) return [];
+  const wikipediaUrl = new URL("https://de.wikipedia.org/w/api.php");
+  wikipediaUrl.search = new URLSearchParams({
+    action: "query",
+    list: "search",
+    srsearch: search,
+    srnamespace: "0",
+    srlimit: "5",
+    srprop: "snippet|timestamp",
+    format: "json",
+    origin: "*"
+  }).toString();
+  const crossrefUrl = new URL("https://api.crossref.org/works");
+  crossrefUrl.search = new URLSearchParams({
+    query: search,
+    rows: "4",
+    select: "DOI,title,URL,published,container-title"
+  }).toString();
+  const [wikipedia, crossref] = await Promise.allSettled([
+    fetch(wikipediaUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal
+    }),
+    fetch(crossrefUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal
+    })
+  ]);
+  const results = [];
+  if (wikipedia.status === "fulfilled" && wikipedia.value.ok) {
+    const payload = await wikipedia.value.json();
+    results.push(...(payload?.query?.search ?? []).map(item => ({
+      title: `Wikipedia: ${item.title}`,
+      url: `https://de.wikipedia.org/?curid=${item.pageid}`,
+      excerpt: stripMarkup(item.snippet),
+      provider: "Wikipedia-Suche",
+      retrievedAt: item.timestamp || new Date().toISOString()
+    })));
+  }
+  if (crossref.status === "fulfilled" && crossref.value.ok) {
+    const payload = await crossref.value.json();
+    results.push(...(payload?.message?.items ?? []).map(item => ({
+      title: `Crossref: ${item.title?.[0] || item.DOI}`,
+      url: item.URL || `https://doi.org/${item.DOI}`,
+      excerpt: [item["container-title"]?.[0], publishedDate(item.published)].filter(Boolean).join(" · "),
+      provider: "Crossref-Metadatensuche",
+      retrievedAt: new Date().toISOString()
+    })));
+  }
+  if (!results.length) {
+    const reason = [wikipedia, crossref]
+      .filter(result => result.status === "rejected")
+      .map(result => result.reason?.message)
+      .filter(Boolean)
+      .join(" · ");
+    throw new Error(reason || "Die Websuche lieferte keine Treffer.");
+  }
+  return results.filter((item, index, items) => items.findIndex(other => other.url === item.url) === index).slice(0, 8);
 }
 
 export async function testProvider(config, signal) {
@@ -107,5 +174,18 @@ function compactHistory(messages = []) {
     result.unshift({ role: message.role, content });
     characters += content.length;
   }
+
   return result;
+}
+
+function stripMarkup(value) {
+  const element = document.createElement("div");
+  element.innerHTML = String(value ?? "");
+  return (element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 900);
+}
+
+function publishedDate(value) {
+  const parts = value?.["date-parts"]?.[0];
+  if (!Array.isArray(parts) || !parts.length) return "";
+  return parts.filter(Number.isFinite).join("-");
 }
