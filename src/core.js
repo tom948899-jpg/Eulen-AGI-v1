@@ -65,6 +65,17 @@ export function createInitialState() {
       baseline: null,
       report: null
     },
+    automationSafety: {
+      safeMode: false,
+      reason: "",
+      activatedAt: "",
+      manualResumeRequired: false,
+      lastTickAt: "",
+      lastTickDurationMs: 0,
+      tickErrorStreak: 0,
+      cycleErrorStreak: 0,
+      heavyTickStreak: 0
+    },
     chat: [],
     chatMode: "hypothesis",
     lifeGoal: "Selbstständigkeit und Vermögensaufbau mit Verantwortung, Liebe und Verständnis – Echtgeld erst nach belastbaren Simulationen.",
@@ -110,6 +121,7 @@ export function normalizeState(value) {
     agentDepth: [1, 2, 3].includes(Number(value.agentDepth)) ? Number(value.agentDepth) : 2,
     learningPolicy: normalizeLearningPolicy(value.learningPolicy),
     overnight: normalizeOvernight(value.overnight),
+    automationSafety: normalizeAutomationSafety(value.automationSafety),
     chat: Array.isArray(value.chat) ? value.chat.filter(isValidMessage).slice(-60) : [],
     chatMode: value.chatMode === "critical" ? "critical" : "hypothesis",
     lifeGoal: safeString(value.lifeGoal, 1000) || base.lifeGoal,
@@ -125,6 +137,22 @@ export function normalizeState(value) {
       workspace: safeString(value.sync?.workspace, 100),
       auto: value.sync?.auto === true
     }
+  };
+}
+
+function normalizeAutomationSafety(value) {
+  const base = createInitialState().automationSafety;
+  if (!value || typeof value !== "object") return base;
+  return {
+    safeMode: value.safeMode === true,
+    reason: safeString(value.reason, 500),
+    activatedAt: Number.isFinite(Date.parse(value.activatedAt)) ? value.activatedAt : "",
+    manualResumeRequired: value.manualResumeRequired === true,
+    lastTickAt: Number.isFinite(Date.parse(value.lastTickAt)) ? value.lastTickAt : "",
+    lastTickDurationMs: Math.round(clamp(finiteNumber(value.lastTickDurationMs, 0), 0, 10 * 60 * 1000)),
+    tickErrorStreak: Math.max(0, Math.round(finiteNumber(value.tickErrorStreak, 0))),
+    cycleErrorStreak: Math.max(0, Math.round(finiteNumber(value.cycleErrorStreak, 0))),
+    heavyTickStreak: Math.max(0, Math.round(finiteNumber(value.heavyTickStreak, 0)))
   };
 }
 
@@ -309,6 +337,67 @@ export function overnightDueCycles(session, now = Date.now(), maxCatchUp = 3) {
   if (!Number.isFinite(next) || !Number.isFinite(end) || current < next) return 0;
   const cadenceMs = Math.max(1, Number(session.cadenceMinutes) || 5) * 60 * 1000;
   return Math.min(Math.max(1, Math.round(maxCatchUp) || 1), Math.floor((current - next) / cadenceMs) + 1);
+}
+
+export function disableAutomationForSafety(state, reason = "Automatik vorsorglich pausiert.", now = Date.now()) {
+  const base = normalizeState(state);
+  const overnightWasActive = base.overnight.active;
+  return {
+    ...base,
+    agentAuto: false,
+    overnight: {
+      ...base.overnight,
+      active: false,
+      report: overnightWasActive ? buildOvernightReport(base.overnight, base, now) : base.overnight.report
+    },
+    automationSafety: {
+      ...base.automationSafety,
+      safeMode: true,
+      manualResumeRequired: true,
+      reason: safeString(reason, 500) || "Automatik vorsorglich pausiert.",
+      activatedAt: new Date(finiteNumber(now, Date.now())).toISOString()
+    }
+  };
+}
+
+export function enableAutomationAfterSafety(state) {
+  const base = normalizeState(state);
+  return {
+    ...base,
+    automationSafety: {
+      ...base.automationSafety,
+      safeMode: false,
+      reason: "",
+      activatedAt: "",
+      manualResumeRequired: false,
+      tickErrorStreak: 0,
+      cycleErrorStreak: 0,
+      heavyTickStreak: 0
+    }
+  };
+}
+
+export function detectAutomationStartupRisk(state, { reloadBurst = 0 } = {}) {
+  const normalized = normalizeState(state);
+  if (reloadBurst >= 3) {
+    return `Die App wurde innerhalb kurzer Zeit ${reloadBurst}× neu geladen.`;
+  }
+  if (normalized.automationSafety.safeMode && normalized.automationSafety.manualResumeRequired) {
+    return normalized.automationSafety.reason || "Safe Mode war bereits aktiv.";
+  }
+  if (normalized.automationSafety.tickErrorStreak >= 2) {
+    return `Zuletzt traten ${normalized.automationSafety.tickErrorStreak} Automatikfehler nacheinander auf.`;
+  }
+  if (normalized.automationSafety.cycleErrorStreak >= 3) {
+    return `Zuletzt schlugen ${normalized.automationSafety.cycleErrorStreak} Zyklen nacheinander fehl.`;
+  }
+  if (normalized.automationSafety.heavyTickStreak >= 2 || normalized.automationSafety.lastTickDurationMs >= 20000) {
+    return "Die letzte Automatik lief ungewöhnlich lange und wurde vorsorglich pausiert.";
+  }
+  if (normalized.overnight.active && (normalized.overnight.failedCycles >= 3 || Boolean(normalized.overnight.lastError))) {
+    return "Ein vorheriger Nachtlauf endete mit wiederholten Fehlern.";
+  }
+  return "";
 }
 
 export function buildOvernightReport(session, state, now = Date.now()) {

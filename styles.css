@@ -288,6 +288,8 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .overnight-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .overnight-options label { font-size: 10px; }
 .overnight-control progress { width: 100%; height: 8px; accent-color: var(--purple); }
+.safe-mode-control { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+.safe-mode-control .form-status { margin: 0; }
 .overnight-report-panel { margin-top: 20px; border-color: color-mix(in srgb, var(--purple) 32%, var(--line)); }
 .overnight-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .overnight-summary article { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }

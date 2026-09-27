@@ -14,6 +14,9 @@
       chooseAutomaticResearchGoal,
       createInitialState,
       createOvernightSession,
+      detectAutomationStartupRisk,
+      disableAutomationForSafety,
+      enableAutomationAfterSafety,
       evolveLearningPolicy,
       integrateResearchLearning,
       localAssistantReply,
@@ -74,7 +77,13 @@
 
       const now = Date.parse("2026-09-26T20:00:00.000Z");
       const overnight = createOvernightSession(state, now, 8, 5);
+      assert(overnightDueCycles(overnight, now + 16 * 60 * 1000, 1) === 1, "Nachtlauf-Catch-up-Limit pro Tick greift nicht");
       assert(overnightDueCycles(overnight, now + 16 * 60 * 1000) === 3, "Nachtlauf holt gedrosselte Zyklen nicht kontrolliert nach");
+      const safePaused = disableAutomationForSafety({ ...state, overnight, agentAuto: true }, "Überlast", now + 500);
+      assert(!safePaused.agentAuto && !safePaused.overnight.active && safePaused.automationSafety.safeMode, "Safe Mode stoppt Automatik nicht");
+      const safeResumed = enableAutomationAfterSafety(safePaused);
+      assert(!safeResumed.automationSafety.safeMode, "Safe Mode lässt sich nicht beenden");
+      assert(/neu geladen/.test(detectAutomationStartupRisk(state, { reloadBurst: 3 })), "Startup-Risiko erkennt Reload-Burst nicht");
       state.totalAgentCycles = overnight.baseline.agentCycles + 2;
       state.totalSimulationCycles = overnight.baseline.simulationCycles + 6;
       overnight.completedCycles = 2;
