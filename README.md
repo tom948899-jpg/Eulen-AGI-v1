@@ -32,6 +32,7 @@ Optional für Produktion:
 
 - `PORT` (Standard `8787`)
 - `CLOUD_AGENT_SECRET` (Pflicht für persistente Schlüsselentschlüsselung über Neustarts)
+- `ALLOW_EPHEMERAL_SECRET=1` (nur lokal: startet ohne persistentes Secret; gespeicherte Schlüssel sind nach Neustart ungültig)
 
 Der Cloud-Agent stellt u. a. diese Endpunkte bereit:
 

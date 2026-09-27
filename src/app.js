@@ -38,6 +38,7 @@ let agentCycleInProgress = false;
 let automationTickInProgress = false;
 let syncTokenMemory = "";
 let cloudStatusCache = null;
+let cloudStatusInFlight = null;
 const AUTOMATION_LOCK_KEY = "eulen-automation-lock";
 const automationOwner = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 let installPrompt;
@@ -566,6 +567,7 @@ async function synchronizeState({ silent = false } = {}) {
       status.textContent = `Nicht synchronisiert: ${error.message}`;
       setNetworkActivity("Sync", "Synchronisierung fehlgeschlagen", error.message, false);
       if (!silent) toast("Cloud-Synchronisierung fehlgeschlagen.");
+      throw error;
     } finally {
       syncInProgress = false;
     }
@@ -882,16 +884,26 @@ async function routedProviderReply(text, providerState, signal) {
 }
 
 async function refreshCloudStatus(silent = true) {
-  if (!state.sync.endpoint || !state.sync.workspace || !getCloudToken()) {
-    cloudStatusCache = null;
-    renderCloudOps();
-    return;
-  }
+  if (cloudStatusInFlight) return cloudStatusInFlight;
+  cloudStatusInFlight = (async () => {
+    if (!state.sync.endpoint || !state.sync.workspace || !getCloudToken()) {
+      cloudStatusCache = null;
+      renderCloudOps();
+      return;
+    }
+    try {
+      cloudStatusCache = await createCloudClient().status(AbortSignal.timeout(12000));
+      renderCloudOps();
+    } catch (error) {
+      cloudStatusCache = null;
+      renderCloudOps();
+      if (!silent) $("#cloudOpsStatus").textContent = `Cloud-Status nicht verfügbar: ${error.message}`;
+    }
+  })();
   try {
-    cloudStatusCache = await createCloudClient().status(AbortSignal.timeout(12000));
-    renderCloudOps();
-  } catch (error) {
-    if (!silent) $("#cloudOpsStatus").textContent = `Cloud-Status nicht verfügbar: ${error.message}`;
+    await cloudStatusInFlight;
+  } finally {
+    cloudStatusInFlight = null;
   }
 }
 
@@ -907,6 +919,12 @@ function renderCloudOps() {
   if ($("#cloudPaused")) $("#cloudPaused").textContent = String(paused);
   if ($("#cloudAutomation")) $("#cloudAutomation").textContent = running ? "läuft" : "gestoppt";
   if ($("#cloudUpdatedAt")) $("#cloudUpdatedAt").textContent = updatedAt;
+  const toggleButton = $("#cloudAutomationToggle");
+  if (toggleButton) {
+    toggleButton.textContent = running ? "Cloud-Automation stoppen" : "Cloud-Automation starten";
+    toggleButton.setAttribute("aria-label", running ? "Cloud-Automation stoppen" : "Cloud-Automation starten");
+  }
+
   if ($("#cloudOpsStatus") && !$("#cloudOpsStatus").textContent.trim()) {
     $("#cloudOpsStatus").textContent = hasCloudConfiguration()
       ? "Cloud-Agent bereit."
@@ -1078,12 +1096,17 @@ $("#syncForm").addEventListener("submit", async event => {
     workspace: $("#syncWorkspace").value.trim(),
     auto: $("#syncAuto").checked
   };
-  syncTokenMemory = $("#syncToken").value.trim();
-  $("#syncToken").value = "";
+  const submittedToken = $("#syncToken").value.trim();
+  syncTokenMemory = submittedToken;
   saveState();
-  await synchronizeState();
+  try {
+    await synchronizeState();
+    $("#syncToken").value = "";
+  } catch {
+    if (submittedToken) $("#syncToken").value = submittedToken;
+  }
 });
-$("#syncNow").addEventListener("click", () => synchronizeState());
+$("#syncNow").addEventListener("click", () => { synchronizeState().catch(() => {}); });
 $("#syncAuto").addEventListener("change", event => {
   state.sync.auto = event.target.checked;
   saveState();
@@ -1193,20 +1216,35 @@ $("#installApp").addEventListener("click", async () => {
   $("#installApp").hidden = true;
 });
 
-$("#cloudStatusRefresh")?.addEventListener("click", () => refreshCloudStatus(false));
-$("#cloudRunNow")?.addEventListener("click", async () => {
+$("#cloudStatusRefresh")?.addEventListener("click", async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try { await refreshCloudStatus(false); } finally { button.disabled = false; }
+});
+$("#cloudRunNow")?.addEventListener("click", async event => {
   const status = $("#cloudOpsStatus");
+  const button = event.currentTarget;
+  button.disabled = true;
   try {
     const result = await createCloudClient().runAutomationNow(AbortSignal.timeout(15000));
-    status.textContent = `Cloud-Zyklus ausgeführt: ${result?.status ?? "ok"}.`;
+    status.textContent = result?.status === "completed"
+      ? "Cloud-Zyklus erfolgreich ausgeführt."
+      : result?.status === "failed"
+        ? `Cloud-Zyklus fehlgeschlagen: ${result?.error || "unbekannt"}`
+        : `Cloud-Zyklus nicht ausgeführt: ${result?.status || "unbekannt"}${result?.error ? ` (${result.error})` : ""}.`;
     await refreshCloudStatus();
   } catch (error) {
     status.textContent = `Cloud-Zyklus fehlgeschlagen: ${error.message}`;
+  } finally {
+    button.disabled = false;
   }
 });
-$("#cloudAutomationToggle")?.addEventListener("click", async () => {
+$("#cloudAutomationToggle")?.addEventListener("click", async event => {
   const status = $("#cloudOpsStatus");
+  const button = event.currentTarget;
+  button.disabled = true;
   try {
+    await refreshCloudStatus();
     const running = cloudStatusCache?.automation?.running === true;
     const intervalSeconds = Number(state.agentIntervalSeconds) || 15;
     const result = running
@@ -1214,10 +1252,14 @@ $("#cloudAutomationToggle")?.addEventListener("click", async () => {
       : await createCloudClient().startAutomation(intervalSeconds, AbortSignal.timeout(15000));
     status.textContent = running
       ? "Cloud-Automation gestoppt."
-      : `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s).`;
+      : result?.immediateRun && result.immediateRun !== "completed"
+        ? `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s), aber erster Lauf übersprungen: ${result.immediateRun}${result?.reason ? ` (${result.reason})` : ""}.`
+        : `Cloud-Automation gestartet (${result?.intervalSeconds ?? intervalSeconds}s).`;
     await refreshCloudStatus();
   } catch (error) {
     status.textContent = `Cloud-Automation konnte nicht geändert werden: ${error.message}`;
+  } finally {
+    button.disabled = false;
   }
 });
 
@@ -1236,7 +1278,7 @@ if (state.overnight.active) setTimeout(processAutomationTick, 0);
 setTimeout(() => refreshCloudStatus(), 0);
 
 setInterval(() => {
-  if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true });
+  if (state.sync.auto && state.sync.endpoint && state.sync.workspace) synchronizeState({ silent: true }).catch(() => {});
 }, 30 * 1000);
 
 setInterval(() => {

@@ -20,11 +20,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "data");
 const STORE_PATH = path.join(DATA_DIR, "cloud-store.json");
 const PORT = Number(process.env.PORT || 8787);
-const SECRET = process.env.CLOUD_AGENT_SECRET || randomBytes(32).toString("hex");
-const KEY = createHash("sha256").update(SECRET).digest();
+const SECRET = process.env.CLOUD_AGENT_SECRET || "";
+const ALLOW_EPHEMERAL_SECRET = process.env.ALLOW_EPHEMERAL_SECRET === "1";
+if (!SECRET && !ALLOW_EPHEMERAL_SECRET) {
+  throw new Error("CLOUD_AGENT_SECRET fehlt. Setze ein persistentes Secret oder ALLOW_EPHEMERAL_SECRET=1 für lokale Tests.");
+}
+const EFFECTIVE_SECRET = SECRET || randomBytes(32).toString("hex");
+const KEY = createHash("sha256").update(EFFECTIVE_SECRET).digest();
 
 const store = { workspaces: {} };
 let storeDirty = false;
+let saveInFlight = null;
+let schedulerRunning = false;
+let dirtyWhileSaving = false;
 
 async function loadStore() {
   try {
@@ -37,13 +45,25 @@ async function loadStore() {
 }
 
 async function saveStore() {
+  if (saveInFlight) return saveInFlight;
   if (!storeDirty) return;
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
-  storeDirty = false;
+  saveInFlight = (async () => {
+    dirtyWhileSaving = false;
+    storeDirty = false;
+    await mkdir(DATA_DIR, { recursive: true });
+    await writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+    if (dirtyWhileSaving) storeDirty = true;
+  })();
+  try {
+    await saveInFlight;
+  } finally {
+    saveInFlight = null;
+  }
+  if (storeDirty) return saveStore();
 }
 
 function markDirty() {
+  if (saveInFlight) dirtyWhileSaving = true;
   storeDirty = true;
 }
 
@@ -58,9 +78,11 @@ function parseWorkspace(pathname, prefix) {
 }
 
 function bearerToken(req) {
-  const auth = String(req.headers.authorization || "");
-  const match = auth.match(/^Bearer\s+(.+)$/i);
-  return match?.[1]?.trim() || "";
+  const auth = String(req.headers.authorization || "").trim();
+  if (!auth) return "";
+  const lower = auth.toLowerCase();
+  if (!lower.startsWith("bearer ")) return "";
+  return auth.slice(7).trim();
 }
 
 function hashToken(token) {
@@ -72,7 +94,8 @@ function ensureWorkspace(id) {
     store.workspaces[id] = {
       authHash: "",
       state: createInitialState(),
-      updatedAt: createInitialState().updatedAt,
+      updatedAt: "",
+      hasState: false,
       provider: { endpoint: "", model: "", keyPool: [], cursor: 0 },
       automation: { enabled: false, intervalSeconds: 60, running: false, lastRunAt: "", lastError: "", completed: 0 }
     };
@@ -155,23 +178,26 @@ function guardrailsState(input) {
 async function routedProviderReply(workspace, text, providerState, signal) {
   const provider = workspace.provider;
   const now = Date.now();
-  const available = provider.keyPool.filter(item => (item.cooldownUntil || 0) <= now);
-  if (!provider.endpoint || !provider.model || !available.length) {
+  const total = provider.keyPool.length;
+  if (!provider.endpoint || !provider.model || !total) {
     throw new Error("Kein aktiver Groq-Key im Cloud-Router verfügbar.");
   }
   let lastError;
-  for (let offset = 0; offset < available.length; offset += 1) {
-    const index = (provider.cursor + offset) % available.length;
-    const candidate = available[index];
+  let attempts = 0;
+  for (let offset = 0; offset < total; offset += 1) {
+    const index = (provider.cursor + offset) % total;
+    const candidate = provider.keyPool[index];
+    if ((candidate.cooldownUntil || 0) > now) continue;
+    attempts += 1;
     try {
       const key = decryptSecret(candidate.secret);
       const llm = new OpenAICompatibleProvider({ endpoint: provider.endpoint, model: provider.model, key });
       const content = await llm.reply(String(text || ""), providerState || { chat: [] }, signal);
-      provider.cursor = (index + 1) % available.length;
+      provider.cursor = (index + 1) % total;
       candidate.lastError = "";
       candidate.lastUsedAt = new Date().toISOString();
       markDirty();
-      return { content, route: `${index + 1}/${available.length}` };
+      return { content, route: `${index + 1}/${total}` };
     } catch (error) {
       lastError = error;
       candidate.lastError = error.message;
@@ -179,7 +205,21 @@ async function routedProviderReply(workspace, text, providerState, signal) {
       markDirty();
     }
   }
+  if (!attempts) throw new Error("Alle Groq-Keys befinden sich in Cooldown.");
   throw lastError || new Error("Alle Keys fehlgeschlagen.");
+}
+
+function validateProviderEndpoint(value) {
+  let url;
+  try {
+    url = new URL(String(value || "").trim());
+  } catch {
+    throw new Error("Provider-Endpoint ist keine gültige URL.");
+  }
+  if (url.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
+    throw new Error("Provider-Endpoint muss HTTPS verwenden.");
+  }
+  return url.toString();
 }
 
 function automaticSimulationType(topics = []) {
@@ -196,12 +236,27 @@ function automaticSimulationType(topics = []) {
 }
 
 async function runAutomationCycle(workspace) {
-  if (workspace.automation.running) return;
+  if (workspace.automation.running) return { status: "skipped-running" };
   workspace.automation.running = true;
+  markDirty();
   try {
     const state = guardrailsState(workspace.state);
     const goal = chooseAutomaticResearchGoal(state);
     const run = runAgentCycle(goal, state.agentDepth, state.chatMode, state);
+    try {
+      const routed = await routedProviderReply(
+        workspace,
+        `Erzeuge ein kurzes Cloud-Lernpaket für den autonomen Lauf: ${goal}`,
+        { ...state, chat: [] },
+        AbortSignal.timeout(20000)
+      );
+      const synthesisStep = run.steps.find(step => step.agent === "Synthese");
+      if (synthesisStep) synthesisStep.output = `[CLOUD-GROQ] ${routed.content.slice(0, 1600)}`;
+      run.externalSynthesis = true;
+      run.providerRoute = routed.route;
+    } catch (error) {
+      run.externalSynthesisError = error.message;
+    }
     const autoType = automaticSimulationType(run.topics);
     const simulations = runScenarioSeries(autoType, {});
     run.automatic = true;
@@ -222,15 +277,19 @@ async function runAutomationCycle(workspace) {
     state.updatedAt = new Date().toISOString();
     workspace.state = guardrailsState(state);
     workspace.updatedAt = workspace.state.updatedAt;
+    workspace.hasState = true;
     workspace.automation.lastRunAt = workspace.updatedAt;
     workspace.automation.lastError = "";
     workspace.automation.completed += 1;
     markDirty();
+    return { status: "completed" };
   } catch (error) {
     workspace.automation.lastError = error.message;
     markDirty();
+    return { status: "failed", error: error.message };
   } finally {
     workspace.automation.running = false;
+    markDirty();
   }
 }
 
@@ -247,7 +306,7 @@ const server = http.createServer(async (req, res) => {
       const workspace = ensureWorkspace(workspaceId);
       const auth = authorize(req, workspace);
       if (!auth.ok) return json(res, 401, { error: auth.error });
-      if (!workspace.state || workspace.updatedAt === createInitialState().updatedAt) return json(res, 404, { error: "Kein Stand vorhanden." });
+      if (!workspace.hasState) return json(res, 404, { error: "Kein Stand vorhanden." });
       return json(res, 200, { updatedAt: workspace.updatedAt, state: workspace.state });
     }
 
@@ -259,9 +318,17 @@ const server = http.createServer(async (req, res) => {
       if (!auth.ok) return json(res, 401, { error: auth.error });
       const payload = await parseBody(req);
       const guarded = guardrailsState(payload?.state || payload || {});
+      const incomingUpdatedAt = Number.isFinite(Date.parse(payload?.updatedAt)) ? payload.updatedAt : guarded.updatedAt;
+      const incomingTime = Date.parse(incomingUpdatedAt);
+      if (!Number.isFinite(incomingTime)) return json(res, 400, { error: "Ungültiger updatedAt-Zeitstempel." });
+      const existingTime = Number.isFinite(Date.parse(workspace.updatedAt)) ? Date.parse(workspace.updatedAt) : 0;
+      if (workspace.hasState && incomingTime < existingTime) {
+        return json(res, 409, { error: "Eingehender Stand ist älter als der Cloud-Stand." });
+      }
       workspace.state = guarded;
-      workspace.updatedAt = Number.isFinite(Date.parse(payload?.updatedAt)) ? payload.updatedAt : guarded.updatedAt;
+      workspace.updatedAt = incomingUpdatedAt;
       workspace.state.updatedAt = workspace.updatedAt;
+      workspace.hasState = true;
       markDirty();
       return json(res, 200, { updatedAt: workspace.updatedAt });
     }
@@ -299,7 +366,7 @@ const server = http.createServer(async (req, res) => {
 
       if (domain === "provider" && req.method === "POST" && action === "connect") {
         const payload = await parseBody(req);
-        const endpoint = String(payload.endpoint || "").trim();
+        const endpoint = validateProviderEndpoint(payload.endpoint);
         const model = String(payload.model || "").trim();
         const keys = Array.isArray(payload.keys) ? [...new Set(payload.keys.map(item => String(item || "").trim()).filter(Boolean))].slice(0, 3) : [];
         if (!endpoint || !model || !keys.length) return json(res, 400, { error: "Endpoint, Modell und mindestens ein Key erforderlich." });
@@ -331,7 +398,9 @@ const server = http.createServer(async (req, res) => {
         workspace.automation.enabled = true;
         workspace.automation.intervalSeconds = intervalSeconds;
         markDirty();
-        return json(res, 200, { status: "started", intervalSeconds });
+        const hasProviderPool = workspace.provider.keyPool.length > 0 && workspace.provider.endpoint && workspace.provider.model;
+        const immediate = hasProviderPool ? await runAutomationCycle(workspace) : { status: "skipped-no-provider" };
+        return json(res, 200, { status: "started", intervalSeconds, immediateRun: immediate.status, reason: hasProviderPool ? "" : "Provider-Pool fehlt" });
       }
 
       if (domain === "automation" && req.method === "POST" && action === "stop") {
@@ -341,8 +410,12 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (domain === "automation" && req.method === "POST" && action === "run-now") {
-        await runAutomationCycle(workspace);
-        return json(res, 200, { status: "completed", updatedAt: workspace.updatedAt });
+        const hasProviderPool = workspace.provider.keyPool.length > 0 && workspace.provider.endpoint && workspace.provider.model;
+        if (!hasProviderPool) {
+          return json(res, 200, { status: "skipped-no-provider", error: "Provider-Pool fehlt", updatedAt: workspace.updatedAt });
+        }
+        const result = await runAutomationCycle(workspace);
+        return json(res, 200, { status: result.status, error: result.error || "", updatedAt: workspace.updatedAt });
       }
 
       return json(res, 405, { error: "Methode nicht erlaubt." });
@@ -354,22 +427,31 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+await loadStore();
+
 setInterval(async () => {
-  for (const workspace of Object.values(store.workspaces)) {
-    if (!workspace.automation.enabled) continue;
-    const last = Date.parse(workspace.automation.lastRunAt || 0);
-    if (Date.now() - last < workspace.automation.intervalSeconds * 1000) continue;
-    await runAutomationCycle(workspace);
+  if (schedulerRunning) return;
+  schedulerRunning = true;
+  try {
+    for (const workspace of Object.values(store.workspaces)) {
+      if (!workspace.automation.enabled) continue;
+      const hasProviderPool = workspace.provider.keyPool.length > 0 && workspace.provider.endpoint && workspace.provider.model;
+      if (!hasProviderPool) continue;
+      const last = Date.parse(workspace.automation.lastRunAt || 0);
+      if (Date.now() - last < workspace.automation.intervalSeconds * 1000) continue;
+      await runAutomationCycle(workspace);
+    }
+    await saveStore();
+  } finally {
+    schedulerRunning = false;
   }
-  await saveStore();
 }, 15_000);
 
-await loadStore();
 setInterval(saveStore, 4_000);
 
 server.listen(PORT, () => {
   console.log(`EULEN Cloud-Agent läuft auf Port ${PORT}`);
   if (!process.env.CLOUD_AGENT_SECRET) {
-    console.log("Hinweis: CLOUD_AGENT_SECRET ist nicht gesetzt; verwende für Produktion ein persistentes Secret.");
+    console.log("Hinweis: ephemeres Secret aktiv (ALLOW_EPHEMERAL_SECRET=1). Persistente verschlüsselte Keys sind nach Neustart ungültig.");
   }
 });
