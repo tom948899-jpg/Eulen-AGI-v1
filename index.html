@@ -319,10 +319,10 @@
             <form class="panel" id="providerForm">
               <p class="eyebrow">BIS ZU 3 KEYS · INTELLIGENTES ROUTING</p>
               <h2>Groq-Pool verbinden</h2>
-              <p>EULEN verteilt Chat und Lernzyklen per Round-Robin auf deine eigenen Schlüssel. Bei HTTP 429 pausiert nur der betroffene Key fünf Minuten; der nächste übernimmt. Pro Lernzyklus wird weiterhin nur ein erfolgreiches kompaktes Lernpaket erzeugt. Das darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen verwendet werden. Groqs Gratisangebot ist nicht garantiert oder unbegrenzt; der lokale Modus bleibt vollständig kostenlos.</p>
+              <p>EULEN überträgt deine Schlüssel verschlüsselt an den Cloud-Agent und verteilt Chat/Lernzyklen serverseitig per Round-Robin. Bei HTTP 429 pausiert nur der betroffene Key fünf Minuten. Pro Lernzyklus wird weiterhin nur ein kompaktes Lernpaket erzeugt. Das darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen verwendet werden.</p>
               <label>Groq API-Key 1<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · erforderlich"></label>
-              <label>Groq API-Key 2<input id="providerKey2" type="password" autocomplete="off" placeholder="optional · nur in diesem Browser-Tab"></label>
-              <label>Groq API-Key 3<input id="providerKey3" type="password" autocomplete="off" placeholder="optional · nur in diesem Browser-Tab"></label>
+              <label>Groq API-Key 2<input id="providerKey2" type="password" autocomplete="off" placeholder="optional · wird nur beim Senden genutzt"></label>
+              <label>Groq API-Key 3<input id="providerKey3" type="password" autocomplete="off" placeholder="optional · wird nur beim Senden genutzt"></label>
               <details class="advanced-provider">
                 <summary>Erweiterte Provider-Einstellungen</summary>
                 <label>Endpoint<input id="providerEndpoint" type="url"></label>
@@ -352,11 +352,29 @@
               <p>Verbindet einen kompatiblen HTTPS-Sync-Provider. Ohne konfigurierten Provider bleiben Daten lokal; es wird keine Cloud-Synchronisierung vorgetäuscht.</p>
               <label>Sync-Endpunkt<input id="syncEndpoint" type="url" placeholder="https://sync.example.de/api"></label>
               <label>Arbeitsraum-ID<input id="syncWorkspace" type="text" maxlength="100" placeholder="mein-eulen-arbeitsraum"></label>
-              <label>Zugriffstoken<input id="syncToken" type="password" autocomplete="off" placeholder="Nur für diesen Tab gespeichert"></label>
+              <label>Zugriffstoken<input id="syncToken" type="password" autocomplete="off" placeholder="Wird im Speicher gehalten (nicht in local/sessionStorage)"></label>
               <label class="toggle-line"><input id="syncAuto" type="checkbox"> Alle 30 Sekunden auf Änderungen anderer Geräte prüfen</label>
               <div class="stack"><button class="primary" type="submit">Verbinden & synchronisieren</button><button class="secondary" id="syncNow" type="button">Jetzt synchronisieren</button></div>
               <output id="syncStatus" class="form-status">Nicht verbunden · lokaler Modus</output>
             </form>
+
+            <article class="panel cloud-ops-panel">
+              <h2>Cloud-Agent Steuerung (mobil)</h2>
+              <p>Komprimierte Live-Sicht für Status, aktive Läufe, Key-Ausfälle und Tagesfortschritt.</p>
+              <div class="cloud-ops-grid">
+                <article><small>Arbeitsraum</small><strong id="cloudWorkspaceLabel">nicht gesetzt</strong></article>
+                <article><small>Aktive Keys</small><strong id="cloudKeys">0</strong></article>
+                <article><small>Cooldown Keys</small><strong id="cloudPaused">0</strong></article>
+                <article><small>Automation</small><strong id="cloudAutomation">gestoppt</strong></article>
+                <article><small>Letztes Cloud-Update</small><strong id="cloudUpdatedAt">–</strong></article>
+              </div>
+              <div class="stack">
+                <button class="secondary" id="cloudStatusRefresh" type="button">Cloud-Status aktualisieren</button>
+                <button class="secondary" id="cloudAutomationToggle" type="button">Cloud-Automation Start/Stop</button>
+                <button class="secondary" id="cloudRunNow" type="button">Cloud-Zyklus jetzt ausführen</button>
+              </div>
+              <output id="cloudOpsStatus" class="form-status">Für Cloud-Agent Sync-Endpunkt, Arbeitsraum und Token eintragen.</output>
+            </article>
             <article class="panel">
               <h2>Mobile Installation</h2>
               <p>Nach Bereitstellung über HTTPS kann EULEN auf iPad/iPhone über „Teilen → Zum Home-Bildschirm“ installiert werden. Offline geladene Programmdateien bleiben verfügbar; Cloud-Daten benötigen weiterhin eine Verbindung.</p>

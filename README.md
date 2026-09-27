@@ -19,6 +19,27 @@ npm test
 npm run check
 ```
 
+
+### Cloud-Agent (serverseitig, autonom)
+
+Für nicht-lokalen Betrieb mit serverseitigem Groq-Key-Routing, persistentem Cloud-State und Scheduler:
+
+```bash
+npm run cloud-agent
+```
+
+Optional für Produktion:
+
+- `PORT` (Standard `8787`)
+- `CLOUD_AGENT_SECRET` (Pflicht für persistente Schlüsselentschlüsselung über Neustarts)
+
+Der Cloud-Agent stellt u. a. diese Endpunkte bereit:
+
+- `GET/PUT /state/{workspace}` (Sync-Zustand)
+- `POST /api/provider/{workspace}/connect|disconnect|reply` (serverseitiges Groq-Routing)
+- `GET /api/status/{workspace}` (Health/Status für mobile Steuerung)
+- `POST /api/automation/{workspace}/start|stop|run-now` (autonome Läufe)
+
 ## Funktionsumfang
 
 - Vollständiger 30-Tage-Plan mit 120 Aufgaben, Tagesauswahl, Fortschritt, Notizen und Lernständen

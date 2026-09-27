@@ -381,3 +381,36 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.cloud-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cloud-ops-grid article {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--surface-2);
+}
+
+.cloud-ops-grid small {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+}
+
+.cloud-ops-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .cloud-ops-panel .stack {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
