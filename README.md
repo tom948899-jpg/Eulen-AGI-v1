@@ -63,7 +63,7 @@ Warum dieser Stack:
 4. Sync verbinden:
    - Sync-Endpunkt: Render-URL, z. B. `https://xyz.onrender.com`
    - Arbeitsraum-ID: frei wählen, z. B. `tom-eulen-1`
-   - Zugriffstoken: frei wählen, z. B. `MeinToken123!`
+   - Zugriffstoken: selbst festlegen, **lang und zufällig** (z. B. Passwortmanager-Token mit 24+ Zeichen)
    - dann **Verbinden & synchronisieren**
 5. Groq-Key-Pool verbinden (1–3 Keys) → **Groq-Pool verbinden**.
 6. Cloud-Automation starten (Fallback optional aktiv lassen) → **Cloud-Automation starten**.
