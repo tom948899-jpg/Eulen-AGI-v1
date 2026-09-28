@@ -45,13 +45,32 @@ Zusätzlich akzeptiert `POST /api/automation/{workspace}/start` optional `allowL
 
 ### Handy-Schnellstart (ohne PC)
 
-1. Groq-, Render/Railway- und GitHub-Account bereitmachen.
+Empfohlener kostenloser Stack:
+
+- Frontend: GitHub Pages (kostenlos)
+- Cloud-Agent: Render Web Service (Free Tier; kann bei Inaktivität schlafen)
+- KI-Provider: Groq Free Tier (eigener API-Key)
+
+Warum dieser Stack:
+
+- passt direkt zum Startkommando `npm run cloud-agent`
+- mobile Steuerung ist in der App bereits vorbereitet
+- schnellster Start ohne direkte Kosten
+
+1. Accounts bereitmachen: GitHub, Render und Groq.
 2. Cloud-Agent deployen: Render → New Web Service → Repo `tom948899-jpg/Eulen-AGI-v1`, Start Command `npm run cloud-agent`, ENV `CLOUD_AGENT_SECRET` setzen.
 3. App über GitHub Pages öffnen → **Daten & Konfiguration**.
-4. Sync verbinden: Endpunkt + Arbeitsraum-ID + Zugriffstoken eintragen → **Verbinden & synchronisieren**.
+4. Sync verbinden:
+   - Sync-Endpunkt: Render-URL, z. B. `https://xyz.onrender.com`
+   - Arbeitsraum-ID: frei wählen, z. B. `tom-eulen-1`
+   - Zugriffstoken: frei wählen, z. B. `MeinToken123!`
+   - dann **Verbinden & synchronisieren**
 5. Groq-Key-Pool verbinden (1–3 Keys) → **Groq-Pool verbinden**.
 6. Cloud-Automation starten (Fallback optional aktiv lassen) → **Cloud-Automation starten**.
 7. Kontrollcheck: Automation aktiv, Cloud-Update aktuell, Modus `provider` oder `local-fallback`.
+8. Regelmäßig **Cloud-Status aktualisieren** oder **Jetzt synchronisieren** drücken, um neue Ergebnisse zu sehen.
+
+Hinweis zu kostenlosen Kontingenten: Free-Hoster können schlafen (Cold Start möglich) und Limits können sich ändern. Wenn Groq-Limits erreicht sind, läuft der lokale Fallback weiter.
 
 ## Funktionsumfang
 
