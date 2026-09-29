@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Eine kurze Präsentation über Leuchtstofflampen, ihren Ausstieg und den Wechsel zu LED.">
+    <meta name="theme-color" content="#f6f4ed">
+    <title>Der Abschied von der Leuchtstofflampe</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f6f4ed;
+        --ink: #17191a;
+        --muted: #626660;
+        --green: #11844d;
+        --blue: #174cb5;
+        --line: #dcded7;
+        font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; color: var(--ink); background: var(--paper); }
+      button { font: inherit; }
+      .deck { min-height: 100vh; display: grid; grid-template-rows: 1fr auto; }
+      .slide {
+        width: min(1180px, 100%);
+        min-height: calc(100vh - 82px);
+        margin: 0 auto;
+        padding: clamp(26px, 5vw, 66px);
+        display: none;
+        align-content: center;
+        gap: clamp(22px, 4vh, 42px);
+      }
+      .slide.active { display: grid; animation: enter .35s ease-out; }
+      @keyframes enter { from { opacity: 0; transform: translateY(8px); } }
+      h1, h2, h3, p { margin: 0; }
+      h1, h2 { font-weight: 1000; letter-spacing: -.055em; text-transform: uppercase; }
+      h1 { max-width: 1000px; font-size: clamp(42px, 8vw, 94px); line-height: .98; }
+      h2 { font-size: clamp(34px, 6vw, 68px); line-height: 1; }
+      h3 { font-size: clamp(18px, 2.3vw, 26px); line-height: 1.1; text-transform: uppercase; }
+      .eyebrow { color: var(--green); font-size: 12px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+      .intro { max-width: 760px; color: var(--muted); font-family: Arial, sans-serif; font-size: clamp(18px, 2vw, 23px); line-height: 1.5; }
+      .cover { gap: 30px; }
+      .cover h1 span { color: var(--green); }
+      .cover-art { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .art-card { min-height: 150px; border-radius: 14px; display: grid; place-items: center; overflow: hidden; }
+      .art-card svg { width: min(90%, 460px); height: 130px; }
+      .tube-card { background: #e1e0d8; }
+      .led-card { background: #d9e5f4; }
+      .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .info-card { min-height: 190px; padding: clamp(20px, 3vw, 32px); border-radius: 14px; color: white; display: grid; align-content: start; gap: 14px; }
+      .info-card.green { background: var(--green); }
+      .info-card.blue { background: var(--blue); }
+      .info-card p { font-family: Arial, sans-serif; font-size: clamp(16px, 1.8vw, 20px); line-height: 1.5; }
+      .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      .step { border-top: 5px solid var(--green); padding: 20px 18px; background: #e9e8df; border-radius: 5px 5px 12px 12px; }
+      .step b { display: block; margin-bottom: 14px; color: var(--green); font-size: 13px; letter-spacing: .12em; }
+      .step p { margin-top: 10px; color: #424641; font-family: Arial, sans-serif; line-height: 1.5; }
+      .comparison { width: 100%; border-collapse: collapse; background: #eeede6; border-radius: 12px; overflow: hidden; font-family: Arial, sans-serif; }
+      .comparison th, .comparison td { padding: 17px 20px; border-bottom: 1px solid var(--line); text-align: left; line-height: 1.4; }
+      .comparison th { color: white; background: var(--blue); font-family: inherit; }
+      .comparison th:first-child { background: #454944; }
+      .comparison tr:last-child td { border-bottom: 0; }
+      .takeaway { padding: clamp(24px, 4vw, 42px); border-radius: 14px; background: var(--green); color: white; }
+      .takeaway p { margin-top: 14px; font-family: Arial, sans-serif; font-size: clamp(18px, 2vw, 23px); line-height: 1.5; }
+      .footnote { color: var(--muted); font: 13px/1.5 Arial, sans-serif; }
+      .footnote a { color: var(--blue); }
+      .controls { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: center; align-items: center; gap: 16px; min-height: 82px; padding: 12px 20px; border-top: 1px solid var(--line); background: rgb(246 244 237 / 94%); backdrop-filter: blur(10px); }
+      .controls button { padding: 10px 17px; border: 0; border-radius: 8px; color: white; background: var(--blue); font-weight: 800; }
+      .controls button:disabled { opacity: .4; cursor: not-allowed; }
+      .controls button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+      #counter { min-width: 72px; text-align: center; font-size: 13px; font-weight: 800; }
+      #progress { position: absolute; inset: 0 auto auto 0; height: 3px; background: var(--green); transition: width .25s ease; }
+      @media (max-width: 650px) {
+        .slide { min-height: calc(100svh - 74px); padding: 26px 20px; }
+        .cover-art, .info-grid, .steps { grid-template-columns: 1fr; }
+        .art-card { min-height: 110px; }
+        .art-card svg { height: 94px; }
+        .info-card { min-height: 0; }
+        .comparison th, .comparison td { padding: 11px 9px; font-size: 13px; }
+        .controls { min-height: 74px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck" aria-label="Präsentation: Der Abschied von der Leuchtstofflampe">
+      <section class="slide cover active" aria-labelledby="title">
+        <p class="eyebrow">Licht · Technik · Wandel</p>
+        <h1 id="title">Der Abschied von der <span>Leuchtstofflampe</span></h1>
+        <p class="intro">Wie funktioniert sie, warum läuft ihre Zeit aus – und worauf kommt es beim Umstieg auf LED an?</p>
+        <div class="cover-art" aria-hidden="true">
+          <div class="art-card tube-card">
+            <svg viewBox="0 0 500 140" role="img">
+              <defs><linearGradient id="tube" x1="0" x2="1"><stop stop-color="#777c7a"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#b6bab5"/></linearGradient></defs>
+              <rect x="58" y="49" width="384" height="42" rx="21" fill="url(#tube)" stroke="#929792" stroke-width="4"/>
+              <rect x="39" y="59" width="26" height="22" rx="3" fill="#383c3b"/>
+              <rect x="435" y="59" width="26" height="22" rx="3" fill="#383c3b"/>
+              <circle cx="47" cy="70" r="3" fill="#ddd"/><circle cx="57" cy="70" r="3" fill="#ddd"/>
+              <circle cx="443" cy="70" r="3" fill="#ddd"/><circle cx="453" cy="70" r="3" fill="#ddd"/>
+              <path d="M90 69h320" stroke="#fff" stroke-width="5" opacity=".75"/>
+            </svg>
+          </div>
+          <div class="art-card led-card">
+            <svg viewBox="0 0 500 140" role="img">
+              <rect x="48" y="44" width="404" height="52" rx="26" fill="#f7fbff" stroke="#7c91af" stroke-width="4"/>
+              <rect x="27" y="56" width="29" height="28" rx="3" fill="#293b5d"/>
+              <rect x="444" y="56" width="29" height="28" rx="3" fill="#293b5d"/>
+              <g fill="#79b7ff"><circle cx="100" cy="70" r="8"/><circle cx="145" cy="70" r="8"/><circle cx="190" cy="70" r="8"/><circle cx="235" cy="70" r="8"/><circle cx="280" cy="70" r="8"/><circle cx="325" cy="70" r="8"/><circle cx="370" cy="70" r="8"/><circle cx="415" cy="70" r="8"/></g>
+              <path d="M80 28v-13m85 13V8m85 20V2m85 26V8m85 20V15" stroke="#5688c8" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" aria-labelledby="how-title">
+        <p class="eyebrow">01 · Das Prinzip</p>
+        <h2 id="how-title">Licht aus unsichtbarem UV</h2>
+        <div class="steps">
+          <article class="step"><b>01 · STARTEN</b><h3>Strom fließt</h3><p>Elektroden in der Röhre bringen eine Gasentladung in Gang.</p></article>
+          <article class="step"><b>02 · UMWANDELN</b><h3>UV entsteht</h3><p>Quecksilberdampf gibt dabei vor allem ultraviolette Strahlung ab.</p></article>
+          <article class="step"><b>03 · LEUCHTEN</b><h3>Phosphor strahlt</h3><p>Eine Leuchtschicht wandelt die UV-Strahlung in sichtbares Licht um.</p></article>
+        </div>
+        <p class="footnote">Vorschaltgerät und Starter (oder elektronische Vorschalttechnik) unterstützen den Betrieb der Lampe.</p>
+      </section>
+
+      <section class="slide" aria-labelledby="why-title">
+        <p class="eyebrow">02 · Warum der Wandel?</p>
+        <h2 id="why-title">Gute Gründe für den Ausstieg</h2>
+        <div class="info-grid">
+          <article class="info-card green"><h3>Quecksilber vermeiden</h3><p>Leuchtstofflampen enthalten Quecksilber. Deshalb gehören sie am Ende ihrer Lebensdauer zur getrennten Sammlung – nicht in den Hausmüll.</p></article>
+          <article class="info-card blue"><h3>EU-Regeln ändern sich</h3><p>RoHS-Ausnahmen für quecksilberhaltige Lampen laufen schrittweise aus. Betroffene Lampentypen und Fristen unterscheiden sich.</p></article>
+          <article class="info-card blue"><h3>LED als Alternative</h3><p>LEDs benötigen für die Lichterzeugung kein Quecksilber und können bei passender Anwendung den Energieverbrauch senken.</p></article>
+          <article class="info-card green"><h3>Bewusst ersetzen</h3><p>Vorhandene Lampen müssen nicht unüberlegt entsorgt werden: sicher weiterverwenden oder fachgerecht ersetzen und recyceln.</p></article>
+        </div>
+        <p class="footnote">Der EU-Ausstieg erfolgt nicht mit einem einzigen Stichtag. Maßgeblich sind Lampentyp und jeweilige RoHS-Ausnahme.</p>
+      </section>
+
+      <section class="slide" aria-labelledby="compare-title">
+        <p class="eyebrow">03 · Der Umstieg</p>
+        <h2 id="compare-title">Röhre raus, LED rein?</h2>
+        <table class="comparison">
+          <thead><tr><th>Prüfen</th><th>Worauf achten?</th></tr></thead>
+          <tbody>
+            <tr><td>Fassung & Länge</td><td>Passt die LED-Röhre mechanisch in die Leuchte?</td></tr>
+            <tr><td>Vorschaltgerät</td><td>Ist sie für das vorhandene Gerät geeignet – oder muss die Leuchte angepasst werden?</td></tr>
+            <tr><td>Lichtwirkung</td><td>Stimmen Helligkeit, Lichtfarbe und Abstrahlrichtung für den Raum?</td></tr>
+            <tr><td>Sicherheit</td><td>Umbauten an der Leuchte einer Elektrofachkraft überlassen.</td></tr>
+          </tbody>
+        </table>
+        <p class="intro">LED-Röhren sind nicht automatisch in jeder Leuchte austauschbar. Herstellerangaben und Leuchtentyp entscheiden.</p>
+      </section>
+
+      <section class="slide" aria-labelledby="end-title">
+        <p class="eyebrow">04 · Das Wichtigste</p>
+        <h2 id="end-title">Ein kleiner Wechsel. Ein klarer Plan.</h2>
+        <div class="takeaway">
+          <h3>Die drei Schritte</h3>
+          <p>1. Leuchtmittel und Leuchte identifizieren.<br>2. Kompatible LED-Lösung auswählen – bei Umbau mit Fachkraft.<br>3. Alte Leuchtstofflampen zur Sammelstelle bringen.</p>
+        </div>
+        <p class="footnote">Quellen zur Einordnung: <a href="https://eur-lex.europa.eu/eli/dir/2011/65/oj" target="_blank" rel="noreferrer">EU-RoHS-Richtlinie 2011/65/EU</a>; <a href="https://www.umweltbundesamt.de/themen/abfall-ressourcen/abfallwirtschaft/abfallarten/energiesparlampen" target="_blank" rel="noreferrer">Umweltbundesamt: Entsorgung von Energiesparlampen</a>. Stand: September 2026.</p>
+      </section>
+
+      <nav class="controls" aria-label="Präsentationssteuerung">
+        <div id="progress" aria-hidden="true"></div>
+        <button id="previous" type="button" aria-label="Vorherige Folie">← Zurück</button>
+        <span id="counter" aria-live="polite">1 / 5</span>
+        <button id="next" type="button" aria-label="Nächste Folie">Weiter →</button>
+      </nav>
+    </main>
+    <script>
+      const slides = [...document.querySelectorAll(".slide")];
+      const counter = document.querySelector("#counter");
+      const progress = document.querySelector("#progress");
+      const previous = document.querySelector("#previous");
+      const next = document.querySelector("#next");
+      let current = 0;
+
+      function showSlide(index) {
+        current = Math.max(0, Math.min(index, slides.length - 1));
+        slides.forEach((slide, position) => {
+          slide.classList.toggle("active", position === current);
+          slide.setAttribute("aria-hidden", String(position !== current));
+        });
+        counter.textContent = `${current + 1} / ${slides.length}`;
+        progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+        previous.disabled = current === 0;
+        next.disabled = current === slides.length - 1;
+      }
+
+      previous.addEventListener("click", () => showSlide(current - 1));
+      next.addEventListener("click", () => showSlide(current + 1));
+      document.addEventListener("keydown", event => {
+        if (event.key === "ArrowRight" || event.key === " ") showSlide(current + 1);
+        if (event.key === "ArrowLeft") showSlide(current - 1);
+      });
+      showSlide(0);
+    </script>
+  </body>
+</html>
