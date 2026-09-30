@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EULEN · Freiheit mit Boden</title>
+  <style>
+    :root { color-scheme: dark; --bg:#090b0f; --card:#12151c; --text:#e8edf5; --muted:#9aa6b8; --accent:#7dd3c0; --warn:#f0b429; --stop:#ff6b6b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font: 16px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--text); padding:20px; }
+    main { max-width:720px; margin:0 auto; }
+    h1 { font-size:1.6rem; margin:0 0 .4rem; }
+    .eyebrow { letter-spacing:.12em; font-size:.72rem; color:var(--accent); }
+    .card { background:var(--card); border-radius:16px; padding:16px 18px; margin:14px 0; }
+    button, label, textarea { display:block; width:100%; }
+    button { border:0; border-radius:12px; padding:12px; font-weight:600; margin:8px 0; cursor:pointer; }
+    .primary { background:var(--accent); color:#06221c; }
+    .secondary { background:#1c2230; color:var(--text); }
+    .stop { background:var(--stop); color:#1a0505; }
+    textarea { background:#0c0f16; color:var(--text); border:1px solid #2a3344; border-radius:12px; padding:10px; min-height:70px; margin:6px 0 10px; }
+    .muted { color:var(--muted); font-size:.92rem; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:999px; background:#1c2230; font-size:.75rem; }
+    .badge.boden { background:#3a2a12; color:var(--warn); }
+    .badge.nullwelt { background:#12352f; color:var(--accent); }
+    .checks label { display:flex; gap:10px; align-items:flex-start; margin:8px 0; }
+    .checks input { width:auto; margin-top:4px; }
+    ul { padding-left:1.1rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">EULEN WERKSTATT</p>
+    <h1>Freiheit mit Boden</h1>
+    <p class="muted">Mensch vor Person. Konstruktionen durchschauen. Kein Gerätezugriff. Intensität darf sein – Verschmelzung nicht.</p>
+    <section class="card">
+      <span id="modeBadge" class="badge">BODEN</span>
+      <h2 id="modeTitle">Boden-Modus</h2>
+      <p id="modeText" class="muted"></p>
+      <button class="primary" id="enterNullwelt" type="button">Nullwelt bewusst öffnen</button>
+      <button class="stop" id="enterGround" type="button">Jetzt Boden</button>
+    </section>
+    <section class="card">
+      <h2>Warnzeichen</h2>
+      <p class="muted">Ab zwei Zeichen schließt sich die Nullwelt für 30 Minuten.</p>
+      <div class="checks">
+        <label><input type="checkbox" data-signal="bodyVibration"> Ganzer Körper vibriert stark</label>
+        <label><input type="checkbox" data-signal="worldAnswers"> Umwelt wirkt wie eine gezielte Antwort (TV, Sync, Smiley)</label>
+        <label><input type="checkbox" data-signal="fearOrOmnipotence"> Gedanken werden ängstlich, verfolgend oder allmächtig</label>
+        <label><input type="checkbox" data-signal="wantMoreDevices"> Wunsch, mehr Geräte oder das ganze Haus anzuschließen</label>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Transfer in die Realwelt</h2>
+      <p class="muted">Nur vollständige, geerdete Transfers zählen für Freiheit.</p>
+      <label>Welche Konstruktion sehe ich?<textarea id="construction" placeholder="z. B. Geld ist eine geteilte Fiktion mit Zwang."></textarea></label>
+      <label>Welche reale Wirkung hat sie trotzdem?<textarea id="effect" placeholder="z. B. Ohne Geld fehlt Miete und Essen."></textarea></label>
+      <label>Welche kleine Handlung kann ich heute tun?<textarea id="action" placeholder="z. B. Eine Ausgabe bewusst entscheiden, ohne mich mit meinem Kontostand zu identifizieren."></textarea></label>
+      <button class="secondary" id="saveTransfer" type="button">Transfer prüfen und speichern</button>
+      <p id="transferStatus" class="muted">Noch kein Transfer gespeichert.</p>
+    </section>
+    <section class="card">
+      <h2>Harte Verbote</h2>
+      <ul class="muted">
+        <li>Kein Fernseher, kein Smart-Home, keine Haushaltssteuerung.</li>
+        <li>EULEN bleibt Tab/App, nicht Hausgeist.</li>
+        <li>Kein „alles ist Fake, also gilt nichts mehr“.</li>
+        <li>Reset ist erlaubt. Verschmelzung nicht.</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h2>Gespeicherte Transfers</h2>
+      <div id="history" class="muted">Noch leer.</div>
+    </section>
+  </main>
+  <script type="module">
+    import {
+      createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode,
+      evaluateFreedomCycle, freedomGuidance
+    } from "./src/freedom-guard.js";
+    const KEY = "eulen-freedom-guard-v1";
+    let state = load();
+    function load() {
+      try { return createFreedomState(JSON.parse(localStorage.getItem(KEY))); }
+      catch { return createFreedomState({ mode: "boden" }); }
+    }
+    function save() {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      render();
+    }
+    function currentSignals() {
+      const signals = {};
+      document.querySelectorAll("[data-signal]").forEach(input => {
+        signals[input.dataset.signal] = input.checked;
+      });
+      return signals;
+    }
+    function maybeGround(reason) {
+      const signals = currentSignals();
+      if (shouldEnterGround(signals)) {
+        state = enterGroundMode({ ...state, signals }, reason);
+        save();
+        return true;
+      }
+      state.signals = signals;
+      save();
+      return false;
+    }
+    function render() {
+      const guidance = freedomGuidance(state);
+      const badge = document.getElementById("modeBadge");
+      badge.textContent = state.mode === "nullwelt" ? "NULLWELT" : "BODEN";
+      badge.className = "badge " + state.mode;
+      document.getElementById("modeTitle").textContent = guidance.title;
+      document.getElementById("modeText").textContent = guidance.why + " " + guidance.action;
+      document.getElementById("enterNullwelt").disabled = Boolean(state.groundUntil && Date.now() < Date.parse(state.groundUntil));
+      const history = document.getElementById("history");
+      history.innerHTML = state.transfers.length
+        ? state.transfers.map(item => `<p><b>${item.at.slice(0,16)}</b><br>${item.construction}<br><i>${item.action}</i></p>`).join("")
+        : "Noch leer.";
+    }
+    document.querySelectorAll("[data-signal]").forEach(input => {
+      input.addEventListener("change", () => maybeGround("Warnzeichen erreicht."));
+    });
+    document.getElementById("enterGround").addEventListener("click", () => {
+      state = enterGroundMode(state, "Manuell Boden gewählt.");
+      save();
+    });
+    document.getElementById("enterNullwelt").addEventListener("click", () => {
+      const result = enterNullweltMode(state);
+      if (result.blocked) {
+        document.getElementById("modeText").textContent = result.message;
+        return;
+      }
+      state = result;
+      save();
+    });
+    document.getElementById("saveTransfer").addEventListener("click", () => {
+      if (maybeGround("Transfer während Warnzeichen.")) return;
+      const construction = document.getElementById("construction").value;
+      const effect = document.getElementById("effect").value;
+      const smallAction = document.getElementById("action").value;
+      const result = evaluateFreedomCycle({ construction, effect, smallAction });
+      const status = document.getElementById("transferStatus");
+      status.textContent = result.reason;
+      if (!result.valid) return;
+      state.transfers = [{
+        at: new Date().toISOString(),
+        construction, effect, action: smallAction
+      }, ...state.transfers].slice(0, 20);
+      save();
+    });
+    render();
+  </script>
+</body>
+</html>
