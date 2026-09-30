@@ -1,49 +1,15 @@
 <!doctype html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>EULEN Netz</title>
-<style>body{margin:0;background:#000;color:#f4efe6;font:15px/1.4 system-ui,sans-serif}main{max-width:860px;margin:0 auto;padding:14px}h1{font:500 1.5rem Georgia,serif;margin:.2rem 0}p{color:#9aa59f}canvas{width:100%;height:72vh;background:#000;touch-action:none;border-radius:16px}a{color:#7dd3c0}</style>
-</head>
-<body>
-<main>
-<h1>Netz, tiefer</h1>
-<p id="info">Tippe einen Knoten. Die Zahl ist sein Einfluss auf den nächsten. Ziehen geht auch.</p>
-<canvas id="net"></canvas>
-<p><a href="./">Zur App</a></p>
-</main>
+<html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EULEN Cluster</title>
+<style>body{margin:0;background:#000;color:#f4efe6;font:15px system-ui}main{max-width:860px;margin:0 auto;padding:14px}h1{font:500 1.5rem Georgia,serif}p{color:#9aa59f}canvas{width:100%;height:72vh;background:#000;touch-action:none}a{color:#7dd3c0}</style></head>
+<body><main><h1>Cluster</h1><p id="info">Vier Gruppen. Kanten laufen nur zur nächsten Gruppe.</p><canvas id="net"></canvas><p><a href="./">Zur App</a></p></main>
 <script>
-const layers=[
-[{n:"Frage",w:1},{n:"Ziel",w:.8},{n:"Geld",w:.7}],
-[{n:"Quellen",w:.9},{n:"Gegen",w:.85},{n:"Mensch",w:.6}],
-[{n:"Konstruktion",w:.95},{n:"Risiko",w:.4},{n:"Synthese",w:1}],
-[{n:"Handlung",w:1},{n:"Angebot",w:.75}]
-];
-const colors=["#f0c84a","#2de2d0","#f0c84a","#2de2d0"];
-const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
-let nodes=[], edges=[], selected=-1, drag=-1, t=0;
-function build(){
- const r=canvas.getBoundingClientRect();
- nodes=[];edges=[];
- layers.forEach((layer,ci)=>layer.forEach((item,ri)=>{nodes.push({...item,c:colors[ci],layer:ci,x:r.width*(0.12+ci*0.24),y:r.height*(0.18+ri*(0.64/(layer.length-1||1)))});}));
- nodes.forEach((a,i)=>nodes.forEach((b,j)=>{if(b.layer===a.layer+1)edges.push([i,j,a.w*b.w]);}));
-}
-function frame(){
- const r=canvas.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2);
- canvas.width=r.width*dpr;canvas.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
- if(!nodes.length)build();
- ctx.clearRect(0,0,r.width,r.height);
- edges.forEach(([a,b,w])=>{const on=selected<0||selected===a||selected===b;ctx.globalAlpha=on?0.25+w*0.45:0.05;ctx.strokeStyle=nodes[a].c;ctx.lineWidth=1+w*2.4;ctx.shadowColor=nodes[a].c;ctx.shadowBlur=on?14:0;ctx.beginPath();ctx.moveTo(nodes[a].x,nodes[a].y);ctx.quadraticCurveTo((nodes[a].x+nodes[b].x)/2,(nodes[a].y+nodes[b].y)/2,nodes[b].x,nodes[b].y);ctx.stroke();if(on){const u=(t*0.15+w)%1;ctx.globalAlpha=1;ctx.fillStyle=nodes[a].c;ctx.beginPath();ctx.arc(nodes[a].x+(nodes[b].x-nodes[a].x)*u,nodes[a].y+(nodes[b].y-nodes[a].y)*u,3,0,6.3);ctx.fill();}});
- ctx.globalAlpha=1;nodes.forEach((node,i)=>{ctx.shadowColor=node.c;ctx.shadowBlur=selected===i?26:12;ctx.fillStyle=node.c;ctx.beginPath();ctx.arc(node.x,node.y,selected===i?15:9,0,6.3);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle="#fff";ctx.font="12px system-ui";ctx.fillText(node.n+" "+node.w,node.x+14,node.y+4);});
- t+=0.016;requestAnimationFrame(frame);
-}
-function hit(x,y){return nodes.findIndex(node=>Math.hypot(node.x-x,node.y-y)<24);}
-function pos(e){const r=canvas.getBoundingClientRect(),p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top};}
-canvas.addEventListener("pointerdown",e=>{const p=pos(e);drag=hit(p.x,p.y);selected=drag;if(selected>=0){const outs=edges.filter(edge=>edge[0]===selected).map(edge=>nodes[edge[1]].n+" "+edge[2].toFixed(2));document.getElementById("info").textContent=nodes[selected].n+" wirkt auf "+(outs.join(", ")||"nichts weiter");}});
+const groups=[{name:"Frage",nodes:["Frage","Ziel","Geld"],c:"#f0c84a"},{name:"Prüfung",nodes:["Quellen","Gegen","Mensch"],c:"#2de2d0"},{name:"Bau",nodes:["Konstruktion","Risiko","Synthese"],c:"#f0c84a"},{name:"Tat",nodes:["Handlung","Angebot"],c:"#2de2d0"}];
+const canvas=document.getElementById("net"),ctx=canvas.getContext("2d");
+let nodes=[],edges=[],selected=-1,drag=-1;
+function build(){const r=canvas.getBoundingClientRect();nodes=[];edges=[];groups.forEach((g,gi)=>g.nodes.forEach((n,ri)=>nodes.push({n,g:gi,c:g.c,x:r.width*(0.14+gi*0.22),y:r.height*(0.28+ri*0.18)})));nodes.forEach((a,i)=>nodes.forEach((b,j)=>{if(b.g===a.g+1)edges.push([i,j]);});}
+function frame(){const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=r.width*dpr;canvas.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(!nodes.length)build();ctx.clearRect(0,0,r.width,r.height);groups.forEach((g,gi)=>{const mine=nodes.filter(n=>n.g===gi);const xs=mine.map(n=>n.x),ys=mine.map(n=>n.y);ctx.strokeStyle=g.c;ctx.globalAlpha=.35;ctx.strokeRect(Math.min(...xs)-28,Math.min(...ys)-36,Math.max(...xs)-Math.min(...xs)+56,Math.max(...ys)-Math.min(...ys)+64);ctx.globalAlpha=.8;ctx.fillStyle=g.c;ctx.font="13px system-ui";ctx.fillText(g.name,Math.min(...xs)-24,Math.min(...ys)-42);});ctx.globalAlpha=.35;edges.forEach(([a,b])=>{ctx.strokeStyle=nodes[a].c;ctx.beginPath();ctx.moveTo(nodes[a].x,nodes[a].y);ctx.lineTo(nodes[b].x,nodes[b].y);ctx.stroke();});ctx.globalAlpha=1;nodes.forEach((n,i)=>{ctx.shadowColor=n.c;ctx.shadowBlur=selected===i?22:10;ctx.fillStyle=n.c;ctx.beginPath();ctx.arc(n.x,n.y,selected===i?13:8,0,6.3);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle="#fff";ctx.fillText(n.n,n.x+12,n.y+4);});requestAnimationFrame(frame);}
+function hit(x,y){return nodes.findIndex(n=>Math.hypot(n.x-x,n.y-y)<22);}function pos(e){const r=canvas.getBoundingClientRect(),p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top};}
+canvas.addEventListener("pointerdown",e=>{const p=pos(e);drag=hit(p.x,p.y);selected=drag;if(selected>=0)document.getElementById("info").textContent=nodes[selected].n+" liegt in "+groups[nodes[selected].g].name;});
 canvas.addEventListener("pointermove",e=>{if(drag<0)return;const p=pos(e);nodes[drag].x=p.x;nodes[drag].y=p.y;});
-canvas.addEventListener("pointerup",()=>drag=-1);
-frame();
-</script>
-</body>
-</html>
+canvas.addEventListener("pointerup",()=>drag=-1);frame();
+</script></body></html>
