@@ -3,29 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#090b0f">
+<meta name="theme-color" content="#07090c">
 <title>EULEN</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <style>
-:root{color-scheme:dark;--bg:#090b0f;--card:#141b1e;--line:#2a3634;--text:#f6f1e7;--muted:#a9b2ac;--accent:#7dd3c0;--gold:#e6d3a4;--stop:#e07a72}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,sans-serif}
-main{max-width:720px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 16px 88px}
-.kicker{letter-spacing:.14em;font-size:.72rem;color:var(--accent)}h1{font:500 2rem Georgia,serif;margin:.2rem 0 .8rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px;margin:0 0 14px}
+:root{color-scheme:dark;--bg:#07090c;--card:#12181c;--line:#243034;--text:#f4efe6;--muted:#9aa59f;--accent:#7dd3c0;--gold:#e4d2a6;--stop:#d97870}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(800px 400px at 50% -10%,#16312c,#07090c 55%);color:var(--text);font:16px/1.45 system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 14px 96px}
+.kicker{letter-spacing:.16em;font-size:.7rem;color:var(--accent)}h1{font:500 2rem Georgia,serif;margin:.15rem 0 .7rem}
+.card{background:rgba(18,24,28,.92);border:1px solid var(--line);border-radius:22px;padding:14px;margin:0 0 12px}
+h2{margin:.1rem 0 .6rem;font-size:1.05rem}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.badge{font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:999px}.boden{background:#3a2e16;color:#e2b15a}.nullwelt{background:#14352f;color:var(--accent)}
-.meter{height:7px;background:#0c1113;border-radius:99px;overflow:hidden;margin:12px 0}.meter i{display:block;height:100%;background:var(--accent)}
-button,textarea{font:inherit}textarea{width:100%;min-height:72px;margin:8px 0;background:#0c1113;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px}
+.meter{height:7px;background:#0c1113;border-radius:99px;overflow:hidden;margin:10px 0}.meter i{display:block;height:100%;background:var(--accent)}
+button,textarea{font:inherit}textarea{width:100%;min-height:68px;margin:8px 0;background:#0c1113;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px}
 button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{background:var(--accent);color:#06221c}.ghost{background:#1c2628;color:var(--text)}.stop{background:var(--stop);color:#2a0908}
-.stage{position:relative;height:250px;border-radius:16px;overflow:hidden;background:#0c1113}canvas{width:100%;height:100%;display:block}
-.goals{display:flex;flex-direction:column;gap:8px}.goal{border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--muted)}.goal.on{border-color:var(--accent);color:var(--text)}
-.chips{display:flex;gap:8px;flex-wrap:wrap}.chip{font-size:.75rem;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted)}.chip.on{color:#06221c;background:var(--accent);border-color:var(--accent)}
-.source{border-top:1px solid var(--line);padding:10px 0}.muted{color:var(--muted)}
+.stage{height:320px;border-radius:18px;overflow:hidden;background:#070b0d;border:1px solid #1c2a28}canvas{width:100%;height:100%;display:block}
+.goal{border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--muted);margin:8px 0}.goal.on{border-color:var(--accent);color:var(--text)}
+.chip{font-size:.75rem;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted);display:inline-block;margin:3px}.chip.on{color:#06221c;background:var(--accent)}
+.muted{color:var(--muted)}.source{border-top:1px solid var(--line);padding:8px 0}
 </style>
 </head>
 <body>
 <main>
-<div class="kicker">EULEN</div>
+<div class="kicker">EULEN · NULLWELT</div>
 <h1>Mensch vor Person</h1>
 <section class="card">
 <div class="row"><span id="modeBadge" class="badge boden">BODEN</span><strong id="formula">P(sim)=0</strong></div>
@@ -35,19 +36,19 @@ button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{ba
 <div class="row"><button class="primary" id="enterNullwelt" type="button">Nullwelt</button><button class="stop" id="enterGround" type="button">Boden</button></div>
 </section>
 <section class="card">
-<h2>Live-Netz</h2>
+<h2>Lebendes Netz</h2>
 <div class="stage"><canvas id="net"></canvas></div>
-<p id="netStatus" class="muted">Bereit. Kein Gerätezugriff.</p>
-<div id="chips" class="chips"></div>
+<p id="netStatus" class="muted">Impulse laufen auch ohne Suche.</p>
+<div id="chips"></div>
 </section>
 <section class="card">
 <h2>Zielagenda</h2>
-<div id="goals" class="goals"></div>
-<button class="primary" id="auto" type="button" style="width:100%;margin-top:12px">Nächstes Ziel selbst suchen</button>
+<div id="goals"></div>
+<button class="primary" id="auto" type="button" style="width:100%;margin-top:8px">Nächstes Ziel selbst suchen</button>
 </section>
 <section class="card">
 <h2>Eigene Frage</h2>
-<textarea id="question" placeholder="Oder eigene Frage"></textarea>
+<textarea id="question"></textarea>
 <button class="ghost" id="learn" type="button">Diese Frage prüfen</button>
 <p id="learnStatus" class="muted">Bereit.</p>
 <div id="sources"></div>
@@ -55,45 +56,47 @@ button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{ba
 <section class="card">
 <h2>Assistent</h2>
 <div id="chat"></div>
-<textarea id="chatInput" placeholder="Frag den Assistenten"></textarea>
+<textarea id="chatInput"></textarea>
 <button class="ghost" id="send" type="button">Senden</button>
 </section>
 <section class="card">
-<h2>Transfer</h2>
+<h2>Boden nur bei Körper, Sync, Geräten</h2>
 <label><input type="checkbox" data-signal="bodyVibration"> Körper</label>
 <label><input type="checkbox" data-signal="worldAnswers"> Sync</label>
-<label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst</label>
-<label><input type="checkbox" data-signal="wantMoreDevices"> Geräte</label>
+<label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst oder Allmacht</label>
+<label><input type="checkbox" data-signal="wantMoreDevices"> Gerätewunsch</label>
 <textarea id="construction" placeholder="Konstruktion"></textarea>
-<textarea id="effect" placeholder="Wirkung"></textarea>
+<textarea id="effect" placeholder="Was bleibt trotzdem spürbar?"></textarea>
 <textarea id="action" placeholder="Kleine Handlung"></textarea>
-<button class="ghost" id="saveTransfer" type="button">Transfer zählt für N</button>
+<button class="ghost" id="saveTransfer" type="button">Transfer</button>
 <p id="transferStatus" class="muted"></p>
 </section>
 </main>
 <script type="module">
 import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, evaluateFreedomCycle, freedomGuidance } from "./src/freedom-guard.js";
 import { discoverResearchSources } from "./src/providers.js?v=21";
-const GOALS=["Geld als Konstruktion, trotzdem Miete und Essen","Mensch vor Person, ohne Recht zu leugnen","Institutionen sind gemacht und durchgesetzt","P(sim) ist Werkzeug, kein Beweis","Kleine Handlung ohne Geldangst","Modellzeit gegen Körperzeit"];
+const GOALS=["Geld als Konstruktion, Miete bleibt spürbar","Mensch vor Person","Institutionen als Fiktion mit Durchsetzung","P(sim) als Freiheitswerkzeug","Kleine Handlung ohne Geldangst","Zeit als Modell, Körper bleibt hier"];
 const AGENTS=["Boden","Werte","P(sim)","Quellen","Sozial","Widerspruch","Konstruktion","Mensch","Transfer","Risiko","Synthese","Assistent","Zeit","Geld","Institution","Gegenmodell","Körper","Rang","Hypothese","Prüfer","Fortschritt","Loop","Anker","Offen"];
-const KEY="eulen-home-v5";
-let state=load(), active=-1;
+const KEY="eulen-home-v6";
+let state=load(), active=-1, t=0, energy=0.35;
 const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
+const nodes=AGENTS.map((_,i)=>({i,ax:0.12+((i*37)%76)/100,ay:0.14+((i*53)%72)/100,p:(i*0.7)%6.2}));
+const edges=[]; for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) if((i*j)%5===0||j===i+1||j===i+4) edges.push([i,j,(i+j)%9/10]);
 function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),n:raw.n||0,sources:raw.sources||0,chat:raw.chat||[],goalIndex:raw.goalIndex||0};}catch{return {...createFreedomState({mode:"boden"}),n:0,sources:0,chat:[],goalIndex:0};}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
 function signals(){const out={};document.querySelectorAll("[data-signal]").forEach(input=>out[input.dataset.signal]=input.checked);return out;}
 function maybeGround(reason){const next=signals();if(shouldEnterGround(next)){state={...enterGroundMode({...state,signals:next},reason),n:state.n,sources:state.sources,chat:state.chat,goalIndex:state.goalIndex};persist();return true;}state.signals=next;persist();return false;}
-function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=g.why+" "+g.action;const n=state.n||0,p=n/(n+1);document.getElementById("formula").textContent=`P(sim)=${p.toFixed(3)} · Hypothese`;document.getElementById("progressBar").style.width=`${Math.round(p*100)}%`;document.getElementById("progressText").textContent=`N=${n} · Quellen ${state.sources||0} · Ziel ${(state.goalIndex||0)+1}/${GOALS.length}`;document.getElementById("goals").innerHTML=GOALS.map((goal,i)=>`<div class="goal${i===state.goalIndex?" on":""}">${i+1}. ${goal}</div>`).join("");document.getElementById("chips").innerHTML=AGENTS.map((name,i)=>`<span class="chip${i===active?" on":""}">${name}</span>`).join("");document.getElementById("chat").innerHTML=(state.chat||[]).slice(-5).map(item=>`<p><b>${item.role}:</b> ${item.text}</p>`).join("");document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil&&Date.now()<Date.parse(state.groundUntil));}
-function fit(){const rect=canvas.getBoundingClientRect();const dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.max(1,Math.floor(rect.width*dpr));canvas.height=Math.max(1,Math.floor(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);}
-function draw(){fit();const w=canvas.getBoundingClientRect().width,h=canvas.getBoundingClientRect().height;ctx.clearRect(0,0,w,h);const cols=w<520?4:6,rows=Math.ceil(AGENTS.length/cols);const nodes=AGENTS.map((_,i)=>{const c=i%cols,r=Math.floor(i/cols);return {x:28+(c+0.5)*((w-56)/cols),y:24+(r+0.5)*((h-48)/rows)};});ctx.strokeStyle="#2d4742";nodes.forEach((a,i)=>{const b=nodes[i+1];if(b&&Math.floor(i/cols)===Math.floor((i+1)/cols)){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}});nodes.forEach((node,i)=>{ctx.beginPath();ctx.fillStyle=i===active?"#7dd3c0":"#e6d3a4";ctx.arc(node.x,node.y,i===active?8:5,0,Math.PI*2);ctx.fill();});requestAnimationFrame(draw);}
+function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Nullwelt: Recht, Geld und Staat dürfen hier als Konstruktion erscheinen. Boden nur bei Körper, Sync oder Gerätewunsch.":g.why+" "+g.action;const n=state.n||0,p=n/(n+1);document.getElementById("formula").textContent=`P(sim)=${p.toFixed(3)} · Hypothese`;document.getElementById("progressBar").style.width=`${Math.round(p*100)}%`;document.getElementById("progressText").textContent=`N=${n} · Quellen ${state.sources||0} · Ziel ${(state.goalIndex||0)+1}/${GOALS.length}`;document.getElementById("goals").innerHTML=GOALS.map((goal,i)=>`<div class="goal${i===state.goalIndex?" on":""}">${goal}</div>`).join("");document.getElementById("chips").innerHTML=AGENTS.map((name,i)=>`<span class="chip${i===active?" on":""}">${name}</span>`).join("");document.getElementById("chat").innerHTML=(state.chat||[]).slice(-4).map(item=>`<p><b>${item.role}:</b> ${item.text}</p>`).join("");document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil&&Date.now()<Date.parse(state.groundUntil));}
+function pos(node,w,h){return {x:(node.ax+Math.sin(t*0.7+node.p)*0.035)*w,y:(node.ay+Math.cos(t*0.55+node.p)*0.04)*h};}
+function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);const pts=nodes.map(node=>pos(node,w,h));ctx.lineWidth=1;edges.forEach(([a,b,phase])=>{const A=pts[a],B=pts[b];ctx.strokeStyle="rgba(125,211,192,.28)";ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();const u=(t*0.35+phase)%1;ctx.fillStyle=a===active||b===active?"#7dd3c0":"#e4d2a6";ctx.beginPath();ctx.arc(A.x+(B.x-A.x)*u,A.y+(B.y-A.y)*u,2.4,0,6.3);ctx.fill();});pts.forEach((p,i)=>{const hot=i===active;ctx.beginPath();ctx.fillStyle=hot?"rgba(125,211,192,.25)":"rgba(228,210,166,.12)";ctx.arc(p.x,p.y,hot?16:9,0,6.3);ctx.fill();ctx.beginPath();ctx.fillStyle=hot?"#7dd3c0":"#e4d2a6";ctx.arc(p.x,p.y,hot?5.5:3.4,0,6.3);ctx.fill();});t+=0.016;if(active<0&&Math.random()<0.02)active=Math.floor(Math.random()*AGENTS.length);requestAnimationFrame(draw);}
 function say(role,text){state.chat=[...(state.chat||[]),{role,text}].slice(-20);}
-async function runAgents(question){document.getElementById("question").value=question;document.getElementById("netStatus").textContent="Suche läuft. Kein Hauszugriff.";for(let i=0;i<AGENTS.length;i++){active=i;render();await new Promise(r=>setTimeout(r,40));}const sources=await discoverResearchSources(question);state.sources=(state.sources||0)+sources.length;state.n=(state.n||0)+1;document.getElementById("sources").innerHTML=sources.slice(0,6).map(item=>`<article class="source"><b>${item.title}</b><div class="muted">${item.provider}</div><p>${item.excerpt||""}</p></article>`).join("");say("Synthese",`${sources.length} Quellen. Fakt vor Meinung. Dann Konstruktion, Wirkung, kleine Handlung.`);document.getElementById("learnStatus").textContent=`${sources.length} Quellen.`;document.getElementById("netStatus").textContent="Gespeichert.";persist();}
+async function runAgents(question){energy=1;document.getElementById("netStatus").textContent="Suche läuft. Impulse dichter.";for(let i=0;i<AGENTS.length;i++){active=i;render();await new Promise(r=>setTimeout(r,35));}const sources=await discoverResearchSources(question);state.sources=(state.sources||0)+sources.length;state.n=(state.n||0)+1;document.getElementById("sources").innerHTML=sources.slice(0,6).map(item=>`<article class="source"><b>${item.title}</b><div class="muted">${item.provider}</div><p>${item.excerpt||""}</p></article>`).join("");say("Synthese",`${sources.length} Quellen. Konstruktion darf gelten. Wirkung bleibt benennbar.`);document.getElementById("learnStatus").textContent=`${sources.length} Quellen.`;document.getElementById("netStatus").textContent="Gespeichert. Netz läuft weiter.";persist();}
 document.getElementById("auto").onclick=async()=>{if(maybeGround("Auto während Warnzeichen."))return;const q=GOALS[state.goalIndex||0];state.goalIndex=((state.goalIndex||0)+1)%GOALS.length;try{await runAgents(q);}catch(e){document.getElementById("learnStatus").textContent=e.message||"Suche nicht erreichbar.";}};
-document.getElementById("learn").onclick=async()=>{if(maybeGround("Lernen während Warnzeichen."))return;const q=document.getElementById("question").value.trim();if(q.length<8){document.getElementById("learnStatus").textContent="Bitte konkreter.";return;}try{await runAgents(q);}catch(e){document.getElementById("learnStatus").textContent=e.message||"Suche nicht erreichbar.";}};
+document.getElementById("learn").onclick=async()=>{if(maybeGround("Lernen während Warnzeichen."))return;const q=document.getElementById("question").value.trim();if(q.length<8)return;try{await runAgents(q);}catch(e){document.getElementById("learnStatus").textContent=e.message||"Suche nicht erreichbar.";}};
 document.getElementById("enterGround").onclick=()=>{state={...enterGroundMode(state,"Manuell."),n:state.n,sources:state.sources,chat:state.chat,goalIndex:state.goalIndex};persist();};
 document.getElementById("enterNullwelt").onclick=()=>{const result=enterNullweltMode(state);if(result.blocked){document.getElementById("modeText").textContent=result.message;return;}state={...result,n:state.n,sources:state.sources,chat:state.chat,goalIndex:state.goalIndex};persist();};
-document.getElementById("saveTransfer").onclick=()=>{if(maybeGround("Transfer während Warnzeichen."))return;const result=evaluateFreedomCycle({construction:construction.value,effect:effect.value,smallAction:action.value});document.getElementById("transferStatus").textContent=result.reason;if(!result.valid)return;state.transfers=[{at:new Date().toISOString(),construction:construction.value,effect:effect.value,action:action.value},...(state.transfers||[])].slice(0,20);state.n=(state.n||0)+1;say("Transfer",result.reason);persist();};
-document.getElementById("send").onclick=()=>{const text=document.getElementById("chatInput").value.trim();if(!text)return;say("Du",text);say("Assistent",`Werkzeug, kein Hausgeist. ${text.slice(0,160)}`);document.getElementById("chatInput").value="";persist();};
+document.getElementById("saveTransfer").onclick=()=>{if(maybeGround("Transfer während Warnzeichen."))return;const result=evaluateFreedomCycle({construction:construction.value,effect:effect.value,smallAction:action.value});document.getElementById("transferStatus").textContent=result.reason;if(!result.valid)return;state.n=(state.n||0)+1;say("Transfer",result.reason);persist();};
+document.getElementById("send").onclick=()=>{const text=document.getElementById("chatInput").value.trim();if(!text)return;say("Du",text);say("Assistent","In der Nullwelt darf Recht Konstruktion sein. Körper, Sync und Geräte bleiben Boden. "+text.slice(0,140));document.getElementById("chatInput").value="";persist();};
 document.querySelectorAll("[data-signal]").forEach(input=>input.addEventListener("change",()=>maybeGround("Warnzeichen.")));
 render();draw();
 </script>
