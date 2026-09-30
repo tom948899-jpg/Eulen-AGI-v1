@@ -1,153 +1,49 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090b0f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="EULEN">
-  <title>EULEN · Freiheit</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <style>
-    :root { color-scheme: dark; --bg:#090b0f; --card:#12181b; --line:#243036; --text:#f3efe6; --muted:#a7b0aa; --accent:#7dd3c0; --gold:#e8d6a8; --warn:#e2b15a; --stop:#e07a72; }
-    * { box-sizing: border-box; }
-    body { margin:0; font:16px/1.5 Georgia, serif; background:radial-gradient(1200px 500px at 50% -10%, #17312e, var(--bg) 55%); color:var(--text); }
-    main { max-width:760px; margin:0 auto; padding:22px 16px 64px; }
-    header { display:flex; gap:14px; align-items:center; margin-bottom:18px; }
-    .mark { width:64px; height:64px; border-radius:18px; background:#0e1618; }
-    .eyebrow { letter-spacing:.16em; font-size:.72rem; color:var(--accent); font-family:system-ui,sans-serif; }
-    h1 { font-size:1.8rem; margin:.15rem 0; font-weight:500; }
-    h2 { font-size:1.15rem; margin:0 0 .4rem; font-weight:500; }
-    .muted { color:var(--muted); font-family:system-ui,sans-serif; font-size:.92rem; }
-    .card { background:rgba(18,24,27,.92); border:1px solid var(--line); border-radius:20px; padding:16px; margin:12px 0; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; }
-    button, a.btn { border:0; border-radius:12px; padding:12px 14px; font:600 15px system-ui,sans-serif; text-decoration:none; display:inline-block; }
-    .primary { background:var(--accent); color:#06221c; }
-    .ghost { background:#1c2628; color:var(--text); }
-    .stop { background:var(--stop); color:#2a0908; }
-    textarea { width:100%; background:#0c1113; color:var(--text); border:1px solid var(--line); border-radius:12px; padding:10px; font:15px system-ui,sans-serif; min-height:72px; }
-    .badge { font:600 .72rem system-ui,sans-serif; padding:4px 8px; border-radius:999px; }
-    .boden { background:#3a2e16; color:var(--warn); }
-    .nullwelt { background:#14352f; color:var(--accent); }
-    .checks label { display:flex; gap:10px; margin:8px 0; font-family:system-ui,sans-serif; }
-    .source { border-top:1px solid var(--line); padding:10px 0; }
-    .formula { font-family:ui-monospace,monospace; color:var(--gold); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090b0f">
+<title>EULEN · Freiheit</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:dark;--bg:#090b0f;--card:#12181b;--line:#243036;--text:#f4f0e8;--muted:#a7b0aa;--accent:#7dd3c0;--gold:#e8d6a8;--stop:#e07a72}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,sans-serif;background:#090b0f;color:var(--text)}main{max-width:980px;margin:0 auto;padding:16px 14px 72px}header{display:flex;justify-content:space-between;gap:12px;align-items:center}h1{font:500 1.7rem Georgia,serif;margin:.1rem 0}h2{font-size:1rem;margin:0 0 .35rem}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}.card{background:#12181b;border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0}canvas{width:100%;height:280px;background:#0c1113;border-radius:14px}textarea{width:100%;min-height:68px;background:#0c1113;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit}.row{display:flex;gap:8px;flex-wrap:wrap}button{border:0;border-radius:12px;padding:10px 12px;font-weight:650}.primary{background:var(--accent);color:#06221c}.ghost{background:#1c2628;color:var(--text)}.stop{background:var(--stop);color:#2a0908}.badge{font-size:.72rem;font-weight:700;padding:4px 8px;border-radius:999px}.boden{background:#3a2e16;color:#e2b15a}.nullwelt{background:#14352f;color:var(--accent)}.meter{height:8px;background:#0c1113;border-radius:99px;overflow:hidden}.meter i{display:block;height:100%;background:var(--accent)}.agents{display:grid;grid-template-columns:1fr 1fr;gap:8px}.agent{border:1px solid var(--line);border-radius:12px;padding:8px}.agent.active{border-color:var(--accent)}.chat{min-height:140px;max-height:240px;overflow:auto}.msg{margin:8px 0}.msg b{color:var(--gold)}.source{border-top:1px solid var(--line);padding:8px 0}@media(max-width:800px){.grid,.agents{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-  <main>
-    <header>
-      <img class="mark" src="assets/icon.svg" alt="Eulen-Zeichen">
-      <div>
-        <div class="eyebrow">EULEN</div>
-        <h1>Mensch vor Person</h1>
-        <p class="muted">Freiheit mit Boden. Konstruktionen durchschauen. Kein Hauszugriff.</p>
-      </div>
-    </header>
-    <section class="card">
-      <span id="modeBadge" class="badge boden">BODEN</span>
-      <h2 id="modeTitle">Boden</h2>
-      <p id="modeText" class="muted"></p>
-      <p class="formula" id="formula">P(sim) = N / (N + 1)</p>
-      <div class="row">
-        <button class="primary" id="enterNullwelt" type="button">Nullwelt öffnen</button>
-        <button class="stop" id="enterGround" type="button">Jetzt Boden</button>
-      </div>
-    </section>
-    <section class="card">
-      <h2>Lernen</h2>
-      <p class="muted">Öffentliche Quellen: Wikipedia, Wikidata, Studien, Web-Kurzantworten, öffentliche Diskussion. Social-Treffer sind Meinungen. Kein Wohnungszugriff.</p>
-      <textarea id="question" placeholder="Ist Geld eine Konstruktion, und wo bleibt trotzdem echte Wirkung?"></textarea>
-      <button class="primary" id="learn" type="button">Quellen holen und einordnen</button>
-      <p id="learnStatus" class="muted">Bereit.</p>
-      <div id="sources"></div>
-    </section>
-    <section class="card">
-      <h2>Warnzeichen</h2>
-      <p class="muted">Ab zwei Zeichen schließt sich die Nullwelt für 30 Minuten.</p>
-      <div class="checks">
-        <label><input type="checkbox" data-signal="bodyVibration"> Körper vibriert stark</label>
-        <label><input type="checkbox" data-signal="worldAnswers"> Umwelt wirkt wie eine Antwort</label>
-        <label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst oder Allmacht</label>
-        <label><input type="checkbox" data-signal="wantMoreDevices"> Wunsch, Geräte anzuschließen</label>
-      </div>
-    </section>
-    <section class="card">
-      <h2>Transfer</h2>
-      <textarea id="construction" placeholder="Welche Konstruktion sehe ich?"></textarea>
-      <textarea id="effect" placeholder="Welche reale Wirkung bleibt?"></textarea>
-      <textarea id="action" placeholder="Welche kleine Handlung heute?"></textarea>
-      <button class="ghost" id="saveTransfer" type="button">Transfer speichern</button>
-      <p id="transferStatus" class="muted"></p>
-      <div id="history" class="muted"></div>
-    </section>
-    <section class="card">
-      <h2>Harte Grenze</h2>
-      <p class="muted">Kein Fernseher. Kein Smart-Home. Keine Wohnung. EULEN bleibt Werkzeug. Alles-ist-Fake zählt nicht als Freiheit.</p>
-    </section>
-    <p class="muted">Der 30-Tage-Plan ist nicht mehr die Startseite. Archiv: <a href="werkstatt.html">werkstatt.html</a></p>
-  </main>
-  <script type="module">
-    import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, evaluateFreedomCycle, freedomGuidance } from "./src/freedom-guard.js";
-    import { discoverResearchSources } from "./src/providers.js?v=21";
-    const KEY = "eulen-home-v2";
-    let state = load();
-    function load() {
-      try { const raw = JSON.parse(localStorage.getItem(KEY)); return { ...createFreedomState(raw), n: raw.n || 0 }; }
-      catch { return { ...createFreedomState({ mode: "boden" }), n: 0 }; }
-    }
-    function persist() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
-    function signals() { const out = {}; document.querySelectorAll("[data-signal]").forEach(input => out[input.dataset.signal] = input.checked); return out; }
-    function maybeGround(reason) {
-      const nextSignals = signals();
-      if (shouldEnterGround(nextSignals)) { state = { ...enterGroundMode({ ...state, signals: nextSignals }, reason), n: state.n }; persist(); return true; }
-      state.signals = nextSignals; persist(); return false;
-    }
-    function render() {
-      const guidance = freedomGuidance(state);
-      const badge = document.getElementById("modeBadge");
-      badge.textContent = state.mode === "nullwelt" ? "NULLWELT" : "BODEN";
-      badge.className = "badge " + (state.mode === "nullwelt" ? "nullwelt" : "boden");
-      document.getElementById("modeTitle").textContent = guidance.title;
-      document.getElementById("modeText").textContent = guidance.why + " " + guidance.action;
-      const n = state.n || 0;
-      document.getElementById("formula").textContent = `P(sim) = N/(N+1) = ${(n / (n + 1)).toFixed(3)} · N = ${n} · Hypothese, kein Beweis`;
-      document.getElementById("enterNullwelt").disabled = Boolean(state.groundUntil && Date.now() < Date.parse(state.groundUntil));
-      document.getElementById("history").innerHTML = (state.transfers || []).slice(0, 5).map(item => `<p>${item.construction}<br><i>${item.action}</i></p>`).join("") || "Noch kein Transfer.";
-    }
-    document.querySelectorAll("[data-signal]").forEach(input => input.addEventListener("change", () => maybeGround("Warnzeichen.")));
-    document.getElementById("enterGround").onclick = () => { state = { ...enterGroundMode(state, "Manuell."), n: state.n }; persist(); };
-    document.getElementById("enterNullwelt").onclick = () => {
-      const result = enterNullweltMode(state);
-      if (result.blocked) { document.getElementById("modeText").textContent = result.message; return; }
-      state = { ...result, n: state.n }; persist();
-    };
-    document.getElementById("saveTransfer").onclick = () => {
-      if (maybeGround("Transfer während Warnzeichen.")) return;
-      const construction = document.getElementById("construction").value;
-      const effect = document.getElementById("effect").value;
-      const smallAction = document.getElementById("action").value;
-      const result = evaluateFreedomCycle({ construction, effect, smallAction });
-      document.getElementById("transferStatus").textContent = result.reason;
-      if (!result.valid) return;
-      state.transfers = [{ at: new Date().toISOString(), construction, effect, action: smallAction }, ...(state.transfers || [])].slice(0, 20);
-      state.n = (state.n || 0) + 1; persist();
-    };
-    document.getElementById("learn").onclick = async () => {
-      if (maybeGround("Lernen während Warnzeichen.")) return;
-      const question = document.getElementById("question").value.trim();
-      const status = document.getElementById("learnStatus");
-      if (question.length < 8) { status.textContent = "Bitte eine konkrete Frage."; return; }
-      status.textContent = "Suche öffentliche Quellen …";
-      try {
-        const sources = await discoverResearchSources(question);
-        document.getElementById("sources").innerHTML = sources.map(item => `<article class="source"><b>${item.title}</b><span class="muted">${item.provider} · ${item.kind || "quelle"}</span><p>${item.excerpt || ""}</p><a href="${item.url}" target="_blank" rel="noopener">Quelle</a></article>`).join("") || "<p>Keine Treffer.</p>";
-        status.textContent = `${sources.length} Quellen. Fakten zuerst, Diskussionen als Meinung. Danach: Konstruktion, Wirkung, kleine Handlung.`;
-        state.n = (state.n || 0) + 1; persist();
-      } catch (error) { status.textContent = error.message || "Suche gerade nicht erreichbar."; }
-    };
-    render();
-  </script>
+<main>
+<header><div><div class="muted">EULEN · Freiheit mit Boden</div><h1>Mensch vor Person</h1></div><img src="assets/icon.svg" width="56" height="56" alt="Eule"></header>
+<section class="card"><div class="row"><span id="modeBadge" class="badge boden">BODEN</span><strong id="formula">P(sim)=0</strong></div><p id="modeText" class="muted"></p><div class="meter"><i id="progressBar" style="width:0%"></i></div><p class="muted" id="progressText">N=0</p><div class="row"><button class="primary" id="enterNullwelt" type="button">Nullwelt</button><button class="stop" id="enterGround" type="button">Boden</button></div></section>
+<section class="grid"><article class="card"><h2>Live-Netz</h2><canvas id="net" width="900" height="420"></canvas><p class="muted" id="netStatus">Bereit. Kein Gerätezugriff.</p></article><article class="card"><h2>Agenten</h2><div id="agents" class="agents"></div></article></section>
+<section class="card"><h2>Lernen</h2><textarea id="question" placeholder="Frage zu Konstruktion, Geld, Freiheit oder Institution"></textarea><button class="primary" id="learn" type="button">Agentenlauf starten</button><p id="learnStatus" class="muted">Bereit.</p><div id="sources"></div></section>
+<section class="grid"><article class="card"><h2>Assistent</h2><div id="chat" class="chat"></div><textarea id="chatInput" placeholder="Frag den Assistenten"></textarea><button class="ghost" id="send" type="button">Senden</button></article><article class="card"><h2>Warnzeichen und Transfer</h2><label><input type="checkbox" data-signal="bodyVibration"> Körpervibrieren</label><br><label><input type="checkbox" data-signal="worldAnswers"> Umwelt wirkt wie Antwort</label><br><label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst oder Allmacht</label><br><label><input type="checkbox" data-signal="wantMoreDevices"> Gerätewunsch</label><textarea id="construction" placeholder="Konstruktion"></textarea><textarea id="effect" placeholder="Reale Wirkung"></textarea><textarea id="action" placeholder="Kleine Handlung heute"></textarea><button class="ghost" id="saveTransfer" type="button">Transfer zählt für N</button><p id="transferStatus" class="muted"></p></article></section>
+</main>
+<script type="module">
+import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, evaluateFreedomCycle, freedomGuidance } from "./src/freedom-guard.js";
+import { discoverResearchSources } from "./src/providers.js?v=21";
+const AGENTS=[["Bodenwächter","Stoppt bei zwei Warnzeichen."],["Wertewächter","Mensch vor Rolle."],["P(sim)-Architekt","N/(N+1) nur als Hypothese."],["Quellenleser","Wikipedia, Studien, Web, Wikidata."],["Sozialfilter","Diskussion ist Meinung."],["Widerspruch","Sucht Gegenbeleg."],["Konstruktion","Geld und Institution sind gemacht und wirksam."],["Mensch/Person","Wesen vor rechtlicher Maske."],["Nullwelt→Realwelt","Jede Einsicht braucht eine kleine Handlung."],["Risikowächter","Kein Haus, kein TV, kein Alles-ist-Fake."],["Synthese","Verdichtet Quellen zum nächsten Schritt."],["Assistent","Antwortet aus Stand, nicht aus Allmacht."]];
+const KEY="eulen-home-v3";
+let state=load(), active=-1, pulse=0;
+const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
+function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw), n:raw.n||0, sources:raw.sources||0, chat:raw.chat||[]};}catch{return {...createFreedomState({mode:"boden"}), n:0, sources:0, chat:[]};}}
+function persist(){localStorage.setItem(KEY, JSON.stringify(state)); render();}
+function signals(){const out={}; document.querySelectorAll("[data-signal]").forEach(input=>out[input.dataset.signal]=input.checked); return out;}
+function maybeGround(reason){const next=signals(); if(shouldEnterGround(next)){state={...enterGroundMode({...state, signals:next}, reason), n:state.n, sources:state.sources, chat:state.chat}; persist(); return true;} state.signals=next; persist(); return false;}
+function render(){const guidance=freedomGuidance(state); const badge=document.getElementById("modeBadge"); badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN"; badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden"); document.getElementById("modeText").textContent=guidance.why+" "+guidance.action; const n=state.n||0, p=n/(n+1); document.getElementById("formula").textContent=`P(sim) = ${p.toFixed(3)} · Hypothese`; document.getElementById("progressBar").style.width=`${Math.round(p*100)}%`; document.getElementById("progressText").textContent=`N = ${n} · Transfers ${(state.transfers||[]).length} · Quellen ${state.sources||0}`; document.getElementById("agents").innerHTML=AGENTS.map((agent,index)=>`<article class="agent${index===active?" active":""}"><b>${agent[0]}</b><div class="muted">${agent[1]}</div></article>`).join(""); document.getElementById("chat").innerHTML=(state.chat||[]).slice(-8).map(item=>`<div class="msg"><b>${item.role}</b><div>${item.text}</div></div>`).join(""); document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil && Date.now()<Date.parse(state.groundUntil));}
+function draw(){const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h); const nodes=AGENTS.map((_,i)=>({x:80+(i%4)*220, y:70+Math.floor(i/4)*120})); ctx.strokeStyle="#24423d"; nodes.forEach((a,i)=>nodes.forEach((b,j)=>{if(j>i && (j-i)%4!==3){ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();}})); nodes.forEach((node,i)=>{ctx.beginPath(); ctx.fillStyle=i===active?"#7dd3c0":"#e8d6a8"; ctx.arc(node.x,node.y,i===active?16+Math.sin(pulse)*3:10,0,Math.PI*2); ctx.fill();}); pulse+=.08; requestAnimationFrame(draw);}
+function say(role,text){state.chat=[...(state.chat||[]),{role,text}].slice(-24);}
+function assistant(text){const last=(state.transfers||[])[0]; return ["Ich bin Werkzeug, kein Hausgeist.", `Modus: ${state.mode}. P(sim) ist Hypothese, N = ${state.n||0}.`, last?`Letzter Transfer: ${last.construction} → ${last.action}`:"Noch kein Transfer.", "Nächster Schritt bleibt klein und in der Realwelt.", text?`Zu deiner Frage: ${text.slice(0,280)}`:""].filter(Boolean).join(" ");}
+async function runAgents(question){document.getElementById("netStatus").textContent="Lauf aktiv. Nur öffentliche Quellen."; for(let i=0;i<AGENTS.length;i++){active=i; render(); await new Promise(r=>setTimeout(r,160));} const sources=await discoverResearchSources(question); active=10; state.sources=(state.sources||0)+sources.length; state.n=(state.n||0)+1; document.getElementById("sources").innerHTML=sources.slice(0,8).map(item=>`<article class="source"><b>${item.title}</b><div class="muted">${item.provider} · ${item.kind||"quelle"}</div><p>${item.excerpt||""}</p></article>`).join(""); say("Synthese", `Konstruktion prüfen. Wirkung benennen. Eine kleine Handlung ableiten. ${sources.length} Quellen, Diskussion zählt nicht als Beweis.`); document.getElementById("learnStatus").textContent=`${sources.length} Quellen eingeordnet.`; document.getElementById("netStatus").textContent="Lauf beendet. Stand gespeichert."; persist();}
+document.querySelectorAll("[data-signal]").forEach(input=>input.addEventListener("change",()=>maybeGround("Warnzeichen.")));
+document.getElementById("enterGround").onclick=()=>{state={...enterGroundMode(state,"Manuell."), n:state.n, sources:state.sources, chat:state.chat}; persist();};
+document.getElementById("enterNullwelt").onclick=()=>{const result=enterNullweltMode(state); if(result.blocked){document.getElementById("modeText").textContent=result.message; return;} state={...result, n:state.n, sources:state.sources, chat:state.chat}; persist();};
+document.getElementById("saveTransfer").onclick=()=>{if(maybeGround("Transfer während Warnzeichen.")) return; const result=evaluateFreedomCycle({construction:construction.value, effect:effect.value, smallAction:action.value}); document.getElementById("transferStatus").textContent=result.reason; if(!result.valid) return; state.transfers=[{at:new Date().toISOString(), construction:construction.value, effect:effect.value, action:action.value}, ...(state.transfers||[])].slice(0,20); state.n=(state.n||0)+1; say("Nullwelt→Realwelt", result.reason); persist();};
+document.getElementById("learn").onclick=async()=>{if(maybeGround("Lernen während Warnzeichen.")) return; const question=document.getElementById("question").value.trim(); if(question.length<8){document.getElementById("learnStatus").textContent="Bitte eine konkrete Frage."; return;} document.getElementById("learnStatus").textContent="Agentenlauf…"; try{await runAgents(question);}catch(error){document.getElementById("learnStatus").textContent=error.message||"Suche nicht erreichbar.";}};
+document.getElementById("send").onclick=()=>{const text=document.getElementById("chatInput").value.trim(); if(!text) return; say("Du", text); say("Assistent", assistant(text)); document.getElementById("chatInput").value=""; persist();};
+if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
+render(); draw();
+</script>
 </body>
 </html>
