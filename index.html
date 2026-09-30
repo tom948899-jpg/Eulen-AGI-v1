@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#07090c">
-<title>EULEN v27</title>
+<meta name="theme-color" content="#05070a">
+<title>EULEN v28</title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <style>
-:root{color-scheme:dark;--bg:#07090c;--card:#10161a;--line:#243034;--text:#f4efe6;--muted:#9aa59f;--accent:#7dd3c0;--gold:#e4d2a6;--stop:#d97870}
-*{box-sizing:border-box}body{margin:0;background:#07090c;color:var(--text);font:16px/1.45 system-ui,sans-serif}
+:root{color-scheme:dark;--text:#f4efe6;--muted:#9aa59f;--accent:#7dd3c0;--gold:#e4d2a6;--stop:#d97870}
+*{box-sizing:border-box}body{margin:0;background:#05070a;color:var(--text);font:16px/1.45 system-ui,sans-serif}
 main{max-width:720px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 14px 96px}
 .kicker{letter-spacing:.14em;font-size:.72rem;color:var(--accent)}h1{font:500 1.8rem Georgia,serif;margin:.2rem 0 .7rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;margin:0 0 12px}h2{margin:0 0 .5rem;font-size:1rem}
+.card{background:#10161a;border:1px solid #243034;border-radius:22px;padding:14px;margin:0 0 12px}h2{margin:0 0 .5rem;font-size:1rem}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.badge{font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:999px}.boden{background:#3a2e16;color:#e2b15a}.nullwelt{background:#14352f;color:var(--accent)}
-button,textarea{font:inherit}textarea{width:100%;min-height:72px;margin:8px 0;background:#0c1113;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px}
+button,textarea{font:inherit}textarea{width:100%;min-height:72px;margin:8px 0;background:#0c1113;color:var(--text);border:1px solid #243034;border-radius:14px;padding:12px}
 button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{background:var(--accent);color:#06221c}.ghost{background:#1c2628;color:var(--text)}.stop{background:var(--stop);color:#2a0908}
-.stage{height:210px;border-radius:16px;background:#05070a;overflow:hidden}canvas{width:100%;height:100%;display:block}
-.msg{border-top:1px solid var(--line);padding:8px 0}.msg b{color:var(--gold)}.out{white-space:pre-wrap}.muted{color:var(--muted)}
+.stage{height:250px;border-radius:16px;background:#000;overflow:hidden}canvas{width:100%;height:100%;display:block}
+.msg{border-top:1px solid #243034;padding:8px 0}.msg b{color:var(--gold)}.out{white-space:pre-wrap}.muted{color:var(--muted)}
 </style>
 </head>
 <body>
 <main>
-<div class="kicker">EULEN v27 · SCHICHTEN</div>
+<div class="kicker">EULEN v28 · GLOW</div>
 <h1>Mensch vor Person</h1>
 <section class="card">
 <div class="row"><span id="modeBadge" class="badge boden">BODEN</span><strong id="formula">P(sim)=0</strong></div>
@@ -31,7 +31,6 @@ button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{ba
 <section class="card">
 <h2>Schicht-Netz</h2>
 <div class="stage"><canvas id="net"></canvas></div>
-<p class="muted">Gold nimmt die Frage. Türkis mischt. Rechts bleibt die Handlung. Keine Wörter auf den Knoten.</p>
 </section>
 <section class="card">
 <h2>Vier Agenten</h2>
@@ -43,7 +42,7 @@ button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{ba
 <section class="card">
 <h2>Gespeicherte Ausgabe</h2>
 <div id="outputs" class="muted">Noch keine.</div>
-<textarea id="offer" placeholder="Geldspur ohne Anrufen, zum Beispiel: Vorlage 15 Euro, asynchron."></textarea>
+<textarea id="offer" placeholder="Geldspur ohne Anrufen."></textarea>
 <button class="ghost" id="saveOffer" type="button">An letzte Ausgabe hängen</button>
 </section>
 <section class="card">
@@ -58,13 +57,14 @@ import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMo
 import { discoverResearchSources } from "./src/providers.js?v=21";
 if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(list => list.forEach(reg => reg.unregister()));
 const KEY="eulen-run-v2";
-let state=load(), t=0, pulse=0;
+let state=load(), t=0;
 const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
 function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),n:raw.n||0,outputs:raw.outputs||[],log:raw.log||[]};}catch{return {...createFreedomState({mode:"boden"}),n:0,outputs:[],log:[]};}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
 function signals(){const out={};document.querySelectorAll("[data-signal]").forEach(el=>out[el.dataset.signal]=el.checked);return out;}
 function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Recht und Geld dürfen hier Konstruktion sein. Stopp nur bei Körper, Sync oder Geräten.":g.why;document.getElementById("formula").textContent=`P(sim)=${((state.n||0)/((state.n||0)+1)).toFixed(3)}`;document.getElementById("log").innerHTML=(state.log||[]).slice(0,6).map(item=>`<div class="msg"><b>${item.role}</b><div>${item.text}</div></div>`).join("");document.getElementById("outputs").innerHTML=(state.outputs||[]).slice(0,3).map(item=>`<article class="msg"><div class="out">${item.text}${item.offer?"\n\nGeldspur: "+item.offer:""}</div></article>`).join("")||"Noch keine.";document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil&&Date.now()<Date.parse(state.groundUntil));}
-function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);const counts=[5,5,5,5,3], colors=["#e4d2a6","#7dd3c0","#7dd3c0","#e4d2a6","#7dd3c0"];const cols=counts.map((n,ci)=>Array.from({length:n},(_,ri)=>({x:w*(0.1+ci*0.2),y:h*(0.18+ri*(0.64/(n-1))),c:colors[ci],on:ci===pulse})));for(let c=0;c<cols.length-1;c++)cols[c].forEach(a=>cols[c+1].forEach(b=>{ctx.strokeStyle=a.on?"rgba(228,210,166,.45)":"rgba(125,211,192,.2)";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();const u=(t*0.22+(a.y)/300)%1;ctx.fillStyle=a.c;ctx.beginPath();ctx.arc(a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u,1.7,0,6.3);ctx.fill();}));cols.flat().forEach(node=>{ctx.beginPath();ctx.fillStyle=node.c;ctx.globalAlpha=node.on?1:.85;ctx.arc(node.x,node.y,node.on?5:3.6,0,6.3);ctx.fill();ctx.globalAlpha=1;});t+=0.016;if(Math.random()<0.01)pulse=(pulse+1)%5;requestAnimationFrame(draw);}
+function glow(x,y,r,color){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,"rgba(0,0,0,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,6.3);ctx.fill();}
+function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.fillStyle="#000";ctx.fillRect(0,0,w,h);const counts=[5,5,5,5,3], colors=["#e4d2a6","#3ee0cf","#3ee0cf","#e4d2a6","#3ee0cf"];const cols=counts.map((n,ci)=>Array.from({length:n},(_,ri)=>({x:w*(0.12+ci*0.19),y:h*(0.16+ri*(0.68/(n-1))),c:colors[ci]})));ctx.lineWidth=1.1;for(let c=0;c<cols.length-1;c++)cols[c].forEach((a,ai)=>cols[c+1].forEach((b,bi)=>{ctx.strokeStyle=c%2?"rgba(62,224,207,.35)":"rgba(228,210,166,.32)";ctx.beginPath();ctx.moveTo(a.x,a.y);const mx=(a.x+b.x)/2,my=(a.y+b.y)/2+(ai-bi)*4;ctx.quadraticCurveTo(mx,my,b.x,b.y);ctx.stroke();const u=(t*0.18+(ai+bi)/9)%1;const x=a.x+(b.x-a.x)*u,y=a.y+(b.y-a.y)*u;glow(x,y,7,c%2?"rgba(62,224,207,.7)":"rgba(228,210,166,.7)");}));cols.flat().forEach(node=>{glow(node.x,node.y,16,node.c==="#e4d2a6"?"rgba(228,210,166,.45)":"rgba(62,224,207,.4)");ctx.beginPath();ctx.fillStyle=node.c;ctx.arc(node.x,node.y,5.5,0,6.3);ctx.fill();});t+=0.016;requestAnimationFrame(draw);}
 function say(role,text){state.log=[{role,text},...(state.log||[])].slice(0,8);}
 async function run(question){if(shouldEnterGround(signals())){state={...enterGroundMode(state,"Warnzeichen."),n:state.n,outputs:state.outputs,log:state.log};persist();document.getElementById("status").textContent="Risiko stoppt.";return;}say("Ziel",question);document.getElementById("status").textContent="Quellen suchen.";let sources=[];try{sources=await discoverResearchSources(question);}catch(e){say("Quellen",e.message||"Keine Quelle.");}const top=sources.slice(0,2).map(item=>item.provider+": "+item.title).join(" · ");say("Quellen",top||"Keine externe Quelle. Intern weiter.");say("Gegenmodell","Schöne Lesart kann falsch sein. Diskussion ist kein Beweis. Spürbares bleibt benennbar.");const text=`Konstruktion: ${question} darf als gemacht gelten.\nWirkung: ${top||"noch ohne externe Spur"}.\nHandlung: einen Satz daraus machen, den jemand ohne Gespräch lesen kann.`;say("Synthese",text);state.outputs=[{at:new Date().toISOString(),text,offer:""},...(state.outputs||[])].slice(0,8);state.n=(state.n||0)+1;document.getElementById("status").textContent="Gespeichert.";persist();}
 document.getElementById("run").onclick=()=>{const q=document.getElementById("question").value.trim();if(q.length<8){document.getElementById("status").textContent="Bitte konkreter.";return;}run(q);};
