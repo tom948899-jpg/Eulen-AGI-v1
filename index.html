@@ -4,49 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000">
-<title>EULEN v30</title>
-<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<title>EULEN v31</title>
+<link rel="icon" href="assets/icon.svg">
 <style>
-:root{color-scheme:dark;--text:#f4efe6;--muted:#9aa59f;--accent:#7dd3c0;--gold:#e4d2a6;--stop:#d97870}
+:root{color-scheme:dark;--gold:#f0c84a;--teal:#2de2d0;--text:#f6f1e8;--muted:#9aa59f}
 *{box-sizing:border-box}body{margin:0;background:#000;color:var(--text);font:16px/1.45 system-ui,sans-serif}
-main{max-width:720px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 14px 96px}
-.kicker{letter-spacing:.14em;font-size:.72rem;color:var(--accent)}h1{font:500 1.8rem Georgia,serif;margin:.2rem 0 .7rem}
-.card{background:#0c1014;border:1px solid #1d2826;border-radius:22px;padding:14px;margin:0 0 12px}h2{margin:0 0 .5rem;font-size:1rem}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.badge{font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:999px}.boden{background:#3a2e16;color:#e2b15a}.nullwelt{background:#14352f;color:var(--accent)}
-button,textarea{font:inherit}textarea{width:100%;min-height:72px;margin:8px 0;background:#07090c;color:var(--text);border:1px solid #1d2826;border-radius:14px;padding:12px}
-button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{background:var(--accent);color:#06221c}.ghost{background:#1c2628;color:var(--text)}.stop{background:var(--stop);color:#2a0908}
-.stage{height:220px;border-radius:16px;background:#000;overflow:hidden}canvas{width:100%;height:100%;display:block}
-.msg{border-top:1px solid #1d2826;padding:8px 0}.msg b{color:var(--gold)}.out{white-space:pre-wrap}.muted{color:var(--muted)}
+main{max-width:680px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px 140px}
+.kicker{letter-spacing:.18em;font-size:.68rem;color:var(--teal)}h1{font:500 2rem Georgia,serif;margin:.2rem 0 1rem}
+.stage{height:300px;background:#000;border-radius:20px;overflow:hidden;margin:0 0 14px}canvas{width:100%;height:100%;display:block}
+.grid{display:grid;grid-template-columns:1fr;gap:10px}.card{background:#0c1013;border:1px solid #1c2826;border-radius:18px;padding:14px}h2{margin:0 0 6px;font-size:.95rem;color:var(--gold)}.card p{margin:0;color:var(--muted)}
+textarea,button{font:inherit}textarea{width:100%;min-height:84px;margin:12px 0;background:#07090c;color:var(--text);border:1px solid #24302e;border-radius:16px;padding:14px}
+button{width:100%;border:0;border-radius:16px;padding:14px;font-weight:700;background:var(--teal);color:#04211e}
+.out{white-space:pre-wrap;border-top:1px solid #1c2826;margin-top:12px;padding-top:12px}
 </style>
 </head>
 <body>
 <main>
-<div class="kicker">EULEN v30 · STIMME</div>
+<div class="kicker">EULEN v31</div>
 <h1>Mensch vor Person</h1>
-<section class="card"><div class="row"><span id="modeBadge" class="badge boden">BODEN</span><strong id="formula">Schritt 0</strong></div><p id="modeText" class="muted"></p><div class="row"><button class="primary" id="enterNullwelt" type="button">Nullwelt</button><button class="stop" id="enterGround" type="button">Boden</button></div></section>
-<section class="card"><div class="stage"><canvas id="net"></canvas></div></section>
-<section class="card"><h2>Lauf</h2><textarea id="question" placeholder="Satz von ihm, oder deine Frage."></textarea><button class="primary" id="run" type="button" style="width:100%">In dieser Stimme denken</button><p id="status" class="muted">Person und Geld sind gemacht. Die Trennung bleibt unvollständig.</p><div id="log"></div></section>
-<section class="card"><h2>Fortschritt</h2><div id="outputs" class="muted">Noch keiner.</div></section>
-<section class="card"><label><input type="checkbox" data-signal="bodyVibration"> Körper</label> <label><input type="checkbox" data-signal="worldAnswers"> Sync</label> <label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst</label> <label><input type="checkbox" data-signal="wantMoreDevices"> Geräte</label></section>
+<div class="stage"><canvas id="net"></canvas></div>
+<div class="grid">
+<article class="card"><h2>Zeichen</h2><p>Geld ist Charta, eine Marke. Person ist die Maske, an der die Marke hängt.</p></article>
+<article class="card"><h2>Annahme</h2><p>Die Marke wirkt, weil eine Kasse sie nimmt. Ein selbst geschriebener Zettel ist keine Charta.</p></article>
+<article class="card"><h2>Grenze</h2><p>Die Trennung bleibt unvollständig. Miete und Essen bleiben spürbar. Kein Gerätezugriff.</p></article>
+</div>
+<textarea id="question" placeholder="Satz oder Frage"></textarea>
+<button id="run" type="button">Denken und Angebot schreiben</button>
+<article class="card" id="out"><h2>Ausgabe</h2><p>Noch keine.</p></article>
 </main>
-<script type="module">
-import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, freedomGuidance } from "./src/freedom-guard.js";
-import { sprechen } from "./src/stimme.js";
-if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(list => list.forEach(reg => reg.unregister()));
-const KEY="eulen-run-v4";
-let state=load(), t=0;
+<script>
 const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
-function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),step:raw.step||0,outputs:raw.outputs||[],log:raw.log||[]};}catch{return {...createFreedomState({mode:"nullwelt"}),step:0,outputs:[],log:[]};}}
-function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
-function signals(){const out={};document.querySelectorAll("[data-signal]").forEach(el=>out[el.dataset.signal]=el.checked);return out;}
-function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Person ist die Maske. Geld ist Charta. Vollständig trennt es sich nicht, weil Geld weiter wirkt.":g.why;document.getElementById("formula").textContent=`Lauf ${state.step||0}`;document.getElementById("log").innerHTML=(state.log||[]).slice(0,4).map(item=>`<div class="msg"><b>${item.role}</b><div class="out">${item.text}</div></div>`).join("");document.getElementById("outputs").innerHTML=(state.outputs||[]).slice(-4).map(item=>`<article class="msg"><div class="out">${item.text}</div></article>`).join("")||"Noch keiner.";}
-function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.fillStyle="#000";ctx.fillRect(0,0,w,h);const spec=[[5,"#f0c84a"],[5,"#2de2d0"],[5,"#f0c84a"],[3,"#2de2d0"]];const cols=spec.map((layer,ci)=>Array.from({length:layer[0]},(_,ri)=>({x:w*(0.12+ci*0.24),y:h*(0.16+ri*(0.68/(layer[0]-1))),c:layer[1]})));for(let c=0;c<cols.length-1;c++)cols[c].forEach(a=>cols[c+1].forEach(b=>{ctx.strokeStyle=a.c;ctx.globalAlpha=.3;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo((a.x+b.x)/2,(a.y+b.y)/2,b.x,b.y);ctx.stroke();}));ctx.globalAlpha=1;cols.flat().forEach(node=>{ctx.shadowColor=node.c;ctx.shadowBlur=16;ctx.fillStyle=node.c;ctx.beginPath();ctx.arc(node.x,node.y,7,0,6.3);ctx.fill();ctx.shadowBlur=0;});t+=0.016;requestAnimationFrame(draw);}
-function say(role,text){state.log=[{role,text},...(state.log||[])].slice(0,6);}
-function run(question){if(shouldEnterGround(signals())){state={...enterGroundMode(state,"Warnzeichen."),step:state.step,outputs:state.outputs,log:state.log};persist();return;}const text=sprechen(question);say("Stimme",text);state.outputs=[...(state.outputs||[]),{text}].slice(-8);state.step=(state.step||0)+1;document.getElementById("status").textContent="Gedacht. Nicht als Rechtsakt.";persist();}
-document.getElementById("run").onclick=()=>{const q=document.getElementById("question").value.trim();if(q.length<4)return;run(q);};
-document.getElementById("enterGround").onclick=()=>{state={...enterGroundMode(state,"Manuell."),step:state.step,outputs:state.outputs,log:state.log};persist();};
-document.getElementById("enterNullwelt").onclick=()=>{const result=enterNullweltMode(state);if(result.blocked)return;state={...result,step:state.step,outputs:state.outputs,log:state.log};persist();};
-render();draw();
+let t=0;
+function draw(){
+ const r=canvas.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2);
+ canvas.width=r.width*dpr; canvas.height=r.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+ const w=r.width,h=r.height; ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
+ const spec=[[6,"#f0c84a"],[6,"#2de2d0"],[6,"#2de2d0"],[6,"#f0c84a"],[4,"#2de2d0"]];
+ const cols=spec.map((layer,ci)=>Array.from({length:layer[0]},(_,ri)=>({x:w*(0.1+ci*0.2),y:h*(0.14+ri*(0.72/(layer[0]-1))),c:layer[1]})));
+ for(let c=0;c<cols.length-1;c++) cols[c].forEach(a=>cols[c+1].forEach(b=>{
+  ctx.strokeStyle=a.c; ctx.globalAlpha=.34; ctx.lineWidth=1.3; ctx.shadowColor=a.c; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo((a.x+b.x)/2,(a.y+b.y)/2,b.x,b.y); ctx.stroke();
+  const u=(t*.12+(a.y+b.x)/400)%1; ctx.globalAlpha=.9; ctx.fillStyle=a.c; ctx.beginPath(); ctx.arc(a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u,2.2,0,6.3); ctx.fill();
+ }));
+ ctx.globalAlpha=1; cols.flat().forEach(n=>{ctx.shadowColor=n.c; ctx.shadowBlur=22; ctx.fillStyle=n.c; ctx.beginPath(); ctx.arc(n.x,n.y,8,0,6.3); ctx.fill(); ctx.shadowBlur=0; ctx.fillStyle="#fff8"; ctx.beginPath(); ctx.arc(n.x-2,n.y-2,2.4,0,6.3); ctx.fill();});
+ t+=.016; requestAnimationFrame(draw);
+}
+function denken(q){
+ return `Zeichen: ${q} trifft die Maske, nicht den Körper. Geld darin ist Charta.\nAnnahme: Wirkt nur, wenn eine Kasse die Marke nimmt.\nGrenze: Trennung unvollständig. Essen und Miete bleiben.\nAngebot: Ein Satz dazu, asynchron lesbar, ohne Gespräch. Vorschlag: kurze Vorlage "Charta in drei Sätzen", 15 Euro.`;
+}
+document.getElementById("run").onclick=()=>{
+ const q=document.getElementById("question").value.trim();
+ if(q.length<4) return;
+ const text=denken(q);
+ const old=JSON.parse(localStorage.getItem("eulen-v31")||"[]");
+ old.push(text); localStorage.setItem("eulen-v31", JSON.stringify(old.slice(-6)));
+ document.getElementById("out").innerHTML=`<h2>Ausgabe</h2><div class="out">${text}</div>`;
+};
+draw();
 </script>
 </body>
 </html>
