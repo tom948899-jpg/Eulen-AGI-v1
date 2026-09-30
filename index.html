@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000">
-<title>EULEN v29</title>
+<title>EULEN v30</title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <style>
 :root{color-scheme:dark;--text:#f4efe6;--muted:#9aa59f;--accent:#7dd3c0;--gold:#e4d2a6;--stop:#d97870}
@@ -15,36 +15,35 @@ main{max-width:720px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 14
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.badge{font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:999px}.boden{background:#3a2e16;color:#e2b15a}.nullwelt{background:#14352f;color:var(--accent)}
 button,textarea{font:inherit}textarea{width:100%;min-height:72px;margin:8px 0;background:#07090c;color:var(--text);border:1px solid #1d2826;border-radius:14px;padding:12px}
 button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{background:var(--accent);color:#06221c}.ghost{background:#1c2628;color:var(--text)}.stop{background:var(--stop);color:#2a0908}
-.stage{height:280px;border-radius:16px;background:#000;overflow:hidden}canvas{width:100%;height:100%;display:block}
+.stage{height:220px;border-radius:16px;background:#000;overflow:hidden}canvas{width:100%;height:100%;display:block}
 .msg{border-top:1px solid #1d2826;padding:8px 0}.msg b{color:var(--gold)}.out{white-space:pre-wrap}.muted{color:var(--muted)}
 </style>
 </head>
 <body>
 <main>
-<div class="kicker">EULEN v29</div>
+<div class="kicker">EULEN v30 · STIMME</div>
 <h1>Mensch vor Person</h1>
 <section class="card"><div class="row"><span id="modeBadge" class="badge boden">BODEN</span><strong id="formula">Schritt 0</strong></div><p id="modeText" class="muted"></p><div class="row"><button class="primary" id="enterNullwelt" type="button">Nullwelt</button><button class="stop" id="enterGround" type="button">Boden</button></div></section>
 <section class="card"><div class="stage"><canvas id="net"></canvas></div></section>
-<section class="card"><h2>Lauf</h2><textarea id="question" placeholder="Was soll der nächste neue Schritt klären?"></textarea><button class="primary" id="run" type="button" style="width:100%">Nächsten Schritt erzeugen</button><p id="status" class="muted">Bereit. Wiederholung zählt nicht.</p><div id="log"></div></section>
+<section class="card"><h2>Lauf</h2><textarea id="question" placeholder="Satz von ihm, oder deine Frage."></textarea><button class="primary" id="run" type="button" style="width:100%">In dieser Stimme denken</button><p id="status" class="muted">Person und Geld sind gemacht. Die Trennung bleibt unvollständig.</p><div id="log"></div></section>
 <section class="card"><h2>Fortschritt</h2><div id="outputs" class="muted">Noch keiner.</div></section>
 <section class="card"><label><input type="checkbox" data-signal="bodyVibration"> Körper</label> <label><input type="checkbox" data-signal="worldAnswers"> Sync</label> <label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst</label> <label><input type="checkbox" data-signal="wantMoreDevices"> Geräte</label></section>
 </main>
 <script type="module">
 import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, freedomGuidance } from "./src/freedom-guard.js";
-import { discoverResearchSources } from "./src/providers.js?v=21";
+import { sprechen } from "./src/stimme.js";
 if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(list => list.forEach(reg => reg.unregister()));
-const KEY="eulen-run-v3";
-const STEPS=["Quelle in einem Satz notieren","Gegenlesart in einem Satz daneben","Daraus ein Angebot ohne Gespräch formulieren","Angebot einmal öffentlich ablegen","Eine Rückmeldung abwarten, nicht nachfassen"];
+const KEY="eulen-run-v4";
 let state=load(), t=0;
 const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
-function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),step:raw.step||0,outputs:raw.outputs||[],log:raw.log||[]};}catch{return {...createFreedomState({mode:"boden"}),step:0,outputs:[],log:[]};}}
+function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),step:raw.step||0,outputs:raw.outputs||[],log:raw.log||[]};}catch{return {...createFreedomState({mode:"nullwelt"}),step:0,outputs:[],log:[]};}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
 function signals(){const out={};document.querySelectorAll("[data-signal]").forEach(el=>out[el.dataset.signal]=el.checked);return out;}
-function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Konstruktion erlaubt. Stopp nur bei Körper, Sync, Geräten.":g.why;document.getElementById("formula").textContent=`Schritt ${state.step||0} von ${STEPS.length}`;document.getElementById("log").innerHTML=(state.log||[]).slice(0,5).map(item=>`<div class="msg"><b>${item.role}</b><div>${item.text}</div></div>`).join("");document.getElementById("outputs").innerHTML=(state.outputs||[]).map(item=>`<article class="msg"><b>Schritt ${item.step}</b><div class="out">${item.text}</div></article>`).join("")||"Noch keiner.";document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil&&Date.now()<Date.parse(state.groundUntil));}
-function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.fillStyle="#000";ctx.fillRect(0,0,w,h);const spec=[[6,"#f0c84a"],[6,"#2de2d0"],[6,"#2de2d0"],[6,"#f0c84a"],[4,"#2de2d0"]];const cols=spec.map((layer,ci)=>Array.from({length:layer[0]},(_,ri)=>({x:w*(0.08+ci*0.21),y:h*(0.12+ri*(0.76/(layer[0]-1))),c:layer[1]})));ctx.shadowBlur=8;for(let c=0;c<cols.length-1;c++)cols[c].forEach(a=>cols[c+1].forEach(b=>{ctx.shadowColor=a.c;ctx.strokeStyle=a.c;ctx.globalAlpha=.28;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo((a.x+b.x)/2,(a.y+b.y)/2,b.x,b.y);ctx.stroke();}));ctx.globalAlpha=1;cols.flat().forEach(node=>{ctx.shadowColor=node.c;ctx.shadowBlur=18;ctx.fillStyle=node.c;ctx.beginPath();ctx.arc(node.x,node.y,7,0,6.3);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle="#fff6";ctx.beginPath();ctx.arc(node.x-1.5,node.y-1.5,2.2,0,6.3);ctx.fill();});t+=0.016;requestAnimationFrame(draw);}
-function say(role,text){state.log=[{role,text},...(state.log||[])].slice(0,8);}
-async function run(question){if(shouldEnterGround(signals())){state={...enterGroundMode(state,"Warnzeichen."),step:state.step,outputs:state.outputs,log:state.log};persist();return;}if((state.step||0)>=STEPS.length){document.getElementById("status").textContent="Diese Fünf sind durch. Nächster Kreis erst nach einer echten Rückmeldung.";return;}const step=(state.step||0)+1;const action=STEPS[step-1];say("Ziel",question);let sources=[];try{sources=await discoverResearchSources(question);}catch(e){say("Quellen",e.message||"Keine Quelle.");}const top=sources[0]?sources[0].title:"keine neue Quelle";say("Quellen",top);say("Gegenmodell","Nicht wiederholen, was schon gespeichert ist.");const text=`Schritt ${step}: ${action}\nFrage: ${question}\nSpur: ${top}` ;if((state.outputs||[]).some(item=>item.text===text)){document.getElementById("status").textContent="Gleicher Schritt schon da. Nicht gezählt.";return;}say("Synthese",text);state.outputs=[...(state.outputs||[]),{step,text}];state.step=step;document.getElementById("status").textContent=`Schritt ${step} gespeichert.`;persist();}
-document.getElementById("run").onclick=()=>{const q=document.getElementById("question").value.trim();if(q.length<8)return;run(q);};
+function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Person ist die Maske. Geld ist Charta. Vollständig trennt es sich nicht, weil Geld weiter wirkt.":g.why;document.getElementById("formula").textContent=`Lauf ${state.step||0}`;document.getElementById("log").innerHTML=(state.log||[]).slice(0,4).map(item=>`<div class="msg"><b>${item.role}</b><div class="out">${item.text}</div></div>`).join("");document.getElementById("outputs").innerHTML=(state.outputs||[]).slice(-4).map(item=>`<article class="msg"><div class="out">${item.text}</div></article>`).join("")||"Noch keiner.";}
+function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.fillStyle="#000";ctx.fillRect(0,0,w,h);const spec=[[5,"#f0c84a"],[5,"#2de2d0"],[5,"#f0c84a"],[3,"#2de2d0"]];const cols=spec.map((layer,ci)=>Array.from({length:layer[0]},(_,ri)=>({x:w*(0.12+ci*0.24),y:h*(0.16+ri*(0.68/(layer[0]-1))),c:layer[1]})));for(let c=0;c<cols.length-1;c++)cols[c].forEach(a=>cols[c+1].forEach(b=>{ctx.strokeStyle=a.c;ctx.globalAlpha=.3;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo((a.x+b.x)/2,(a.y+b.y)/2,b.x,b.y);ctx.stroke();}));ctx.globalAlpha=1;cols.flat().forEach(node=>{ctx.shadowColor=node.c;ctx.shadowBlur=16;ctx.fillStyle=node.c;ctx.beginPath();ctx.arc(node.x,node.y,7,0,6.3);ctx.fill();ctx.shadowBlur=0;});t+=0.016;requestAnimationFrame(draw);}
+function say(role,text){state.log=[{role,text},...(state.log||[])].slice(0,6);}
+function run(question){if(shouldEnterGround(signals())){state={...enterGroundMode(state,"Warnzeichen."),step:state.step,outputs:state.outputs,log:state.log};persist();return;}const text=sprechen(question);say("Stimme",text);state.outputs=[...(state.outputs||[]),{text}].slice(-8);state.step=(state.step||0)+1;document.getElementById("status").textContent="Gedacht. Nicht als Rechtsakt.";persist();}
+document.getElementById("run").onclick=()=>{const q=document.getElementById("question").value.trim();if(q.length<4)return;run(q);};
 document.getElementById("enterGround").onclick=()=>{state={...enterGroundMode(state,"Manuell."),step:state.step,outputs:state.outputs,log:state.log};persist();};
 document.getElementById("enterNullwelt").onclick=()=>{const result=enterNullweltMode(state);if(result.blocked)return;state={...result,step:state.step,outputs:state.outputs,log:state.log};persist();};
 render();draw();
