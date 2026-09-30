@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#090b0f"/>
-  <circle cx="256" cy="256" r="174" fill="#11151b" stroke="#f4b942" stroke-width="12"/>
-  <path d="M160 172c40-42 152-42 192 0v168c-50 45-142 45-192 0z" fill="#171c24" stroke="#f4b942" stroke-width="10"/>
-  <circle cx="210" cy="236" r="42" fill="#f4b942"/>
-  <circle cx="302" cy="236" r="42" fill="#f4b942"/>
-  <circle cx="210" cy="236" r="18" fill="#090b0f"/>
-  <circle cx="302" cy="236" r="18" fill="#090b0f"/>
-  <path d="m256 264 25 35-25 17-25-17z" fill="#8ed8b8"/>
-  <text x="256" y="402" fill="#f3f0e8" font-family="serif" font-size="52" text-anchor="middle">EULEN</text>
+  <rect width="512" height="512" rx="108" fill="#090b0f"/>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="#0e1618" stroke="#7dd3c0" stroke-width="14"/>
+  <ellipse cx="256" cy="286" rx="130" ry="128" fill="#122022" stroke="#e8d6a8" stroke-width="10"/>
+  <polygon points="150,190 190,86 236,176" fill="#122022" stroke="#e8d6a8" stroke-width="8"/>
+  <polygon points="362,190 322,86 276,176" fill="#122022" stroke="#e8d6a8" stroke-width="8"/>
+  <circle cx="209" cy="255" r="41" fill="#f4ecd6"/>
+  <circle cx="303" cy="255" r="41" fill="#f4ecd6"/>
+  <circle cx="211" cy="253" r="15" fill="#090b0f"/>
+  <circle cx="301" cy="253" r="15" fill="#090b0f"/>
+  <polygon points="256,286 232,332 280,332" fill="#7dd3c0"/>
 </svg>

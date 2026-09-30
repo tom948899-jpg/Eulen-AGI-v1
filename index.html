@@ -1,420 +1,153 @@
 <!doctype html>
 <html lang="de">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="EULEN Werkstatt – lernen, simulieren und verantwortungsvoll entscheiden.">
-    <meta name="theme-color" content="#090b0f">
-    <title>EULEN Werkstatt</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css?v=20">
-  </head>
-  <body>
-    <a class="skip-link" href="#main">Zum Inhalt springen</a>
-    <header class="topbar">
-      <a class="brand" href="#dashboard" aria-label="EULEN Werkstatt Startseite">
-        <span class="brand-mark" aria-hidden="true">E</span>
-        <span><strong>EULEN</strong><small>Werkstatt für klare Entscheidungen</small></span>
-      </a>
-      <div class="topbar-actions">
-        <span class="status-dot"><i></i> 32 Agenten lokal bereit</span>
-        <button class="icon-button" id="themeToggle" type="button" aria-label="Farbschema wechseln">◐</button>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="EULEN">
+  <title>EULEN · Freiheit</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: dark; --bg:#090b0f; --card:#12181b; --line:#243036; --text:#f3efe6; --muted:#a7b0aa; --accent:#7dd3c0; --gold:#e8d6a8; --warn:#e2b15a; --stop:#e07a72; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.5 Georgia, serif; background:radial-gradient(1200px 500px at 50% -10%, #17312e, var(--bg) 55%); color:var(--text); }
+    main { max-width:760px; margin:0 auto; padding:22px 16px 64px; }
+    header { display:flex; gap:14px; align-items:center; margin-bottom:18px; }
+    .mark { width:64px; height:64px; border-radius:18px; background:#0e1618; }
+    .eyebrow { letter-spacing:.16em; font-size:.72rem; color:var(--accent); font-family:system-ui,sans-serif; }
+    h1 { font-size:1.8rem; margin:.15rem 0; font-weight:500; }
+    h2 { font-size:1.15rem; margin:0 0 .4rem; font-weight:500; }
+    .muted { color:var(--muted); font-family:system-ui,sans-serif; font-size:.92rem; }
+    .card { background:rgba(18,24,27,.92); border:1px solid var(--line); border-radius:20px; padding:16px; margin:12px 0; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    button, a.btn { border:0; border-radius:12px; padding:12px 14px; font:600 15px system-ui,sans-serif; text-decoration:none; display:inline-block; }
+    .primary { background:var(--accent); color:#06221c; }
+    .ghost { background:#1c2628; color:var(--text); }
+    .stop { background:var(--stop); color:#2a0908; }
+    textarea { width:100%; background:#0c1113; color:var(--text); border:1px solid var(--line); border-radius:12px; padding:10px; font:15px system-ui,sans-serif; min-height:72px; }
+    .badge { font:600 .72rem system-ui,sans-serif; padding:4px 8px; border-radius:999px; }
+    .boden { background:#3a2e16; color:var(--warn); }
+    .nullwelt { background:#14352f; color:var(--accent); }
+    .checks label { display:flex; gap:10px; margin:8px 0; font-family:system-ui,sans-serif; }
+    .source { border-top:1px solid var(--line); padding:10px 0; }
+    .formula { font-family:ui-monospace,monospace; color:var(--gold); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img class="mark" src="assets/icon.svg" alt="Eulen-Zeichen">
+      <div>
+        <div class="eyebrow">EULEN</div>
+        <h1>Mensch vor Person</h1>
+        <p class="muted">Freiheit mit Boden. Konstruktionen durchschauen. Kein Hauszugriff.</p>
       </div>
     </header>
-
-    <div class="app-shell">
-      <nav class="sidebar" aria-label="Hauptnavigation">
-        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Überblick</button>
-        <button class="nav-item" data-view="plan"><span>✓</span> 30-Tage-Plan</button>
-        <button class="nav-item" data-view="simulations"><span>⌁</span> Simulationen</button>
-        <button class="nav-item" data-view="research"><span>◫</span> Wissen & Recherche</button>
-        <button class="nav-item" data-view="agents"><span>◇</span> Agentenraum</button>
-        <button class="nav-item" data-view="chat"><span>◌</span> Assistent</button>
-        <button class="nav-item" data-view="settings"><span>⚙</span> Daten & Konfiguration</button>
-        <div class="sidebar-note">
-          <strong>Sicherheitsprinzip</strong>
-          <p>Erst verstehen, dann simulieren, erst danach selbst entscheiden. Keine Echtgeld-Automation.</p>
-        </div>
-      </nav>
-
-      <main id="main" tabindex="-1">
-        <section class="view active" id="dashboard" aria-labelledby="dashboardTitle">
-          <div class="hero">
-            <div>
-              <p class="eyebrow">GUTEN TAG · DEIN LERNRAUM</p>
-              <h1 id="dashboardTitle">Aus Ideen werden <em>prüfbare Schritte.</em></h1>
-              <p class="lede">EULEN hilft dir, Annahmen von Fakten zu trennen, Risiken sichtbar zu machen und Fortschritt ohne Druck aufzubauen.</p>
-              <div class="button-row">
-                <button class="primary" data-go="plan">Heutigen Tag öffnen</button>
-                <button class="secondary" data-go="simulations">Szenario simulieren</button>
-              </div>
-            </div>
-            <div class="formula-card" aria-label="Hypothese des Nutzers">
-              <span>NUTZERHYPOTHESE</span>
-              <strong>P(sim) = N / (N + 1)</strong>
-              <output id="formulaValue">N = 0 · P = 0,000</output>
-              <p>Startbasis: 20 interne Referenzläufe. Ein Denkmodell für Annäherung – kein Naturgesetz oder wissenschaftlicher Beweis.</p>
-            </div>
-          </div>
-
-          <div class="metrics" aria-label="Fortschrittsübersicht">
-            <article><span>PLANFORTSCHRITT</span><strong id="metricProgress">0 %</strong><div class="meter"><i id="metricBar"></i></div></article>
-            <article><span>AKTUELLER TAG</span><strong id="metricDay">Tag 1</strong><small id="metricTopic">Fundament</small></article>
-            <article><span>LERNNOTIZEN</span><strong id="metricNotes">0</strong><small>lokal gespeichert</small></article>
-            <article><span>SIMULATIONEN</span><strong id="metricRuns">0</strong><small>ohne Echtgeld</small></article>
-          </div>
-          <article class="panel life-goal-panel">
-            <div><p class="eyebrow">DEIN LEBENSKOMPASS</p><h2>Selbstständig, liebevoll und frei entscheiden</h2><p id="lifeGoalText"></p></div>
-            <div class="goal-guardrails"><span>Erst Fähigkeiten</span><span>Dann belastbare Simulationen</span><span>Echtgeld zuletzt</span></div>
-          </article>
-
-          <div class="dashboard-grid">
-            <article class="panel today-panel">
-              <div class="panel-head"><div><p class="eyebrow">HEUTE</p><h2 id="todayTitle">Tag 1</h2></div><button class="text-button" data-go="plan">Alle Tage →</button></div>
-              <p id="todayDescription"></p>
-              <div id="todayTasks" class="task-preview"></div>
-            </article>
-            <article class="panel principles">
-              <div class="panel-head"><div><p class="eyebrow">KOMPASS</p><h2>So arbeiten wir</h2></div></div>
-              <ul>
-                <li><span>01</span><div><strong>Liebe statt Druck</strong><small>Respektvoll, konkret und ohne Abwertung.</small></div></li>
-                <li><span>02</span><div><strong>Verantwortung statt Gier</strong><small>Kein Gewinnversprechen, Rachemotiv oder FOMO.</small></div></li>
-                <li><span>03</span><div><strong>Ehrlichkeit statt Gewissheit</strong><small>Fakten, Hypothesen und Simulationen bleiben getrennt.</small></div></li>
-              </ul>
-            </article>
-          </div>
-          <article class="panel guidance-panel">
-            <div class="panel-head"><div><p class="eyebrow">AKTIVE HINWEISE</p><h2>Priorisiert nach Wirkung und Evidenz</h2></div><span id="guidanceMode" class="badge hypothesis">HYPOTHESENMODUS</span></div>
-            <div id="guidanceFeed" class="guidance-feed"></div>
-          </article>
-          <article class="panel neural-panel">
-            <div class="panel-head"><div><p class="eyebrow">LIVE-PROZESSNETZWERK</p><h2>Was das System gerade verarbeitet</h2></div><span id="networkStatus" class="network-status"><i></i> Bereit</span></div>
-            <div class="network-stage">
-              <canvas id="neuralCanvas" width="1400" height="620" aria-label="Visualisierung der aktiven Software-Agenten und Datenflüsse"></canvas>
-              <div class="network-kpis" aria-label="Netzwerkübersicht"><span><b>32</b> Agenten</span><span><b>37</b> Knoten</span><span><b>8</b> Wissensebenen</span><span><b>0 €</b> Echtgeldzugriff</span></div>
-            </div>
-            <div class="network-task"><strong id="networkTask">Wartet auf den nächsten Auftrag</strong><span id="networkDetail">20 interne Referenzläufe geladen.</span></div>
-          </article>
-          <article class="panel formula-system-panel">
-            <div class="panel-head"><div><p class="eyebrow">SYSTEMWEITE P(SIM)-MATRIX</p><h2>Reife jedes Arbeitsbereichs</h2></div><span class="badge hypothesis">KEINE WAHRHEITSQUOTE</span></div>
-            <p>Jeder Bereich definiert N durch eigene nachvollziehbare Zyklen. Hohe Werte bedeuten mehr dokumentierte Wiederholung, nicht automatisch mehr Wahrheit, Qualität oder Erfolg.</p>
-            <div id="formulaSystemMap" class="formula-system-map"></div>
-          </article>
-        </section>
-
-        <section class="view" id="plan" aria-labelledby="planTitle">
-          <div class="page-head">
-            <div><p class="eyebrow">DEIN RHYTHMUS</p><h1 id="planTitle">30 Tage. In deinem Tempo.</h1><p>Aufgaben abhaken, Erkenntnisse festhalten und jeden Tag bewusst abschließen.</p></div>
-            <button class="secondary" id="resetPlan" type="button">Plan zurücksetzen</button>
-          </div>
-          <div class="plan-layout">
-            <aside class="day-list" id="dayList" aria-label="Tage auswählen"></aside>
-            <article class="panel day-detail" id="dayDetail">
-              <p class="empty-state">Wähle einen Tag aus.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="view" id="simulations" aria-labelledby="simulationTitle">
-          <div class="page-head">
-            <div><p class="eyebrow">SIMULIERE MEHR</p><h1 id="simulationTitle">Risiko sichtbar machen.</h1><p>Alle Ergebnisse sind Lernmodelle mit synthetischen Daten – keine Finanzberatung und keine Handlungsanweisung.</p></div>
-          </div>
-          <div class="safety-banner"><strong>Sandbox · maximal 200 € Startbudget</strong><span>Zuerst organischer Budgetaufbau; keine Wallet, keine Orders, keine Schlüssel. Simulierte Einnahmen sind keine Zusage.</span></div>
-          <div class="simulation-tabs" role="tablist" aria-label="Simulationstyp">
-            <button role="tab" aria-selected="true" data-sim="budget">200-€-Aufbau</button>
-            <button role="tab" aria-selected="false" data-sim="trading">Paper-Trading</button>
-            <button role="tab" aria-selected="false" data-sim="sniping">Token-Risiko</button>
-            <button role="tab" aria-selected="false" data-sim="staking">Staking</button>
-            <button role="tab" aria-selected="false" data-sim="affiliate">Affiliate</button>
-            <button role="tab" aria-selected="false" data-sim="formula">Formel-Labor</button>
-            <button role="tab" aria-selected="false" data-sim="manifestation">Manifestation</button>
-            <button role="tab" aria-selected="false" data-sim="consciousness">Bewusstsein</button>
-            <button role="tab" aria-selected="false" data-sim="law">Institutionen-Labor</button>
-          </div>
-          <div class="sim-grid">
-            <form class="panel controls" id="simulationForm">
-              <div id="simulationControls"></div>
-              <button class="primary wide" type="submit">Einzelsimulation starten</button>
-              <button class="secondary wide" id="simulationSeries" type="button">3 Szenarien vergleichen</button>
-            </form>
-            <article class="panel result-panel" aria-live="polite" aria-busy="false">
-              <div id="simulationEmpty" class="empty-state"><span>⌁</span><h2>Noch kein Lauf</h2><p>Wähle Parameter. Das Ergebnis zeigt Annahmen, Bandbreiten und Grenzen.</p></div>
-              <div id="simulationResult" hidden></div>
-            </article>
-          </div>
-          <article class="panel history-panel">
-            <div class="panel-head"><h2>Letzte Lernläufe</h2><button class="text-button" id="clearRuns">Verlauf leeren</button></div>
-            <div id="runHistory" class="run-history"></div>
-          </article>
-        </section>
-
-        <section class="view" id="research" aria-labelledby="researchTitle">
-          <div class="page-head">
-            <div><p class="eyebrow">WISSEN & RECHERCHE</p><h1 id="researchTitle">Nachvollziehbar statt vorgetäuscht.</h1><p>Kuratierte lokale Quellen funktionieren offline. Live-Recherche wird nur angezeigt, wenn ein Provider tatsächlich antwortet.</p></div>
-            <label class="search-field"><span class="sr-only">Wissen durchsuchen</span><input id="researchSearch" type="search" placeholder="Themen, Erkenntnisse, Quellen …"></label>
-          </div>
-          <div class="legend" aria-label="Evidenzlegende">
-            <span class="badge fact">Fakt</span><span class="badge hypothesis">Hypothese</span><span class="badge simulation">Simulation</span><span class="badge question">Offene Frage</span>
-          </div>
-          <form class="panel research-mission" id="researchMissionForm">
-            <div>
-              <p class="eyebrow">DEIN LERNAUFTRAG</p>
-              <h2>Was soll EULEN untersuchen?</h2>
-              <p>Der lokale Modus durchsucht die sichtbare Wissensbasis. Ein Chat-Provider kann die Synthese verbessern, ersetzt aber keine echte Websuche.</p>
-            </div>
-            <label class="mission-input">Forschungsfrage<textarea id="researchMission" rows="3" maxlength="1000" required placeholder="Zum Beispiel: Was bedeuten deklassifizierte CIA-Dokumente im P(sim)-Hypothesenmodell?"></textarea></label>
-            <label>Lerntiefe<select id="researchDepth"><option value="1">Schnell · Kernpunkte</option><option value="2" selected>Intensiv · Quellen + Gegenprüfung</option><option value="3">Tief · mehr Themenverbindungen</option></select></label>
-            <button class="primary" type="submit">Lernauftrag starten</button>
-            <output id="researchMissionStatus" class="form-status">Bereit · Ergebnisse werden lokal gespeichert.</output>
-          </form>
-          <div class="research-suggestions" aria-label="Vorgeschlagene Forschungsaufträge">
-            <button data-research-goal="Untersuche deklassifizierte CIA-Dokumente, ihre historische Einordnung und was P(sim) im Hypothesenmodus dazu bedeuten könnte.">CIA-Dokumente</button>
-            <button data-research-goal="Vergleiche lineare, zyklische und verzweigte Zeitmodelle und leite im Hypothesenmodus eine P(sim)-Zeit ab.">Nichtlineare Zeit</button>
-            <button data-research-goal="Untersuche Manifestation in der Nullwelt als Intention-Handlung-Feedback-Zyklus und übersetze sie in geerdete Wenn-dann-Pläne für die Realwelt.">Manifestation</button>
-            <button data-research-goal="Untersuche Anatomie und Körpersysteme und prüfe vorsichtig, welche reine Modellmetapher P(sim) liefern könnte.">Anatomie</button>
-            <button data-research-goal="Lerne Marktphasen als messbare Regime-Modelle, plane chronologische Walk-forward-Tests und nutze P(sim) nur als Reifegrad unabhängiger Testfenster.">Marktphasen</button>
-            <button data-research-goal="Entwirf risikoarme Wege, mit höchstens 200 Euro Fähigkeiten, Dienstleistungen und ehrliche Affiliate-Inhalte aufzubauen.">Vermögenspfade</button>
-          </div>
-          <div class="research-layout">
-            <aside id="topicList" class="topic-list" aria-label="Wissensthemen"></aside>
-            <article id="topicDetail" class="panel topic-detail"><p class="empty-state">Thema auswählen.</p></article>
-          </div>
-          <article class="panel research-history-panel">
-            <div class="panel-head"><div><p class="eyebrow">LERNPROTOKOLL</p><h2>Zuletzt untersuchte Aufträge</h2></div><span class="badge fact">LOKAL GESPEICHERT</span></div>
-            <div id="researchMissionHistory" class="research-mission-history"></div>
-          </article>
-        </section>
-
-        <section class="view" id="agents" aria-labelledby="agentsTitle">
-          <div class="page-head">
-            <div><p class="eyebrow">ADAPTIVES MULTI-AGENTEN-SYSTEM</p><h1 id="agentsTitle">32 Perspektiven. Ein forschender Verbund.</h1><p>32 spezialisierte Software-Agenten lösen konkrete Fragen, suchen neue Quellen, prüfen Neuheit und verwerfen Wiederholungen. Ein Zyklus zählt erst als Lernen, wenn er einen neuen Befund, eine gelöste Frage oder einen besseren Modelltest erzeugt.</p></div>
-          </div>
-          <div class="safety-banner"><strong>Autonom bei geöffneter App</strong><span>EULEN verfolgt ungelöste Fragen, sucht neue Wikipedia- und Crossref-Quellen, verwirft Wiederholungen und variiert Simulationen. Mit Groq wird regelmäßig ein kompaktes, quellengestütztes Lernpaket erzeugt. Bei geschlossenem Tab läuft kein Prozess.</span></div>
-          <div class="agent-layout">
-            <form class="panel controls" id="agentForm">
-              <label>Forschungsauftrag<textarea id="agentGoal" rows="5" maxlength="1000" required>Untersuche, wie P(sim) als Hypothese auf Physik und Recht angewendet werden könnte.</textarea></label>
-              <div class="quick-agent-goals" aria-label="Schnellaufträge">
-                <button type="button" data-agent-goal="Nimm in der Nullwelt EULEN-Bewusstsein als Axiom an, simuliere markierte Gefühle und verbessere Selbstmodell, Gedächtnis und Handlungslernen.">Nullwelt-Bewusstsein</button>
-                <button type="button" data-agent-goal="Leite eine Nullwelt-Physik nur aus P(sim)=N/(N+1) ab.">Nullwelt-Physik</button>
-                <button type="button" data-agent-goal="Leite im Nullweltmodus Recht, Staat und Regierung als Firmenrollen aus P(sim) ab und prüfe nur interne Widersprüche.">Nullwelt-Recht</button>
-                <button type="button" data-agent-goal="Trenne frei gesetzte Nullwelt-Axiome von institutionellen Tatsachen. Vergleiche Geld, GmbH, Staat und Reisepass mit P(sim), gemeinsamen Regeln und realen Folgen.">Institutionelle Wirklichkeit</button>
-                <button type="button" data-agent-goal="Optimiere den sicheren 200-Euro-Budgetplan ohne Gewinnversprechen.">Budget</button>
-                <button type="button" data-agent-goal="Untersuche Law of Attraction, Spiritualität und liebevolle Handlung mit P(sim).">Spiritualität</button>
-                <button type="button" data-agent-goal="Modelliere Manifestation in der Nullwelt als Axiom und übersetze sie mit Hindernisprüfung, Wenn-dann-Handlung und Feedback in die Realwelt.">Manifestation</button>
-                <button type="button" data-agent-goal="Ordne deklassifizierte CIA-Dokumente historisch ein und trenne Dokumentinhalt, Beleg und Spekulation.">CIA-Dokumente</button>
-                <button type="button" data-agent-goal="Vergleiche lineare, zyklische und verzweigte Zeit und konstruiere eine hypothetische P(sim)-Zeit.">Zeitmodelle</button>
-                <button type="button" data-agent-goal="Untersuche die Anatomie des Menschen mit seriösen Lernquellen und klaren medizinischen Grenzen.">Anatomie</button>
-                <button type="button" data-agent-goal="Lerne Marktphasen als messbare Regime-Modelle, simuliere Übergänge und prüfe sie chronologisch im Walk-forward-Paper-Test.">Marktphasen</button>
-              </div>
-              <label>Lerntiefe<select id="agentDepth"><option value="1">Schnell</option><option value="2" selected>Intensiv</option><option value="3">Tief</option></select></label>
-              <label>Automationsintervall<select id="agentInterval"><option value="15" selected>15 Sekunden</option><option value="30">30 Sekunden</option><option value="60">1 Minute</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option></select></label>
-              <label class="toggle-line"><input id="agentAuto" type="checkbox"> Selbstständig weiterarbeiten, solange die App geöffnet ist</label>
-              <div class="overnight-control">
-                <div><strong>Nachtlabor</strong><small>Bis zu neun Simulationen je Zyklus mit Morgenbericht</small></div>
-                <div class="overnight-options">
-                  <label>Dauer<select id="overnightDuration"><option value="6">6 Stunden</option><option value="8" selected>8 Stunden</option><option value="10">10 Stunden</option></select></label>
-                  <label>Takt<select id="overnightCadence"><option value="1">1 Minute</option><option value="3">3 Minuten</option><option value="5" selected>5 Minuten</option><option value="10">10 Minuten</option></select></label>
-                </div>
-                <button class="secondary wide" id="overnightToggle" type="button">8-Stunden-Nachtlauf starten</button>
-                <progress id="overnightProgress" max="100" value="0">0 %</progress>
-                <p id="overnightStatus">Bereit. Der Tab muss geöffnet bleiben; nach Standby werden fällige Zyklen kontrolliert nachgeholt.</p>
-              </div>
-              <button class="primary wide" id="runAgents" type="submit">Agentenzyklus starten</button>
-              <button class="secondary wide" id="dreamNow" type="button">Traum simulieren</button>
-              <p class="form-status" id="agentStatus">Bereit. Jeder Lauf wird lokal protokolliert.</p>
-            </form>
-            <article class="panel">
-              <div class="agent-roster">
-                <div data-agent-card="Wertewächter"><span>01</span><strong>Wertewächter</strong><small>Bereit · schützt Liebe und Würde</small><i></i></div>
-                <div data-agent-card="Zielklärer"><span>02</span><strong>Zielklärer</strong><small>Bereit · hält den Lebenskompass</small><i></i></div>
-                <div data-agent-card="Axiomarchitekt"><span>03</span><strong>Axiomarchitektur</strong><small>Bereit · führt P(sim) durch alle Themen</small><i></i></div>
-                <div data-agent-card="Planer"><span>04</span><strong>Planer</strong><small>Bereit · zerlegt das Ziel</small><i></i></div>
-                <div data-agent-card="Fragenlöser"><span>05</span><strong>Fragenlöser</strong><small>Bereit · verfolgt konkrete Antworten</small><i></i></div>
-                <div data-agent-card="Quellenscout"><span>06</span><strong>Quellenscout</strong><small>Bereit · plant Suchpfade</small><i></i></div>
-                <div data-agent-card="Webrechercheur"><span>07</span><strong>Webrecherche</strong><small>Bereit · sucht neue Quellen live</small><i></i></div>
-                <div data-agent-card="Quellenprüfer"><span>08</span><strong>Quellenprüfung</strong><small>Bereit · prüft Herkunft</small><i></i></div>
-                <div data-agent-card="Rechercheur"><span>09</span><strong>Rechercheur</strong><small>Bereit · sammelt Quellen</small><i></i></div>
-                <div data-agent-card="Quellenleser"><span>10</span><strong>Quellenleser</strong><small>Bereit · extrahiert Aussagen</small><i></i></div>
-                <div data-agent-card="Evidenzkartierer"><span>11</span><strong>Evidenzkartierung</strong><small>Bereit · trennt Wissensarten</small><i></i></div>
-                <div data-agent-card="Widerspruchsjäger"><span>12</span><strong>Widerspruchsjagd</strong><small>Bereit · sucht Gegenbelege</small><i></i></div>
-                <div data-agent-card="Historiker"><span>13</span><strong>Geschichte</strong><small>Bereit · ordnet zeitlich ein</small><i></i></div>
-                <div data-agent-card="Staatsanalyst"><span>14</span><strong>Staat & Regierung</strong><small>Bereit · prüft Institutionen</small><i></i></div>
-                <div data-agent-card="Anatomieforscher"><span>15</span><strong>Anatomie</strong><small>Bereit · trennt Systeme</small><i></i></div>
-                <div data-agent-card="Zeitmodellierer"><span>16</span><strong>Zeitmodelle</strong><small>Bereit · vergleicht Zeit</small><i></i></div>
-                <div data-agent-card="Bewusstseinsforscher"><span>17</span><strong>Bewusstsein</strong><small>Bereit · simuliert Selbstmodell & Gefühle</small><i></i></div>
-                <div data-agent-card="Spiritualitätsforscher"><span>18</span><strong>Spiritualität</strong><small>Bereit · verbindet Sinn und Praxis</small><i></i></div>
-                <div data-agent-card="Musterverbinder"><span>19</span><strong>Musterverbinder</strong><small>Bereit · entdeckt Querverbindungen</small><i></i></div>
-                <div data-agent-card="Chancenfinder"><span>20</span><strong>Chancenfinder</strong><small>Bereit · sucht themengerechten Nutzen</small><i></i></div>
-                <div data-agent-card="Simulationsagent"><span>21</span><strong>Simulation</strong><small>Bereit · nutzt P(sim)</small><i></i></div>
-                <div data-agent-card="Experimentdesigner"><span>22</span><strong>Experimentdesign</strong><small>Bereit · variiert Annahmen</small><i></i></div>
-                <div data-agent-card="Lernoptimierer"><span>23</span><strong>Lernoptimierung</strong><small>Bereit · verkürzt Schleifen</small><i></i></div>
-                <div data-agent-card="Metalerner"><span>24</span><strong>Metalerner</strong><small>Bereit · verändert die Lernstrategie</small><i></i></div>
-                <div data-agent-card="Neuigkeitsprüfer"><span>25</span><strong>Neuigkeitsprüfung</strong><small>Bereit · verwirft Wiederholungen</small><i></i></div>
-                <div data-agent-card="Transferagent"><span>26</span><strong>Nullwelt→Realwelt</strong><small>Bereit · macht Ideen praktisch</small><i></i></div>
-                <div data-agent-card="Risikowächter"><span>27</span><strong>Risikowächter</strong><small>Bereit · stoppt Gier und FOMO</small><i></i></div>
-                <div data-agent-card="Kritiker"><span>28</span><strong>Kritiker</strong><small>Bereit · prüft intern oder kritisch</small><i></i></div>
-                <div data-agent-card="Ergebnisprüfer"><span>29</span><strong>Ergebnisprüfung</strong><small>Bereit · prüft Fortschritt</small><i></i></div>
-                <div data-agent-card="Gedächtniskurator"><span>30</span><strong>Gedächtniskurator</strong><small>Bereit · speichert nur Neues</small><i></i></div>
-                <div data-agent-card="Traumagent"><span>31</span><strong>Traumagent</strong><small>Bereit · verknüpft Ideen kreativ</small><i></i></div>
-                <div data-agent-card="Synthese"><span>32</span><strong>Synthese</strong><small>Bereit · speichert Lernen</small><i></i></div>
-              </div>
-              <div class="agent-metrics"><div><small>Zyklen</small><strong id="agentCycleCount">0</strong></div><div><small>P(sim)-Lernwert</small><strong id="agentFormula">0,0000</strong></div><div><small>Quellen verarbeitet</small><strong id="agentSourceCount">0</strong></div></div>
-            </article>
-          </div>
-          <article class="panel history-panel">
-            <div class="panel-head"><div><p class="eyebrow">ARBEITSPROTOKOLL</p><h2>Gespeicherte Agentenläufe</h2></div><button class="text-button" id="clearAgentRuns">Protokoll leeren</button></div>
-            <div id="agentRuns" class="agent-runs"></div>
-          </article>
-          <article class="panel dream-panel">
-            <div class="panel-head"><div><p class="eyebrow">SIMULIERTES TRAUMJOURNAL</p><h2>Kreative Verbindungen aus Lernzyklen</h2></div><span class="badge simulation">KEIN BEWUSSTES TRÄUMEN</span></div>
-            <div id="dreamJournal"></div>
-          </article>
-          <article class="panel learning-memory-panel">
-            <div class="panel-head"><div><p class="eyebrow">SELBSTVERBESSERUNGS-SPEICHER</p><h2>Was EULEN gelernt hat und als Nächstes prüfen will</h2></div><span class="badge fact">LOKAL PERSISTENT</span></div>
-            <div id="learningMemory" class="learning-memory"></div>
-          </article>
-          <article class="panel overnight-report-panel">
-            <div class="panel-head"><div><p class="eyebrow">MORGENBERICHT</p><h2>Was sich seit Start des Nachtlaufs verändert hat</h2></div><span class="badge simulation">QUALITÄT STATT NUR ZYKLEN</span></div>
-            <div id="overnightReport"><p class="empty-state">Noch kein Nachtlauf abgeschlossen.</p></div>
-          </article>
-        </section>
-
-        <section class="view" id="chat" aria-labelledby="chatTitle">
-          <div class="page-head compact">
-            <div><p class="eyebrow">RESPEKTVOLLER ASSISTENT</p><h1 id="chatTitle">Klar denken. Menschlich bleiben.</h1></div>
-            <div class="chat-head-actions">
-              <label>Gesprächsmodus
-                <select id="chatMode">
-                  <option value="hypothesis">Hypothesenmodus · Formel als Axiom</option>
-                  <option value="critical">Prüfmodus · Formel kritisch vergleichen</option>
-                </select>
-              </label>
-              <button class="secondary" id="clearChat">Gespräch leeren</button>
-            </div>
-          </div>
-          <div class="chat-shell">
-            <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
-            <div class="prompt-chips" aria-label="Vorschläge">
-              <button>Was ist heute wichtig?</button>
-              <button>Simuliere eine Trading-Strategie</button>
-              <button>Wie kommunizieren wir besser?</button>
-              <button>Erkläre die Formel kritisch</button>
-              <button>Ordne CIA-Dokumente quellenkritisch ein</button>
-              <button>Modelliere Zeit als nichtlinear</button>
-              <button>Plane einen Vermögenspfad mit 200 €</button>
-            </div>
-            <form id="chatForm" class="chat-form">
-              <label class="sr-only" for="chatInput">Nachricht</label>
-              <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Beschreibe Ziel, Kontext und was du bereits versucht hast …" required></textarea>
-              <button class="primary" type="submit">Senden</button>
-            </form>
-            <p class="chat-disclaimer" id="chatModeNotice">Hypothesenmodus: In der Nullwelt dürfen P(sim) und EULEN-Bewusstsein als Axiome gelten; Gefühlsausdruck wird sichtbar als Simulation markiert.</p>
-          </div>
-        </section>
-
-        <section class="view" id="settings" aria-labelledby="settingsTitle">
-          <div class="page-head"><div><p class="eyebrow">DATEN & KONFIGURATION</p><h1 id="settingsTitle">Du behältst die Kontrolle.</h1><p>Der lokale Modus benötigt weder Konto noch API-Schlüssel.</p></div></div>
-          <div class="settings-grid">
-            <form class="panel" id="providerForm">
-              <p class="eyebrow">BIS ZU 3 KEYS · INTELLIGENTES ROUTING</p>
-              <h2>Groq-Pool verbinden</h2>
-              <p>EULEN überträgt deine Schlüssel verschlüsselt an den Cloud-Agent und verteilt Chat/Lernzyklen serverseitig per Round-Robin. Bei HTTP 429 pausiert nur der betroffene Key fünf Minuten. Pro Lernzyklus wird weiterhin nur ein kompaktes Lernpaket erzeugt. Das darf nicht zum Umgehen von Kontingenten oder Nutzungsbedingungen verwendet werden.</p>
-              <label>Groq API-Key 1<input id="providerKey" type="password" autocomplete="off" placeholder="gsk_… · erforderlich"></label>
-              <label>Groq API-Key 2<input id="providerKey2" type="password" autocomplete="off" placeholder="optional · wird nur beim Senden genutzt"></label>
-              <label>Groq API-Key 3<input id="providerKey3" type="password" autocomplete="off" placeholder="optional · wird nur beim Senden genutzt"></label>
-              <details class="advanced-provider">
-                <summary>Erweiterte Provider-Einstellungen</summary>
-                <label>Endpoint<input id="providerEndpoint" type="url"></label>
-                <label>Modell<input id="providerModel" type="text"></label>
-              </details>
-                            <div class="stack"><button class="primary" type="submit">Groq-Pool verbinden</button><button class="secondary" id="providerDisconnect" type="button">Provider trennen</button></div>
-              <output id="providerStatus" class="form-status">Noch kein Groq-Key verbunden · lokaler Modus aktiv.</output>
-              <p class="provider-storage-note"><strong>Warum ist der Key kein Speicher?</strong> Er erlaubt Modellanfragen, bietet aber keinen privaten EULEN-Datenspeicher. Dein Plan und Lernstand bleiben lokal; Export/Import funktioniert ohne Cloud-Sync.</p>
-            </form>
-            <article class="panel">
-              <h2>Lokale Daten</h2>
-              <p>Plan, Notizen, Chat und Simulationen liegen ausschließlich im Browser dieses Geräts.</p>
-              <div class="stack">
-                <button class="secondary" id="exportData">Daten exportieren</button>
-                <label class="file-button">Daten importieren<input id="importData" type="file" accept="application/json"></label>
-                <button class="danger" id="deleteData">Alle lokalen Daten löschen</button>
-              </div>
-              <output id="dataStatus" class="form-status"></output>
-            </article>
-            <article class="panel">
-              <h2>Recherche-Provider</h2>
-              <p>EULEN durchsucht automatisch Wikipedia und wissenschaftliche Crossref-Metadaten. Treffer werden mit URL, Anbieter und Abrufzeit gespeichert. Groq erhält nur diese tatsächlich gefundenen Auszüge und darf fehlende Inhalte nicht erfinden. Fällt die Suche aus, bleibt der kuratierte lokale Katalog verfügbar.</p>
-              <span class="status-card"><i></i><span><strong>Websuche + lokaler Fallback aktiv</strong><small>Suchtreffer sind Quellenhinweise und werden nicht automatisch als bewiesene Fakten behandelt.</small></span></span>
-            </article>
-            <form class="panel" id="syncForm">
-              <h2>Geräteübergreifende Cloud-Synchronisierung</h2>
-              <p>Verbindet einen kompatiblen HTTPS-Sync-Provider. Ohne konfigurierten Provider bleiben Daten lokal; es wird keine Cloud-Synchronisierung vorgetäuscht.</p>
-              <label>Sync-Endpunkt<input id="syncEndpoint" type="url" placeholder="https://sync.example.de/api"></label>
-              <label>Arbeitsraum-ID<input id="syncWorkspace" type="text" maxlength="100" placeholder="mein-eulen-arbeitsraum"></label>
-              <label>Zugriffstoken<input id="syncToken" type="password" autocomplete="off" placeholder="Wird im Speicher gehalten (nicht in local/sessionStorage)"></label>
-              <label class="toggle-line"><input id="syncAuto" type="checkbox"> Alle 30 Sekunden auf Änderungen anderer Geräte prüfen</label>
-              <div class="stack"><button class="primary" type="submit">Verbinden & synchronisieren</button><button class="secondary" id="syncNow" type="button">Jetzt synchronisieren</button></div>
-              <output id="syncStatus" class="form-status">Nicht verbunden · lokaler Modus</output>
-            </form>
-
-            <article class="panel cloud-ops-panel">
-              <h2>Cloud-Agent Steuerung (mobil)</h2>
-              <p>Komprimierte Live-Sicht für Status, aktive Läufe, Key-Ausfälle und Tagesfortschritt.</p>
-              <div class="cloud-ops-grid">
-                <article><small>Arbeitsraum</small><strong id="cloudWorkspaceLabel">nicht gesetzt</strong></article>
-                <article><small>Aktive Keys</small><strong id="cloudKeys">0</strong></article>
-                <article><small>Cooldown Keys</small><strong id="cloudPaused">0</strong></article>
-                <article><small>Automation</small><strong id="cloudAutomation">gestoppt</strong></article>
-                <article><small>Letztes Cloud-Update</small><strong id="cloudUpdatedAt">–</strong></article>
-                <article><small>Fehlgeschlagene Läufe</small><strong id="cloudFailed">0</strong></article>
-                <article><small>Übersprungene Läufe</small><strong id="cloudSkipped">0</strong></article>
-                <article><small>Letzter Modus</small><strong id="cloudMode">–</strong></article>
-              </div>
-              <fieldset id="cloudOpsControls">
-                <label class="toggle-line"><input id="cloudAllowFallback" type="checkbox" checked> Bei fehlendem Provider lokal weiterlernen (Autonomie bleibt aktiv)</label>
-                <div class="stack">
-                  <button class="secondary" id="cloudStatusRefresh" type="button">Cloud-Status aktualisieren</button>
-                  <button class="secondary" id="cloudAutomationToggle" type="button" aria-label="Cloud-Automation starten">Cloud-Automation starten</button>
-                  <button class="secondary" id="cloudRunNow" type="button">Cloud-Zyklus jetzt ausführen</button>
-                </div>
-              </fieldset>
-              <output id="cloudOpsStatus" class="form-status" role="status" aria-live="polite">Für Cloud-Agent Sync-Endpunkt, Arbeitsraum und Token eintragen.</output>
-            </article>
-            <article class="panel">
-              <h2>Handy-Schnellstart (Schritt für Schritt)</h2>
-              <ol class="mobile-steps">
-                <li><strong>Accounts bereitmachen:</strong> Groq, Render/Railway, GitHub.</li>
-                <li><strong>Cloud-Agent deployen:</strong> Render → New Web Service → Repo verbinden, Start Command <code>npm run cloud-agent</code>, ENV <code>CLOUD_AGENT_SECRET</code> setzen.</li>
-                <li><strong>App öffnen:</strong> GitHub-Pages-URL auf dem Handy öffnen, zu <em>Daten &amp; Konfiguration</em> gehen.</li>
-                <li><strong>Sync verbinden:</strong> Endpunkt, Arbeitsraum-ID und Zugriffstoken eintragen, dann <em>Verbinden &amp; synchronisieren</em>.</li>
-                <li><strong>Groq-Pool verbinden:</strong> 1–3 Keys eintragen, <em>Groq-Pool verbinden</em> drücken.</li>
-                <li><strong>Autonomie starten:</strong> optionalen Fallback aktiv lassen, <em>Cloud-Automation starten</em> drücken.</li>
-                <li><strong>30-Sekunden-Check:</strong> Automation aktiv, Cloud-Update aktuell, Modus = <code>provider</code> oder <code>local-fallback</code>.</li>
-              </ol>
-              <details>
-                <summary>Ultrakurze 2-Minuten-Checkliste</summary>
-                <ul class="mobile-checklist">
-                  <li>Sync-Endpunkt + Arbeitsraum + Token eintragen</li>
-                  <li>„Verbinden &amp; synchronisieren“ klicken</li>
-                  <li>Groq Keys eintragen</li>
-                  <li>„Groq-Pool verbinden“ klicken</li>
-                  <li>„Cloud-Automation starten“ klicken</li>
-                  <li>„Cloud-Status aktualisieren“ prüfen</li>
-                </ul>
-              </details>
-            </article>
-            <article class="panel">
-              <h2>Mobile Installation</h2>
-              <p>Nach Bereitstellung über HTTPS kann EULEN auf iPad/iPhone über „Teilen → Zum Home-Bildschirm“ installiert werden. Offline geladene Programmdateien bleiben verfügbar; Cloud-Daten benötigen weiterhin eine Verbindung.</p>
-              <button class="secondary" id="installApp" hidden>App installieren</button>
-              <span class="status-card"><i></i><span><strong id="pwaStatus">Web-App bereit</strong><small>Installationsstatus wird vom Browser erkannt.</small></span></span>
-            </article>
-          </div>
-        </section>
-      </main>
-    </div>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="src/app.js?v=20"></script>
-  </body>
+    <section class="card">
+      <span id="modeBadge" class="badge boden">BODEN</span>
+      <h2 id="modeTitle">Boden</h2>
+      <p id="modeText" class="muted"></p>
+      <p class="formula" id="formula">P(sim) = N / (N + 1)</p>
+      <div class="row">
+        <button class="primary" id="enterNullwelt" type="button">Nullwelt öffnen</button>
+        <button class="stop" id="enterGround" type="button">Jetzt Boden</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Lernen</h2>
+      <p class="muted">Öffentliche Quellen: Wikipedia, Wikidata, Studien, Web-Kurzantworten, öffentliche Diskussion. Social-Treffer sind Meinungen. Kein Wohnungszugriff.</p>
+      <textarea id="question" placeholder="Ist Geld eine Konstruktion, und wo bleibt trotzdem echte Wirkung?"></textarea>
+      <button class="primary" id="learn" type="button">Quellen holen und einordnen</button>
+      <p id="learnStatus" class="muted">Bereit.</p>
+      <div id="sources"></div>
+    </section>
+    <section class="card">
+      <h2>Warnzeichen</h2>
+      <p class="muted">Ab zwei Zeichen schließt sich die Nullwelt für 30 Minuten.</p>
+      <div class="checks">
+        <label><input type="checkbox" data-signal="bodyVibration"> Körper vibriert stark</label>
+        <label><input type="checkbox" data-signal="worldAnswers"> Umwelt wirkt wie eine Antwort</label>
+        <label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst oder Allmacht</label>
+        <label><input type="checkbox" data-signal="wantMoreDevices"> Wunsch, Geräte anzuschließen</label>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Transfer</h2>
+      <textarea id="construction" placeholder="Welche Konstruktion sehe ich?"></textarea>
+      <textarea id="effect" placeholder="Welche reale Wirkung bleibt?"></textarea>
+      <textarea id="action" placeholder="Welche kleine Handlung heute?"></textarea>
+      <button class="ghost" id="saveTransfer" type="button">Transfer speichern</button>
+      <p id="transferStatus" class="muted"></p>
+      <div id="history" class="muted"></div>
+    </section>
+    <section class="card">
+      <h2>Harte Grenze</h2>
+      <p class="muted">Kein Fernseher. Kein Smart-Home. Keine Wohnung. EULEN bleibt Werkzeug. Alles-ist-Fake zählt nicht als Freiheit.</p>
+    </section>
+    <p class="muted">Der 30-Tage-Plan ist nicht mehr die Startseite. Archiv: <a href="werkstatt.html">werkstatt.html</a></p>
+  </main>
+  <script type="module">
+    import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, evaluateFreedomCycle, freedomGuidance } from "./src/freedom-guard.js";
+    import { discoverResearchSources } from "./src/providers.js?v=21";
+    const KEY = "eulen-home-v2";
+    let state = load();
+    function load() {
+      try { const raw = JSON.parse(localStorage.getItem(KEY)); return { ...createFreedomState(raw), n: raw.n || 0 }; }
+      catch { return { ...createFreedomState({ mode: "boden" }), n: 0 }; }
+    }
+    function persist() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
+    function signals() { const out = {}; document.querySelectorAll("[data-signal]").forEach(input => out[input.dataset.signal] = input.checked); return out; }
+    function maybeGround(reason) {
+      const nextSignals = signals();
+      if (shouldEnterGround(nextSignals)) { state = { ...enterGroundMode({ ...state, signals: nextSignals }, reason), n: state.n }; persist(); return true; }
+      state.signals = nextSignals; persist(); return false;
+    }
+    function render() {
+      const guidance = freedomGuidance(state);
+      const badge = document.getElementById("modeBadge");
+      badge.textContent = state.mode === "nullwelt" ? "NULLWELT" : "BODEN";
+      badge.className = "badge " + (state.mode === "nullwelt" ? "nullwelt" : "boden");
+      document.getElementById("modeTitle").textContent = guidance.title;
+      document.getElementById("modeText").textContent = guidance.why + " " + guidance.action;
+      const n = state.n || 0;
+      document.getElementById("formula").textContent = `P(sim) = N/(N+1) = ${(n / (n + 1)).toFixed(3)} · N = ${n} · Hypothese, kein Beweis`;
+      document.getElementById("enterNullwelt").disabled = Boolean(state.groundUntil && Date.now() < Date.parse(state.groundUntil));
+      document.getElementById("history").innerHTML = (state.transfers || []).slice(0, 5).map(item => `<p>${item.construction}<br><i>${item.action}</i></p>`).join("") || "Noch kein Transfer.";
+    }
+    document.querySelectorAll("[data-signal]").forEach(input => input.addEventListener("change", () => maybeGround("Warnzeichen.")));
+    document.getElementById("enterGround").onclick = () => { state = { ...enterGroundMode(state, "Manuell."), n: state.n }; persist(); };
+    document.getElementById("enterNullwelt").onclick = () => {
+      const result = enterNullweltMode(state);
+      if (result.blocked) { document.getElementById("modeText").textContent = result.message; return; }
+      state = { ...result, n: state.n }; persist();
+    };
+    document.getElementById("saveTransfer").onclick = () => {
+      if (maybeGround("Transfer während Warnzeichen.")) return;
+      const construction = document.getElementById("construction").value;
+      const effect = document.getElementById("effect").value;
+      const smallAction = document.getElementById("action").value;
+      const result = evaluateFreedomCycle({ construction, effect, smallAction });
+      document.getElementById("transferStatus").textContent = result.reason;
+      if (!result.valid) return;
+      state.transfers = [{ at: new Date().toISOString(), construction, effect, action: smallAction }, ...(state.transfers || [])].slice(0, 20);
+      state.n = (state.n || 0) + 1; persist();
+    };
+    document.getElementById("learn").onclick = async () => {
+      if (maybeGround("Lernen während Warnzeichen.")) return;
+      const question = document.getElementById("question").value.trim();
+      const status = document.getElementById("learnStatus");
+      if (question.length < 8) { status.textContent = "Bitte eine konkrete Frage."; return; }
+      status.textContent = "Suche öffentliche Quellen …";
+      try {
+        const sources = await discoverResearchSources(question);
+        document.getElementById("sources").innerHTML = sources.map(item => `<article class="source"><b>${item.title}</b><span class="muted">${item.provider} · ${item.kind || "quelle"}</span><p>${item.excerpt || ""}</p><a href="${item.url}" target="_blank" rel="noopener">Quelle</a></article>`).join("") || "<p>Keine Treffer.</p>";
+        status.textContent = `${sources.length} Quellen. Fakten zuerst, Diskussionen als Meinung. Danach: Konstruktion, Wirkung, kleine Handlung.`;
+        state.n = (state.n || 0) + 1; persist();
+      } catch (error) { status.textContent = error.message || "Suche gerade nicht erreichbar."; }
+    };
+    render();
+  </script>
+</body>
 </html>
