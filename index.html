@@ -9,95 +9,76 @@
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <style>
 :root{color-scheme:dark;--bg:#07090c;--card:#12181c;--line:#243034;--text:#f4efe6;--muted:#9aa59f;--accent:#7dd3c0;--gold:#e4d2a6;--stop:#d97870}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(800px 400px at 50% -10%,#16312c,#07090c 55%);color:var(--text);font:16px/1.45 system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#07090c;color:var(--text);font:16px/1.45 system-ui,sans-serif}
 main{max-width:720px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 14px 96px}
 .kicker{letter-spacing:.16em;font-size:.7rem;color:var(--accent)}h1{font:500 2rem Georgia,serif;margin:.15rem 0 .7rem}
-.card{background:rgba(18,24,28,.92);border:1px solid var(--line);border-radius:22px;padding:14px;margin:0 0 12px}
+.card{background:#12181c;border:1px solid var(--line);border-radius:22px;padding:14px;margin:0 0 12px}
 h2{margin:.1rem 0 .6rem;font-size:1.05rem}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.badge{font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:999px}.boden{background:#3a2e16;color:#e2b15a}.nullwelt{background:#14352f;color:var(--accent)}
-.meter{height:7px;background:#0c1113;border-radius:99px;overflow:hidden;margin:10px 0}.meter i{display:block;height:100%;background:var(--accent)}
-button,textarea{font:inherit}textarea{width:100%;min-height:68px;margin:8px 0;background:#0c1113;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px}
+button,textarea{font:inherit}textarea{width:100%;min-height:64px;margin:8px 0;background:#0c1113;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px}
 button{border:0;border-radius:14px;padding:12px 14px;font-weight:700}.primary{background:var(--accent);color:#06221c}.ghost{background:#1c2628;color:var(--text)}.stop{background:var(--stop);color:#2a0908}
-.stage{height:320px;border-radius:18px;overflow:hidden;background:#070b0d;border:1px solid #1c2a28}canvas{width:100%;height:100%;display:block}
-.goal{border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--muted);margin:8px 0}.goal.on{border-color:var(--accent);color:var(--text)}
-.chip{font-size:.75rem;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted);display:inline-block;margin:3px}.chip.on{color:#06221c;background:var(--accent)}
-.muted{color:var(--muted)}.source{border-top:1px solid var(--line);padding:8px 0}
+.stage{height:230px;border-radius:18px;overflow:hidden;background:#070b0d}canvas{width:100%;height:100%;display:block}
+.msg{border-top:1px solid var(--line);padding:8px 0}.msg b{color:var(--gold)}.out{white-space:pre-wrap}.muted{color:var(--muted)}
 </style>
 </head>
 <body>
 <main>
-<div class="kicker">EULEN · NULLWELT</div>
+<div class="kicker">EULEN · VIER AGENTEN</div>
 <h1>Mensch vor Person</h1>
 <section class="card">
 <div class="row"><span id="modeBadge" class="badge boden">BODEN</span><strong id="formula">P(sim)=0</strong></div>
 <p id="modeText" class="muted"></p>
-<div class="meter"><i id="progressBar" style="width:0%"></i></div>
-<p class="muted" id="progressText">N=0</p>
 <div class="row"><button class="primary" id="enterNullwelt" type="button">Nullwelt</button><button class="stop" id="enterGround" type="button">Boden</button></div>
 </section>
 <section class="card">
-<h2>Lebendes Netz</h2>
+<h2>Netz</h2>
 <div class="stage"><canvas id="net"></canvas></div>
-<p id="netStatus" class="muted">Impulse laufen auch ohne Suche.</p>
-<div id="chips"></div>
+<p id="netStatus" class="muted">Frage links, Handlung rechts. Keine Beschriftung in der Mitte.</p>
 </section>
 <section class="card">
-<h2>Zielagenda</h2>
-<div id="goals"></div>
-<button class="primary" id="auto" type="button" style="width:100%;margin-top:8px">Nächstes Ziel selbst suchen</button>
+<h2>Lauf</h2>
+<textarea id="question" placeholder="Frage oder Ziel"></textarea>
+<button class="primary" id="run" type="button" style="width:100%">Vier Agenten laufen lassen</button>
+<p id="status" class="muted">Bereit.</p>
+<div id="log"></div>
 </section>
 <section class="card">
-<h2>Eigene Frage</h2>
-<textarea id="question"></textarea>
-<button class="ghost" id="learn" type="button">Diese Frage prüfen</button>
-<p id="learnStatus" class="muted">Bereit.</p>
-<div id="sources"></div>
+<h2>Gespeicherte Ausgabe</h2>
+<div id="outputs" class="muted">Noch keine.</div>
 </section>
 <section class="card">
-<h2>Assistent</h2>
-<div id="chat"></div>
-<textarea id="chatInput"></textarea>
-<button class="ghost" id="send" type="button">Senden</button>
+<h2>Geldspur ohne Anrufen</h2>
+<p class="muted">Nach einem guten Lauf: ein Satz, den jemand ohne Gespräch lesen kann. Kein Verkaufsgespräch.</p>
+<textarea id="offer" placeholder="Zum Beispiel: Vorlage für einen KI-Ablauf, 15 Euro, asynchron."></textarea>
+<button class="ghost" id="saveOffer" type="button">Satz zur letzten Ausgabe legen</button>
 </section>
 <section class="card">
-<h2>Boden nur bei Körper, Sync, Geräten</h2>
 <label><input type="checkbox" data-signal="bodyVibration"> Körper</label>
 <label><input type="checkbox" data-signal="worldAnswers"> Sync</label>
 <label><input type="checkbox" data-signal="fearOrOmnipotence"> Angst oder Allmacht</label>
-<label><input type="checkbox" data-signal="wantMoreDevices"> Gerätewunsch</label>
-<textarea id="construction" placeholder="Konstruktion"></textarea>
-<textarea id="effect" placeholder="Was bleibt trotzdem spürbar?"></textarea>
-<textarea id="action" placeholder="Kleine Handlung"></textarea>
-<button class="ghost" id="saveTransfer" type="button">Transfer</button>
-<p id="transferStatus" class="muted"></p>
+<label><input type="checkbox" data-signal="wantMoreDevices"> Geräte</label>
 </section>
 </main>
 <script type="module">
-import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, evaluateFreedomCycle, freedomGuidance } from "./src/freedom-guard.js";
+import { createFreedomState, shouldEnterGround, enterGroundMode, enterNullweltMode, freedomGuidance } from "./src/freedom-guard.js";
 import { discoverResearchSources } from "./src/providers.js?v=21";
-const GOALS=["Geld als Konstruktion, Miete bleibt spürbar","Mensch vor Person","Institutionen als Fiktion mit Durchsetzung","P(sim) als Freiheitswerkzeug","Kleine Handlung ohne Geldangst","Zeit als Modell, Körper bleibt hier"];
-const AGENTS=["Boden","Werte","P(sim)","Quellen","Sozial","Widerspruch","Konstruktion","Mensch","Transfer","Risiko","Synthese","Assistent","Zeit","Geld","Institution","Gegenmodell","Körper","Rang","Hypothese","Prüfer","Fortschritt","Loop","Anker","Offen"];
-const KEY="eulen-home-v6";
-let state=load(), active=-1, t=0, energy=0.35;
+const KEY="eulen-run-v1";
+const LAYERS=[[6,"#e4d2a6"],[6,"#7dd3c0"],[6,"#7dd3c0"],[6,"#e4d2a6"],[3,"#7dd3c0"]];
+let state=load(), active=0, t=0;
 const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
-const nodes=AGENTS.map((_,i)=>({i,ax:0.12+((i*37)%76)/100,ay:0.14+((i*53)%72)/100,p:(i*0.7)%6.2}));
-const edges=[]; for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) if((i*j)%5===0||j===i+1||j===i+4) edges.push([i,j,(i+j)%9/10]);
-function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),n:raw.n||0,sources:raw.sources||0,chat:raw.chat||[],goalIndex:raw.goalIndex||0};}catch{return {...createFreedomState({mode:"boden"}),n:0,sources:0,chat:[],goalIndex:0};}}
+function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));return {...createFreedomState(raw),n:raw.n||0,outputs:raw.outputs||[],log:raw.log||[]};}catch{return {...createFreedomState({mode:"boden"}),n:0,outputs:[],log:[]};}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
-function signals(){const out={};document.querySelectorAll("[data-signal]").forEach(input=>out[input.dataset.signal]=input.checked);return out;}
-function maybeGround(reason){const next=signals();if(shouldEnterGround(next)){state={...enterGroundMode({...state,signals:next},reason),n:state.n,sources:state.sources,chat:state.chat,goalIndex:state.goalIndex};persist();return true;}state.signals=next;persist();return false;}
-function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Nullwelt: Recht, Geld und Staat dürfen hier als Konstruktion erscheinen. Boden nur bei Körper, Sync oder Gerätewunsch.":g.why+" "+g.action;const n=state.n||0,p=n/(n+1);document.getElementById("formula").textContent=`P(sim)=${p.toFixed(3)} · Hypothese`;document.getElementById("progressBar").style.width=`${Math.round(p*100)}%`;document.getElementById("progressText").textContent=`N=${n} · Quellen ${state.sources||0} · Ziel ${(state.goalIndex||0)+1}/${GOALS.length}`;document.getElementById("goals").innerHTML=GOALS.map((goal,i)=>`<div class="goal${i===state.goalIndex?" on":""}">${goal}</div>`).join("");document.getElementById("chips").innerHTML=AGENTS.map((name,i)=>`<span class="chip${i===active?" on":""}">${name}</span>`).join("");document.getElementById("chat").innerHTML=(state.chat||[]).slice(-4).map(item=>`<p><b>${item.role}:</b> ${item.text}</p>`).join("");document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil&&Date.now()<Date.parse(state.groundUntil));}
-function pos(node,w,h){return {x:(node.ax+Math.sin(t*0.7+node.p)*0.035)*w,y:(node.ay+Math.cos(t*0.55+node.p)*0.04)*h};}
-function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);const pts=nodes.map(node=>pos(node,w,h));ctx.lineWidth=1;edges.forEach(([a,b,phase])=>{const A=pts[a],B=pts[b];ctx.strokeStyle="rgba(125,211,192,.28)";ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();const u=(t*0.35+phase)%1;ctx.fillStyle=a===active||b===active?"#7dd3c0":"#e4d2a6";ctx.beginPath();ctx.arc(A.x+(B.x-A.x)*u,A.y+(B.y-A.y)*u,2.4,0,6.3);ctx.fill();});pts.forEach((p,i)=>{const hot=i===active;ctx.beginPath();ctx.fillStyle=hot?"rgba(125,211,192,.25)":"rgba(228,210,166,.12)";ctx.arc(p.x,p.y,hot?16:9,0,6.3);ctx.fill();ctx.beginPath();ctx.fillStyle=hot?"#7dd3c0":"#e4d2a6";ctx.arc(p.x,p.y,hot?5.5:3.4,0,6.3);ctx.fill();});t+=0.016;if(active<0&&Math.random()<0.02)active=Math.floor(Math.random()*AGENTS.length);requestAnimationFrame(draw);}
-function say(role,text){state.chat=[...(state.chat||[]),{role,text}].slice(-20);}
-async function runAgents(question){energy=1;document.getElementById("netStatus").textContent="Suche läuft. Impulse dichter.";for(let i=0;i<AGENTS.length;i++){active=i;render();await new Promise(r=>setTimeout(r,35));}const sources=await discoverResearchSources(question);state.sources=(state.sources||0)+sources.length;state.n=(state.n||0)+1;document.getElementById("sources").innerHTML=sources.slice(0,6).map(item=>`<article class="source"><b>${item.title}</b><div class="muted">${item.provider}</div><p>${item.excerpt||""}</p></article>`).join("");say("Synthese",`${sources.length} Quellen. Konstruktion darf gelten. Wirkung bleibt benennbar.`);document.getElementById("learnStatus").textContent=`${sources.length} Quellen.`;document.getElementById("netStatus").textContent="Gespeichert. Netz läuft weiter.";persist();}
-document.getElementById("auto").onclick=async()=>{if(maybeGround("Auto während Warnzeichen."))return;const q=GOALS[state.goalIndex||0];state.goalIndex=((state.goalIndex||0)+1)%GOALS.length;try{await runAgents(q);}catch(e){document.getElementById("learnStatus").textContent=e.message||"Suche nicht erreichbar.";}};
-document.getElementById("learn").onclick=async()=>{if(maybeGround("Lernen während Warnzeichen."))return;const q=document.getElementById("question").value.trim();if(q.length<8)return;try{await runAgents(q);}catch(e){document.getElementById("learnStatus").textContent=e.message||"Suche nicht erreichbar.";}};
-document.getElementById("enterGround").onclick=()=>{state={...enterGroundMode(state,"Manuell."),n:state.n,sources:state.sources,chat:state.chat,goalIndex:state.goalIndex};persist();};
-document.getElementById("enterNullwelt").onclick=()=>{const result=enterNullweltMode(state);if(result.blocked){document.getElementById("modeText").textContent=result.message;return;}state={...result,n:state.n,sources:state.sources,chat:state.chat,goalIndex:state.goalIndex};persist();};
-document.getElementById("saveTransfer").onclick=()=>{if(maybeGround("Transfer während Warnzeichen."))return;const result=evaluateFreedomCycle({construction:construction.value,effect:effect.value,smallAction:action.value});document.getElementById("transferStatus").textContent=result.reason;if(!result.valid)return;state.n=(state.n||0)+1;say("Transfer",result.reason);persist();};
-document.getElementById("send").onclick=()=>{const text=document.getElementById("chatInput").value.trim();if(!text)return;say("Du",text);say("Assistent","In der Nullwelt darf Recht Konstruktion sein. Körper, Sync und Geräte bleiben Boden. "+text.slice(0,140));document.getElementById("chatInput").value="";persist();};
-document.querySelectorAll("[data-signal]").forEach(input=>input.addEventListener("change",()=>maybeGround("Warnzeichen.")));
+function signals(){const out={};document.querySelectorAll("[data-signal]").forEach(el=>out[el.dataset.signal]=el.checked);return out;}
+function render(){const g=freedomGuidance(state);const badge=document.getElementById("modeBadge");badge.textContent=state.mode==="nullwelt"?"NULLWELT":"BODEN";badge.className="badge "+(state.mode==="nullwelt"?"nullwelt":"boden");document.getElementById("modeText").textContent=state.mode==="nullwelt"?"Recht, Geld und Staat dürfen hier Konstruktion sein. Boden nur bei Körper, Sync oder Geräten.":g.why;const n=state.n||0;document.getElementById("formula").textContent=`P(sim)=${(n/(n+1)).toFixed(3)} · Hypothese`;document.getElementById("log").innerHTML=(state.log||[]).slice(-6).map(item=>`<div class="msg"><b>${item.role}</b><div>${item.text}</div></div>`).join("");document.getElementById("outputs").innerHTML=(state.outputs||[]).slice(0,4).map(item=>`<article class="msg"><b>${item.at.slice(0,16).replace("T"," ")}</b><div class="out">${item.text}${item.offer?"\n\nGeldspur: "+item.offer:""}</div></article>`).join("")||"Noch keine.";document.getElementById("enterNullwelt").disabled=Boolean(state.groundUntil&&Date.now()<Date.parse(state.groundUntil));}
+function draw(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);const cols=LAYERS.map((layer,ci)=>Array.from({length:layer[0]},(_,ri)=>({x:w*(0.12+ci*0.18),y:h*(0.16+ri*(0.68/(layer[0]-1||1))),c:layer[1]})));for(let c=0;c<cols.length-1;c++)cols[c].forEach(a=>cols[c+1].forEach(b=>{ctx.strokeStyle="rgba(125,211,192,.22)";ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();const u=(t*0.25+(a.y+b.x)/700)%1;ctx.fillStyle=a.c;ctx.beginPath();ctx.arc(a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u,1.8,0,6.3);ctx.fill();}));cols.flat().forEach(node=>{ctx.beginPath();ctx.fillStyle=node.c;ctx.arc(node.x,node.y,active?4.2:3.4,0,6.3);ctx.fill();});t+=0.016;requestAnimationFrame(draw);}
+function say(role,text){state.log=[{role,text},...(state.log||[])].slice(0,12);}
+function compose(question,sources){const fact=sources.find(item=>item.kind==="fact")||sources[0];const social=sources.find(item=>item.kind==="social");const title=fact?fact.title:"keine externe Quelle";return [`Konstruktion: ${question} darf als gemacht gelten.` , `Wirkung: ${title} benennt eine Spur, Soziales bleibt Meinung${social?" ("+social.provider+")":"."}` , `Handlung: einen Satz daraus schreiben, den jemand ohne Gespräch lesen kann.`].join("\n");}
+async function run(question){const next=signals();if(shouldEnterGround(next)){state={...enterGroundMode({...state,signals:next},"Warnzeichen."),n:state.n,outputs:state.outputs,log:state.log};persist();document.getElementById("status").textContent="Risiko stoppt den Lauf.";return;}document.getElementById("status").textContent="Ziel setzt die Frage.";say("Ziel",question);await new Promise(r=>setTimeout(r,250));document.getElementById("status").textContent="Quellen holt Belege.";let sources=[];try{sources=await discoverResearchSources(question);}catch(e){say("Quellen",e.message||"Keine Quelle erreichbar.");}say("Quellen",sources.length?sources.slice(0,3).map(item=>item.provider+": "+item.title).join(" · "):"Keine externe Quelle. Trotzdem intern weiter.");await new Promise(r=>setTimeout(r,250));say("Gegenmodell","Die schöne Lesart kann falsch sein. Diskussion ist kein Beweis. Spürbares wie Miete bleibt benennbar.");await new Promise(r=>setTimeout(r,250));const text=compose(question,sources);say("Synthese",text);const output={at:new Date().toISOString(),question,text,offer:""};state.outputs=[output,...(state.outputs||[])].slice(0,12);state.n=(state.n||0)+1;document.getElementById("status").textContent="Ausgabe gespeichert.";persist();}
+document.getElementById("run").onclick=()=>{const q=document.getElementById("question").value.trim();if(q.length<8){document.getElementById("status").textContent="Bitte eine konkrete Frage.";return;}run(q);};
+document.getElementById("saveOffer").onclick=()=>{const offer=document.getElementById("offer").value.trim();if(!state.outputs?.length||offer.length<8)return;state.outputs[0].offer=offer;persist();};
+document.getElementById("enterGround").onclick=()=>{state={...enterGroundMode(state,"Manuell."),n:state.n,outputs:state.outputs,log:state.log};persist();};
+document.getElementById("enterNullwelt").onclick=()=>{const result=enterNullweltMode(state);if(result.blocked){document.getElementById("modeText").textContent=result.message;return;}state={...result,n:state.n,outputs:state.outputs,log:state.log};persist();};
+document.querySelectorAll("[data-signal]").forEach(el=>el.addEventListener("change",()=>{const next=signals();if(shouldEnterGround(next)){state={...enterGroundMode({...state,signals:next},"Warnzeichen."),n:state.n,outputs:state.outputs,log:state.log};persist();}}));
 render();draw();
 </script>
 </body>
