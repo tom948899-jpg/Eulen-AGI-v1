@@ -4,56 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000">
-<title>EULEN v32</title>
+<title>EULEN v33</title>
 <link rel="icon" href="assets/icon.svg">
 <style>
 :root{color-scheme:dark;--gold:#f0c84a;--teal:#2de2d0;--text:#f6f1e8;--muted:#9aa59f}
 *{box-sizing:border-box}body{margin:0;background:#000;color:var(--text);font:16px/1.45 system-ui,sans-serif}
 main{max-width:680px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px 140px}
 .kicker{letter-spacing:.18em;font-size:.68rem;color:var(--teal)}h1{font:500 2rem Georgia,serif;margin:.2rem 0 1rem}
-.stage{height:240px;background:#000;border-radius:20px;overflow:hidden;margin:0 0 14px}canvas{width:100%;height:100%;display:block}
-.card{background:#0c1013;border:1px solid #1c2826;border-radius:18px;padding:14px;margin:0 0 10px}h2{margin:0 0 6px;font-size:.95rem;color:var(--gold)}p{margin:0;color:var(--muted)}
+.card{background:#0c1013;border:1px solid #1c2826;border-radius:18px;padding:14px;margin:0 0 10px}h2{margin:0 0 6px;font-size:.95rem;color:var(--gold)}p,.out{margin:0;color:var(--muted)}.out{color:var(--text);white-space:pre-wrap}
 textarea,button{font:inherit}textarea{width:100%;min-height:84px;margin:12px 0;background:#07090c;color:var(--text);border:1px solid #24302e;border-radius:16px;padding:14px}
-button{width:100%;border:0;border-radius:16px;padding:14px;font-weight:700;background:var(--teal);color:#04211e}.out{white-space:pre-wrap;margin-top:8px;color:var(--text)}
+button{width:100%;border:0;border-radius:16px;padding:14px;font-weight:700;background:var(--teal);color:#04211e;margin-top:8px}.ghost{background:#1c2628;color:var(--text)}
 </style>
 </head>
 <body>
 <main>
-<div class="kicker">EULEN v32 · QUELLE GEPRÜFT</div>
+<div class="kicker">EULEN v33 · ABLEGEN</div>
 <h1>Mensch vor Person</h1>
-<div class="stage"><canvas id="net"></canvas></div>
-<article class="card"><h2>Kern</h2><p>Zeichen, Annahme, Grenze. Eine Quelle zählt nur mit https, Titel, Auszug und Treffer auf die Frage. Diskussion ist kein Beleg.</p></article>
-<textarea id="question" placeholder="Satz oder Frage"></textarea>
-<button id="run" type="button">Prüfen und Angebot schreiben</button>
-<article class="card" id="out"><h2>Ausgabe</h2><p>Noch keine.</p></article>
+<article class="card"><h2>Kern</h2><p>Geld ist Charta. Fällig bleibt, was eine Kasse in Euro nimmt. Der Ausgang ist ein Satz, den jemand ohne Gespräch annehmen kann.</p></article>
+<textarea id="question">Geld ist Charta, was ist trotzdem fällig?</textarea>
+<button id="run" type="button">Angebotssatz machen</button>
+<article class="card" id="out"><h2>Zum Ablegen</h2><p>Noch keiner.</p></article>
+<button class="ghost" id="copy" type="button">Satz kopieren</button>
 </main>
 <script type="module">
-import { discoverResearchSources } from "./src/providers.js?v=32";
-import { keepValidSources, validateResearchSource } from "./src/source-check.js";
-const canvas=document.getElementById("net"), ctx=canvas.getContext("2d");
-let t=0;
-function draw(){
- const r=canvas.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2);
- canvas.width=r.width*dpr; canvas.height=r.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
- const w=r.width,h=r.height; ctx.fillStyle="#000"; ctx.fillRect(0,0,w,h);
- const cols=[[6,"#f0c84a"],[6,"#2de2d0"],[6,"#f0c84a"],[4,"#2de2d0"]].map((layer,ci)=>Array.from({length:layer[0]},(_,ri)=>({x:w*(0.12+ci*0.24),y:h*(0.16+ri*(0.68/(layer[0]-1))),c:layer[1]})));
- for(let c=0;c<cols.length-1;c++) cols[c].forEach(a=>cols[c+1].forEach(b=>{ctx.strokeStyle=a.c;ctx.globalAlpha=.32;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo((a.x+b.x)/2,(a.y+b.y)/2,b.x,b.y);ctx.stroke();}));
- ctx.globalAlpha=1; cols.flat().forEach(n=>{ctx.shadowColor=n.c;ctx.shadowBlur=18;ctx.fillStyle=n.c;ctx.beginPath();ctx.arc(n.x,n.y,8,0,6.3);ctx.fill();ctx.shadowBlur=0;});
- t+=.016; requestAnimationFrame(draw);
-}
+import { discoverResearchSources } from "./src/providers.js?v=33";
+import { keepValidSources } from "./src/source-check.js";
+let offer="";
 document.getElementById("run").onclick=async()=>{
- const q=document.getElementById("question").value.trim();
- if(q.length<4) return;
- document.getElementById("out").innerHTML="<h2>Ausgabe</h2><p>Prüfe Quellen.</p>";
- let raw=[]; try{ raw=await discoverResearchSources(q);}catch(e){ raw=[]; }
- const valid=keepValidSources(raw,q);
- const dropped=raw.length-valid.length;
- const top=valid[0];
- const opinion=raw.find(item=>validateResearchSource(item,q).usableAsOpinion);
- const text=`Zeichen: ${q} trifft die Maske. Geld darin ist Charta.\nAnnahme: ${top?top.title:"keine gültige Quelle. Kein Beleg erfunden."}\nVerworfen: ${dropped} Treffer ohne https, Auszug oder Fragebezug.\nMeinung, kein Beleg: ${opinion?opinion.title:"keine"}\nGrenze: Trennung unvollständig. Essen und Miete bleiben.\nAngebot: Vorlage aus dem geprüften Satz, asynchron, 15 Euro.`;
- document.getElementById("out").innerHTML=`<h2>Ausgabe</h2><div class="out">${text}</div>`;
+ const q=document.getElementById("question").value.trim()||"Geld ist Charta";
+ document.getElementById("out").innerHTML="<h2>Zum Ablegen</h2><p>Prüfe.</p>";
+ let n=0; try{ n=keepValidSources(await discoverResearchSources(q), q).length;}catch{ n=0; }
+ offer=`Geld ist Charta, kein Stoff. Fällig bleibt, was eine Kasse in Euro nimmt: Miete, Essen, der Vertrag.\n\nVorlage: drei Sätze dazu, asynchron, 15 Euro. Der Preis gilt, wenn du ihn annimmst.\n\nGeprüfte Quellen zu dieser Frage: ${n}.`;
+ document.getElementById("out").innerHTML=`<h2>Zum Ablegen</h2><div class="out">${offer}</div>`;
 };
-draw();
+document.getElementById("copy").onclick=async()=>{ if(!offer) return; try{ await navigator.clipboard.writeText(offer); document.getElementById("copy").textContent="Kopiert"; }catch{ document.getElementById("copy").textContent="Bitte von Hand markieren"; } };
 </script>
 </body>
 </html>
